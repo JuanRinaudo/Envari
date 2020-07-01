@@ -1,4 +1,5 @@
-#pragma once
+#if !defined(DEFINES_H)
+#define DEFINES_H
 
 #if __EMSCRIPTEN__
     #if GAME_SLOW
@@ -33,7 +34,7 @@ typedef int32_t i32;
 typedef int64_t i64;
 typedef i32 b32;
 
-typedef size_t memory_index;
+typedef size_t memoryIndex;
 
 typedef uint8_t u8;
 typedef uint16_t u16;
@@ -43,10 +44,11 @@ typedef uint64_t u64;
 typedef float f32;
 typedef double f64;
 
-#define Real32Maximum FLT_MAX
+#define F32Max FLT_MAX
+#define F64Max DBL_MAX
 
 /*
-    NOTE
+    #NOTE (Juan):
     GAME_INTERNAL:
         0 - Build for public release
         1 - Build for development
@@ -69,3 +71,5 @@ inline u32 SafeTruncateU64(u64 Value)
 #define Gigabytes(Value) (Megabytes(Value)*1024LL)
 #define Terabytes(Value) (Gigabytes(Value)*1024LL)
 #define ArrayCount(Array) (sizeof(Array) / sizeof((Array)[0]))
+
+#endif

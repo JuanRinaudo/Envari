@@ -2,12 +2,29 @@
 
 #include "GL3W/gl3w.c"
 
-#include "Global.h"
-#include "Game.cpp"
+#include "Defines.h"
+#include "GameMath.h"
+#include "Intrinsics.h"
+#include "Game.h"
+#include "GLRender.h"
 
 #include <GLFW/glfw3.h>
 
-using namespace std;
+#include "IMGUI/imgui.h"
+#include "IMGUI/imgui_impl_glfw.h"
+#include "IMGUI/imgui_impl_opengl3.h"
+
+GLFWwindow* Window;
+
+static void WindowResizeCallback(GLFWwindow* targetWindow, int width, int height)
+{
+    gameState->screen.width = width;
+    gameState->screen.height = height;
+    
+	lua["screen"]["width"] = (gameState->screen).width;
+	lua["screen"]["height"] = (gameState->screen).height;
+	lua["screen"]["refreshRate"] = (gameState->screen).refreshRate;
+}
 
 int CALLBACK WinMain(
     HINSTANCE Instance,
@@ -16,24 +33,30 @@ int CALLBACK WinMain(
     int ShowCode)
 {
 
-    vertexShaderSource = "#version 330 core\n"
-        "layout (location = 0) in vec3 aPos;\n"
-        "void main()\n"
-        "{\n"
-        "   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
-        "}\0";
+    gameMemory = malloc(Megabytes(128));
 
-    fragmentShaderSource = "#version 330 core\n"
-        "out vec4 FragColor; \n"
-        "void main()\n"
-        "{\n"
-        "    FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);\n"
-        "}\0";
+    gameState = (Data *)gameMemory;
+    gameState->memory.permanentStorageSize = Megabytes(32);
+    gameState->memory.temporalStorageSize = Megabytes(96);
+    gameState->memory.permanentStorage = gameMemory;
+    gameState->memory.temporalStorage = (u8 *)gameMemory + gameState->memory.permanentStorageSize;
+
+    temporalState = (TemporalData *)gameState->memory.temporalStorage;
+
+    const char* glsl_version = 0;
 
     if (!glfwInit())
         return -1;
 
-    Window = glfwCreateWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "OpenGL Test", NULL, NULL);
+    GLFWmonitor* mainMonitor = glfwGetPrimaryMonitor();
+    const GLFWvidmode* videoMode = glfwGetVideoMode( mainMonitor );
+
+    gameState->screen.width = FloorToInt(videoMode->width * .5f);
+    gameState->screen.height = FloorToInt(videoMode->height * .5f);
+    gameState->screen.refreshRate = videoMode->refreshRate;
+
+    Window = glfwCreateWindow(gameState->screen.width, gameState->screen.height, "OpenGL Test", NULL, NULL);
+    glfwSetWindowSizeCallback(Window, WindowResizeCallback);
 
     if (!Window)
     {
@@ -46,8 +69,23 @@ int CALLBACK WinMain(
 	if (gl3wInit()) {
 		return -1;
 	}
+    
+    // NOTE(Juan): Dear IMGUI
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO();
+    ImGui::StyleColorsDark();
+    ImGui_ImplGlfw_InitForOpenGL(Window, true);
+    ImGui_ImplOpenGL3_Init(glsl_version);
+
+    char *scriptsPath = "../../data/scripts/";
+    ScriptingInit(scriptsPath);
 
     GameInit();
+
+    GLInit();
+    coloredProgram = GLCompileProgram(vertexColored, fragmentColored);
+    texturedProgram = GLCompileProgram(vertexTextured, fragmentTextured);
 
     Running = true;
     while (Running)
@@ -56,18 +94,43 @@ int CALLBACK WinMain(
         glfwPollEvents();
 
         double gameTime = glfwGetTime();
-        global.time.gameTime = (float)gameTime;
-        global.time.deltaTime = (float)(gameTime - global.time.lastFrameGameTime);
+        gameState->time.gameTime = (f32)gameTime;
+        gameState->time.deltaTime = (f32)(gameTime - gameState->time.lastFrameGameTime);
 
-        global.time.lastFrameGameTime = global.time.gameTime;
+        gameState->time.lastFrameGameTime = gameState->time.gameTime;
 
         Running = !glfwWindowShouldClose(Window);
 
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+
+        ImGui::NewFrame();
+
+        ScriptingWatchChanges();
+
+        Begin2D();
+
         GameLoop();
+
+        GLRender();
+
+        End2D();
+
+        // Render dear imgui into screen
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+        glfwSwapBuffers(Window);
 
     }
 
     glfwTerminate();
+
+    GLEnd();
+
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
 
     GameEnd();
 

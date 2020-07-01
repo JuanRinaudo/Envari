@@ -1,149 +1,83 @@
-#include <iostream>
-#include <sstream>
-#include <math.h>
-#include <gl/gl.h>
-
-#if __EMSCRIPTEN__
-#include <GL/glew.h>
-#endif
-#include <GLFW/glfw3.h>
+#define SOL_ALL_SAFETIES_ON 1
 
 #include "IMGUI/imgui.h"
-#include "IMGUI/imgui_impl_glfw.h"
-#include "IMGUI/imgui_impl_opengl3.h"
+#include "LUA/sol.hpp"
 
 #include "Defines.h"
-#include "Global.h"
+#include "GameMath.h"
+#include "Intrinsics.h"
+#include "Render.h"
+#include "Scripting.h"
 
-using namespace std;
+static u32 GameInit() {
 
-int GameInit() {
+    InitializeArena(&temporalState->temporalArena, (memoryIndex)(gameState->memory.temporalStorageSize - sizeof(TemporalData)), (u8 *)gameState->memory.temporalStorageSize + sizeof(TemporalData));
 
-    f32 vertices[] = {
-        -0.5f, -0.5f, 0.0f,
-         0.5f, -0.5f, 0.0f,
-         0.0f,  0.5f, 0.0f
-    };
+    console.InitConsole();
 
-    u32 indices[] = {  // note that we start from 0!
-        0, 1, 3,   // first triangle
-        1, 2, 3    // second triangle
-    };
-
-    const char* glsl_version = "#version 150";
+    gameState->demo.backgroundR = true;
+    gameState->demo.backgroundG = true;
+    gameState->demo.backgroundB = true;
+    gameState->demo.colorSpeed = 1.0f;
+    gameState->demo.triangleTopX = 0.0f;
+    gameState->demo.renderColor = V4(1, 1, 1, 1);
     
-    // NOTE(Juan): Dear IMGUI
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO();
-    ImGui::StyleColorsDark();
-    ImGui_ImplGlfw_InitForOpenGL(Window, true);
-    ImGui_ImplOpenGL3_Init(glsl_version);
-
-    // NOTE(Juan): GLEW Triangle
-    glGenBuffers(1, &VBO);
-    glGenVertexArrays(1, &VAO);
-
-    glBindVertexArray(VAO);
-
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-
-    u32 vertexShader;
-    vertexShader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
-    glCompileShader(vertexShader);
-
-    i32 success;
-    char infoLog[512];
-    glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
-
-    if (!success)
-    {
-        glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
-        cout << "ERROR::VERTEX::COMPILATION_FAILED\n" << infoLog << endl;
-    }
-
-    unsigned int fragmentShader;
-    fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
-    glCompileShader(fragmentShader);
-
-    if (!success)
-    {
-        glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
-        cout << "ERROR::FRAGMENT::COMPILATION_FAILED\n" << infoLog << endl;
-    }
-
-    shaderProgram = glCreateProgram();
-
-    glAttachShader(shaderProgram, vertexShader);
-    glAttachShader(shaderProgram, fragmentShader);
-    glLinkProgram(shaderProgram);
-
-    glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
-    if (!success) {
-        glGetProgramInfoLog(shaderProgram, 512, NULL, infoLog);
-        cout << "ERROR::PROGRAM::COMPILATION_FAILED\n" << infoLog << endl;
-    }
-
-    glDeleteShader(vertexShader);
-    glDeleteShader(fragmentShader);
-
     return 0;
 
 }
 
-int GameLoop() {
+static u32 GameLoop() {
 
-    float fps = (float)(1 / global.time.deltaTime);
+    f32 fps = (f32)(1 / gameState->time.deltaTime);
 
-    std::ostringstream ss;
-    ss << "TIME: " << global.time.gameTime << " | DELTA TIME: " << global.time.deltaTime << " | FPS: " << fps << endl;
-    //SDL_SetWindowTitle(Window, ss.str().c_str());
+    // ss << "TIME: " << global.time.gameTime << " | DELTA TIME: " << global.time.deltaTime << " | FPS: " << fps << endl;
 
-    // feed inputs to dear imgui, start new frame
-    ImGui_ImplOpenGL3_NewFrame();
-    ImGui_ImplGlfw_NewFrame();
-    ImGui::NewFrame();
+    f32 clearR = Abs(Sin(gameState->time.gameTime * gameState->demo.colorSpeed) * gameState->demo.backgroundR);
+    f32 clearG = Abs(Cos(gameState->time.gameTime * gameState->demo.colorSpeed) * gameState->demo.backgroundG);
+    f32 clearB = Abs((Sin(gameState->time.gameTime * gameState->demo.colorSpeed) + Cos(gameState->time.gameTime * gameState->demo.colorSpeed)) * 0.5f * gameState->demo.backgroundB);
 
-    glViewport(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
-    glClearColor(abs(sinf(global.time.gameTime)), 0.f, abs(cosf(global.time.gameTime)), 0.f);
-    glClear(GL_COLOR_BUFFER_BIT);
+    console.Draw("Example: Console", &consoleOpen);
 
-    ImGui::ShowDemoWindow();
-    // render your GUI
-    ImGui::Begin("MyWindow");
-    ImGui::Checkbox("Boolean property", &test);
-    if (ImGui::Button("Reset Speed")) {
-        // This code is executed when the user clicks the button
-        testSpeed = 0;
+    PushClear(clearR, clearG, clearB);
+    PushColor(gameState->demo.renderColor.r, gameState->demo.renderColor.g, gameState->demo.renderColor.b, gameState->demo.renderColor.a);
+    //PushTriangle(V2(0, 0), V2(-0.5f, -0.5f), V2(0.5f, -0.5f), V2(gameState->demo.triangleTopX,  0.5f));
+    // PushRectangle(V2(0, 0), V2(Sin(gameState->time.gameTime), Cos(gameState->time.gameTime)));
+    //PushImage(V2(0, 0), V2(1, 1), "images/sprite_female_mage_angry01.png");
+
+    sol::protected_function Update(lua["Update"]);
+    if(Update.valid()) {
+        Update();
     }
-    ImGui::SliderFloat("Speed", &testSpeed, 0.0f, 10.0f);
+    else {
+        
+    }
+
+    // ImGui::ShowDemoWindow();
+    // NOTE(Juan): IMGUI
+    ImGui::Begin("OpenGL Test");
+    ImGui::LabelText("", "Width: %d | Height: %d", gameState->screen.width, gameState->screen.height);
+    ImGui::LabelText("", "Background color looping");
+    ImGui::Checkbox("Color R", (bool *)(&gameState->demo.backgroundR));
+    ImGui::Checkbox("Color G", (bool *)(&gameState->demo.backgroundG));
+    ImGui::Checkbox("Color B", (bool *)(&gameState->demo.backgroundB));
+    
+    if (ImGui::Button("Reset Top X")) {
+        gameState->demo.triangleTopX = 0.0f;
+    }
+    ImGui::SliderFloat("Top X", &gameState->demo.triangleTopX, -0.5f, 0.5f);
+    ImGui::ColorPicker4("Render Color", (f32 *)&gameState->demo.renderColor.E, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoSidePreview);
+
+    if (ImGui::Button("Reset Speed")) {
+        gameState->demo.colorSpeed = 1.0f;
+    }
+    ImGui::SliderFloat("Speed", &gameState->demo.colorSpeed, 0.0f, 10.0f);
     ImGui::End();
 
-    glUseProgram(shaderProgram);
-    glBindVertexArray(VAO);
-    glDrawArrays(GL_TRIANGLES, 0, 3);
-
-    // Render dear imgui into screen
-    ImGui::Render();
-    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-
-    glfwSwapBuffers(Window);
-
     return 0;
 
 }
 
-int GameEnd()
+static u32 GameEnd()
 {
-    ImGui_ImplOpenGL3_Shutdown();
-    ImGui_ImplGlfw_Shutdown();
-    ImGui::DestroyContext();
-
     return 0;
 }
