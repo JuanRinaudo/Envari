@@ -5,6 +5,16 @@
 #include "Editor.h"
 #include "LUA/sol.hpp"
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "STB/stb_image.h"
+#define STB_DS_IMPLEMENTATION
+#include "STB/stb_ds.h"
+
+#if !defined(STB_TRUETYPE_IMPLEMENTATION)
+#define STB_TRUETYPE_IMPLEMENTATION
+#include "STB/stb_truetype.h"
+#endif
+
 struct MemoryArena {
     memoryIndex size;
     u8 *base;
@@ -31,15 +41,29 @@ inline void ZeroSize(memoryIndex size, void *pointer)
 }
 
 #define PushStruct(arena, type) (type *)PushSize_(arena, sizeof(type))
-#define PushArray(arena, Count, type) (type *)PushSize_(arena, ((Count)*sizeof(type)))
-#define PushSize(arena, Size) PushSize_(arena, Size)
-static void* PushSize_(MemoryArena *arena, memoryIndex Size)
+#define PushArray(arena, count, type) (type *)PushSize_(arena, ((count)*sizeof(type)))
+#define PushSize(arena, size) PushSize_(arena, size)
+static void* PushSize_(MemoryArena *arena, memoryIndex size)
 {
-    Assert(arena->used + Size < arena->size);
+    Assert(arena->used + size < arena->size);
     void *result = arena->base + arena->used;
-    arena->used += Size;
+    arena->used += size;
 
     return(result);
+}
+
+static char* PushString(MemoryArena *arena, const char* string, u32 *stringSize)
+{
+    u32 size = strlen(string) + 1;
+    *stringSize = size;
+
+    Assert(arena->used + size < arena->size);
+
+    char *result = (char*)PushSize(arena, sizeof(char) * size);
+    strcpy(result, string);
+    arena->used += size;
+
+    return result;
 }
 
 static void InitializeArena(MemoryArena *arena, memoryIndex size, void *base)
@@ -61,11 +85,11 @@ static TemporaryMemory BeginTemporaryMemory(MemoryArena *arena)
     return(result);
 }
 
-static void EndTemporaryMemory(TemporaryMemory tempMemory)
+static void EndTemporaryMemory(TemporaryMemory *tempMemory)
 {
-    MemoryArena *arena = tempMemory.arena;
-    Assert(arena->used >= tempMemory.used);
-    arena->used = tempMemory.used;
+    MemoryArena *arena = tempMemory->arena;
+    Assert(arena->used >= tempMemory->used);
+    arena->used -= tempMemory->used;
     Assert(arena->tempCount > 0);
     --arena->tempCount;
 }
@@ -79,6 +103,13 @@ struct Screen {
 	int refreshRate;
 	int width;
 	int height;
+};
+
+struct Camera {
+    f32 size;
+    f32 ratio;
+    f32 nearPlane;
+    f32 farPlane;
 };
 
 struct TimeData {
@@ -104,6 +135,7 @@ struct DemoData {
 };
 
 struct Data {
+    Camera camera;
 	Screen screen;
 	TimeData time;
 	Memory memory;
@@ -111,9 +143,14 @@ struct Data {
     DemoData demo;
 };
 
+struct PermanentData {
+	b32 initialized;
+    MemoryArena arena;
+};
+
 struct TemporalData {
 	b32 initialized;
-    MemoryArena temporalArena;
+    MemoryArena arena;
 };
 
 sol::state lua;
@@ -123,6 +160,7 @@ bool consoleOpen;
 
 void *gameMemory;
 Data *gameState;
+PermanentData *permanentState;
 TemporalData *temporalState;
 TemporaryMemory renderTemporaryMemory;
 

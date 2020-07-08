@@ -41,6 +41,11 @@ struct EnvariConsole
         Items.clear();
     }
 
+    void    AddLogSimple(const char* log)
+    {
+        Items.push_back(Strdup(log));
+    }
+
     void    AddLog(const char* fmt, ...) IM_FMTARGS(2)
     {
         // FIXME-OPT

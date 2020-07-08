@@ -10,7 +10,7 @@ union v2
     {
         f32 x, y;
     };
-    f32 E[2];
+    f32 e[2];
 };
 
 union v3
@@ -28,7 +28,7 @@ union v3
         v2 xy;
         f32 IgnoredZ_;
     };
-    f32 E[3];
+    f32 e[3];
 };
 
 union v4
@@ -41,565 +41,575 @@ union v4
     {
         f32 r, g, b, a;
     };
-    f32 E[4];
+    f32 e[4];
 };
 
-static v2 V2(f32 X, f32 Y)
+static v2 V2(f32 x, f32 y)
 {
-    v2 Result;
+    v2 result;
 
-    Result.x = X;
-    Result.y = Y;
+    result.x = x;
+    result.y = y;
 
-    return(Result);
+    return(result);
 }
 
-static v2 V2i(i32 X, i32 Y)
+static v2 V2i(i32 x, i32 y)
 {
-    v2 Result = V2((f32)X, (f32)Y);
+    v2 result = V2((f32)x, (f32)y);
 
-    return(Result);
+    return(result);
 }
 
-static v2 V2i(u32 X, u32 Y)
+static v2 V2i(u32 x, u32 y)
 {
-    v2 Result = V2((f32)X, (f32)Y);
+    v2 result = V2((f32)x, (f32)y);
 
-    return(Result);
+    return(result);
 }
 
-static v3 V3(f32 X, f32 Y, f32 Z)
+static v3 V3(f32 x, f32 y, f32 z)
 {
-    v3 Result;
+    v3 result;
 
-    Result.x = X;
-    Result.y = Y;
-    Result.z = Z;
+    result.x = x;
+    result.y = y;
+    result.z = z;
 
-    return(Result);
+    return(result);
 }
 
-static v4 V4(f32 X, f32 Y, f32 Z, f32 W)
+static v4 V4(f32 x, f32 y, f32 z, f32 w)
 {
-    v4 Result;
+    v4 result;
 
-    Result.x = X;
-    Result.y = Y;
-    Result.z = Z;
-    Result.w = W;
+    result.x = x;
+    result.y = y;
+    result.z = z;
+    result.w = w;
 
-    return(Result);
+    return(result);
 }
 
-// NOTE(Juan): Scalar operations
+// #NOTE(Juan): Scalar operations
 
-static f32 Lerp(f32 A, f32 B, f32 t)
+static f32 Lerp(f32 a, f32 b, f32 t)
 {
-    f32 Result = (1.0f - t) * A + t * B;
+    f32 result = (1.0f - t) * a + t * b;
 
-    return(Result);
+    return(result);
 }
 
-static f32 Clamp(f32 Value, f32 Min, f32 Max)
+static f32 Clamp(f32 value, f32 min, f32 max)
 {
-    f32 Result = Value;
+    f32 result = value;
 
-    if(Result < Min) {
-        Result = Min;
-    } else if(Result > Max) {
-        Result = Max;
+    if(result < min) {
+        result = min;
+    } else if(result > max) {
+        result = max;
     }
 
-    return(Result);
+    return(result);
 }
 
-static f32 Clamp01(f32 Value)
+static f32 Clamp01(f32 value)
 {
-    f32 Result = Clamp(Value, 0, 1);
+    f32 result = Clamp(value, 0, 1);
 
-    return(Result);
+    return(result);
 }
 
-static f32 SafeRatioN(f32 Numerator, f32 Divisor, f32 N)
+static f32 SafeRatioN(f32 numerator, f32 divisor, f32 n)
 {
-    f32 Result = N;
+    f32 result = n;
 
-    if(Divisor != 0.0f) {
-        Result = Numerator / Divisor;
+    if(divisor != 0.0f) {
+        result = numerator / divisor;
     }
 
-    return(Result);
+    return(result);
 }
 
-static f32 SafeRatio0(f32 Numerator, f32 Divisor)
+static f32 SafeRatio0(f32 numerator, f32 divisor)
 {
-    f32 Result = SafeRatioN(Numerator, Divisor, 0);
+    f32 result = SafeRatioN(numerator, divisor, 0);
 
-    return(Result);
+    return(result);
 }
 
-static f32 SafeRatio1(f32 Numerator, f32 Divisor)
+static f32 SafeRatio1(f32 numerator, f32 divisor)
 {
-    f32 Result = SafeRatioN(Numerator, Divisor, 1);
+    f32 result = SafeRatioN(numerator, divisor, 1);
 
-    return(Result);
+    return(result);
 }
 
-// NOTE(Juan): v2 operations
+// #NOTE(Juan): v2 operations
 
-static v2 operator * (f32 A, v2 B)
+static v2 operator * (f32 a, v2 b)
 {
-    v2 Result;
+    v2 result;
 
-    Result.x = A * B.x;
-    Result.y = A * B.y;
+    result.x = a * b.x;
+    result.y = a * b.y;
 
-    return(Result);
+    return(result);
 }
 
-static v2 operator * (v2 B, f32 A)
+static v2 operator * (v2 b, f32 a)
 {
-    v2 Result = A * B;
+    v2 result = a * b;
 
-    return(Result);
+    return(result);
 }
 
-static v2 &operator *= (v2 &A, f32 B)
+static v2 &operator *= (v2 &a, f32 b)
 {
-    A = B * A;
+    a = b * a;
 
-    return(A);
+    return(a);
 }
 
-static v2 operator - (v2 A)
+static v2 operator - (v2 a)
 {
-    v2 Result;
+    v2 result;
 
-    Result.x = -A.x;
-    Result.y = -A.y;
+    result.x = -a.x;
+    result.y = -a.y;
 
-    return(Result);
+    return(result);
 }
 
-static v2 operator + (v2 A, v2 B)
+static v2 operator + (v2 a, v2 b)
 {
-    v2 Result;
+    v2 result;
 
-    Result.x = A.x + B.x;
-    Result.y = A.y + B.y;
+    result.x = a.x + b.x;
+    result.y = a.y + b.y;
 
-    return(Result);
+    return(result);
 }
 
-static v2 &operator += (v2 &A, v2 B)
+static v2 &operator += (v2 &a, v2 b)
 {
-    A = A + B;
+    a = a + b;
 
-    return(A);
+    return(a);
 }
 
-static v2 operator - (v2 A, v2 B)
+static v2 operator - (v2 a, v2 b)
 {
-    v2 Result;
+    v2 result;
 
-    Result.x = A.x - B.x;
-    Result.y = A.y - B.y;
+    result.x = a.x - b.x;
+    result.y = a.y - b.y;
 
-    return(Result);
+    return(result);
 }
 
-static v2 &operator -= (v2 &A, v2 B)
+static v2 &operator -= (v2 &a, v2 b)
 {
-    A = A - B;
+    a = a - b;
 
-    return(A);
+    return(a);
 }
 
-static v2 Hadamard(v2 A, v2 B)
+static v2 Hadamard(v2 a, v2 b)
 {
-    v2 Result = {A.x * B.x, A.y * B.y};
+    v2 result = {a.x * b.x, a.y * b.y};
 
-    return(Result);
+    return(result);
 }
 
-static v2 Perpendicular(v2 A) 
+static v2 Perpendicular(v2 a) 
 {
-    v2 Result = V2(-A.y, A.x);
+    v2 result = V2(-a.y, a.x);
 
-    return(Result);
+    return(result);
 }
 
-static f32 Dot(v2 A, v2 B)
+static f32 Dot(v2 a, v2 b)
 {
-    f32 Result = A.x * B.x + A.y * B.y;
+    f32 result = a.x * b.x + a.y * b.y;
 
-    return(Result);
+    return(result);
 }
 
-static f32 LengthSq(v2 A)
+static f32 LengthSq(v2 a)
 {
-    f32 Result = Dot(A, A);
+    f32 result = Dot(a, a);
 
-    return(Result);
+    return(result);
 }
 
-static f32 Length(v2 A)
+static f32 Length(v2 a)
 {
-    f32 Result = SquareRoot(LengthSq(A));
+    f32 result = SquareRoot(LengthSq(a));
 
-    return(Result);
+    return(result);
 }
 
-static v2 Clamp01(v2 Value)
+static v2 Clamp01(v2 value)
 {
-    v2 Result;
+    v2 result;
 
-    Result.x = Clamp01(Value.x);
-    Result.y = Clamp01(Value.y);
+    result.x = Clamp01(value.x);
+    result.y = Clamp01(value.y);
 
-    return(Result);
+    return(result);
 }
 
-// NOTE(Juan): v3 operations
+// #NOTE(Juan): v3 operations
 
-static v3 operator * (f32 A, v3 B)
+static v3 operator * (f32 a, v3 b)
 {
-    v3 Result;
+    v3 result;
 
-    Result.x = A * B.x;
-    Result.y = A * B.y;
-    Result.z = A * B.z;
+    result.x = a * b.x;
+    result.y = a * b.y;
+    result.z = a * b.z;
 
-    return(Result);
+    return(result);
 }
 
-static v3 operator * (v3 B, f32 A)
+static v3 operator * (v3 b, f32 a)
 {
-    v3 Result = A * B;
+    v3 result = a * b;
 
-    return(Result);
+    return(result);
 }
 
-static v3 &operator *= (v3 &A, f32 B)
+static v3 &operator *= (v3 &a, f32 b)
 {
-    A = B * A;
+    a = b * a;
 
-    return(A);
+    return(a);
 }
 
-static v3 operator - (v3 A)
+static v3 operator - (v3 a)
 {
-    v3 Result;
+    v3 result;
 
-    Result.x = -A.x;
-    Result.y = -A.y;
-    Result.z = -A.z;
+    result.x = -a.x;
+    result.y = -a.y;
+    result.z = -a.z;
 
-    return(Result);
+    return(result);
 }
 
-static v3 operator + (v3 A, v3 B)
+static v3 operator + (v3 a, v3 b)
 {
-    v3 Result;
+    v3 result;
 
-    Result.x = A.x + B.x;
-    Result.y = A.y + B.y;
-    Result.z = A.z + B.z;
+    result.x = a.x + b.x;
+    result.y = a.y + b.y;
+    result.z = a.z + b.z;
 
-    return(Result);
+    return(result);
 }
 
-static v3 &operator += (v3 &A, v3 B)
+static v3 &operator += (v3 &a, v3 b)
 {
-    A = A + B;
+    a = a + b;
 
-    return(A);
+    return(a);
 }
 
-static v3 operator - (v3 A, v3 B)
+static v3 operator - (v3 a, v3 b)
 {
-    v3 Result;
+    v3 result;
 
-    Result.x = A.x - B.x;
-    Result.y = A.y - B.y;
-    Result.z = A.z - B.z;
+    result.x = a.x - b.x;
+    result.y = a.y - b.y;
+    result.z = a.z - b.z;
 
-    return(Result);
+    return(result);
 }
 
-static v3 &operator -= (v3 &A, v3 B)
+static v3 &operator -= (v3 &a, v3 b)
 {
-    A = A - B;
+    a = a - b;
 
-    return(A);
+    return(a);
 }
 
-static v3 Hadamard(v3 A, v3 B)
+static v3 Hadamard(v3 a, v3 b)
 {
-    v3 Result = {A.x * B.x, A.y * B.y, A.z * B.z};
+    v3 result = {a.x * b.x, a.y * b.y, a.z * b.z};
 
-    return(Result);
+    return(result);
 }
 
-static f32 Dot(v3 A, v3 B)
+static f32 Dot(v3 a, v3 b)
 {
-    f32 Result = A.x * B.x + A.y * B.y + A.z * B.z;
+    f32 result = a.x * b.x + a.y * b.y + a.z * b.z;
 
-    return(Result);
+    return(result);
 }
 
-static f32 LengthSq(v3 A)
+static f32 LengthSq(v3 a)
 {
-    f32 Result = Dot(A, A);
+    f32 result = Dot(a, a);
 
-    return(Result);
+    return(result);
 }
 
-static f32 Length(v3 A)
+static f32 Length(v3 a)
 {
-    f32 Result = SquareRoot(LengthSq(A));
+    f32 result = SquareRoot(LengthSq(a));
 
-    return(Result);
+    return(result);
 }
 
-static v3 Clamp01(v3 Value)
+static v3 Clamp01(v3 value)
 {
-    v3 Result;
+    v3 result;
 
-    Result.x = Clamp01(Value.x);
-    Result.y = Clamp01(Value.y);
-    Result.z = Clamp01(Value.z);
+    result.x = Clamp01(value.x);
+    result.y = Clamp01(value.y);
+    result.z = Clamp01(value.z);
 
-    return(Result);
+    return(result);
 }
 
-// NOTE(Juan): rectangle2
+// #NOTE(Juan): rectangle2
 
 struct rectangle2
 {
-    v2 Min;
-    v2 Max;
+    v2 min;
+    v2 max;
 };
 
-static v2 GetMinCorner(rectangle2 Rect)
+static v2 GetMinCorner(rectangle2 rectangle)
 {
-    v2 Result = Rect.Min;
-    return(Result);
+    v2 result = rectangle.min;
+    return(result);
 }
 
-static v2 GetMaxCorner(rectangle2 Rect)
+static v2 GetMaxCorner(rectangle2 rectangle)
 {
-    v2 Result = Rect.Max;    
-    return(Result);
+    v2 result = rectangle.max;    
+    return(result);
 }
 
-static v2 GetCenter(rectangle2 Rect)
+static v2 GetCenter(rectangle2 rectangle)
 {
-    v2 Result = 0.5f * (Rect.Min + Rect.Max);
-    return(Result);
+    v2 result = 0.5f * (rectangle.min + rectangle.max);
+    return(result);
 }
 
-static rectangle2 RectMinDim(v2 Min, v2 Dim)
+static rectangle2 Rectangle2(f32 x, f32 y, f32 width, f32 height)
 {
-    rectangle2 Result;
+    rectangle2 result;
 
-    Result.Min = Min;
-    Result.Max = Min + Dim;
+    result.min = V2(x, y);
+    result.max = V2(x + width, y + height);
 
-    return(Result);
+    return result;
 }
 
-static rectangle2 RectMinMax(v2 Min, v2 Max)
+static rectangle2 RectMinDim(v2 min, v2 dim)
 {
-    rectangle2 Result;
+    rectangle2 result;
 
-    Result.Min = Min;
-    Result.Max = Max;
+    result.min = min;
+    result.max = min + dim;
 
-    return(Result);
+    return(result);
 }
 
-static rectangle2 RectCenterHalfDim(v2 Center, v2 HalfDim)
+static rectangle2 RectMinMax(v2 min, v2 max)
 {
-    rectangle2 Result;
+    rectangle2 result;
 
-    Result.Min = Center - HalfDim;
-    Result.Max = Center + HalfDim;
+    result.min = min;
+    result.max = max;
 
-    return(Result);
+    return(result);
 }
 
-static rectangle2 RectCenterDim(v2 Center, v2 Dim)
+static rectangle2 RectCenterHalfDim(v2 center, v2 halfDim)
 {
-    rectangle2 Result = RectCenterHalfDim(Center, Dim * 0.5f);
+    rectangle2 result;
 
-    return(Result);
+    result.min = center - halfDim;
+    result.max = center + halfDim;
+
+    return(result);
 }
 
-static rectangle2 AddRadiusTo(rectangle2 Rectangle, v2 Radius)
+static rectangle2 RectCenterDim(v2 center, v2 dim)
 {
-    rectangle2 Result;
+    rectangle2 result = RectCenterHalfDim(center, dim * 0.5f);
 
-    Result.Min = Rectangle.Min - Radius;
-    Result.Max = Rectangle.Max + Radius;
-
-    return(Result);
+    return(result);
 }
 
-static rectangle2 Offset(rectangle2 Rectangle, v2 Offset)
+static rectangle2 AddRadiusTo(rectangle2 rectangle, v2 radius)
 {
-    rectangle2 Result;
+    rectangle2 result;
 
-    Result.Min = Rectangle.Min + Offset;
-    Result.Max = Rectangle.Max + Offset;
+    result.min = rectangle.min - radius;
+    result.max = rectangle.max + radius;
 
-    return(Result);
+    return(result);
 }
 
-static b32 IsInRectangle(rectangle2 Rectangle, v2 Test)
+static rectangle2 Offset(rectangle2 rectangle, v2 offset)
 {
-    b32 Result = (
-        Test.x >= Rectangle.Min.x && Test.y >= Rectangle.Min.y &&
-        Test.x < Rectangle.Max.x && Test.y < Rectangle.Max.y
+    rectangle2 result;
+
+    result.min = rectangle.min + offset;
+    result.max = rectangle.max + offset;
+
+    return(result);
+}
+
+static b32 IsInRectangle(rectangle2 rectangle, v2 test)
+{
+    b32 result = (
+        test.x >= rectangle.min.x && test.y >= rectangle.min.y &&
+        test.x < rectangle.max.x && test.y < rectangle.max.y
     );
 
-    return(Result);
+    return(result);
 }
 
-static v2 GetBarycentric(rectangle2 A, v2 Position)
+static v2 GetBarycentric(rectangle2 a, v2 position)
 {
-    v2 Result;
+    v2 result;
 
-    Result.x = SafeRatio0(Position.x - A.Min.x, A.Max.x - A.Min.x);
-    Result.y = SafeRatio0(Position.y - A.Min.y, A.Max.y - A.Min.y);
+    result.x = SafeRatio0(position.x - a.min.x, a.max.x - a.min.x);
+    result.y = SafeRatio0(position.y - a.min.y, a.max.y - a.min.y);
     
-    return(Result);
+    return(result);
 }
 
-// NOTE(Juan): rectangle3
+// #NOTE(Juan): rectangle3
 
 struct rectangle3
 {
-    v3 Min;
-    v3 Max;
+    v3 min;
+    v3 max;
 };
 
-static v3 GetMinCorner(rectangle3 Rect)
+static v3 GetMinCorner(rectangle3 rectangle)
 {
-    v3 Result = Rect.Min;
-    return(Result);
+    v3 result = rectangle.min;
+    return(result);
 }
 
-static v3 GetMaxCorner(rectangle3 Rect)
+static v3 GetMaxCorner(rectangle3 rectangle)
 {
-    v3 Result = Rect.Max;    
-    return(Result);
+    v3 result = rectangle.max;    
+    return(result);
 }
 
-static v3 GetCenter(rectangle3 Rect)
+static v3 GetCenter(rectangle3 rectangle)
 {
-    v3 Result = 0.5f * (Rect.Min + Rect.Max);
-    return(Result);
+    v3 result = 0.5f * (rectangle.min + rectangle.max);
+    return(result);
 }
 
-static rectangle3 RectMinDim(v3 Min, v3 Dim)
+static rectangle3 RectMinDim(v3 min, v3 dim)
 {
-    rectangle3 Result;
+    rectangle3 result;
 
-    Result.Min = Min;
-    Result.Max = Min + Dim;
+    result.min = min;
+    result.max = min + dim;
 
-    return(Result);
+    return(result);
 }
 
-static rectangle3 RectMinMax(v3 Min, v3 Max)
+static rectangle3 RectMinMax(v3 min, v3 max)
 {
-    rectangle3 Result;
+    rectangle3 result;
 
-    Result.Min = Min;
-    Result.Max = Max;
+    result.min = min;
+    result.max = max;
 
-    return(Result);
+    return(result);
 }
 
-static rectangle3 RectCenterHalfDim(v3 Center, v3 HalfDim)
+static rectangle3 RectCenterHalfDim(v3 center, v3 halfDim)
 {
-    rectangle3 Result;
+    rectangle3 result;
 
-    Result.Min = Center - HalfDim;
-    Result.Max = Center + HalfDim;
+    result.min = center - halfDim;
+    result.max = center + halfDim;
 
-    return(Result);
+    return(result);
 }
 
-static rectangle3 RectCenterDim(v3 Center, v3 Dim)
+static rectangle3 RectCenterDim(v3 center, v3 dim)
 {
-    rectangle3 Result = RectCenterHalfDim(Center, Dim * 0.5f);
+    rectangle3 result = RectCenterHalfDim(center, dim * 0.5f);
 
-    return(Result);
+    return(result);
 }
 
-static rectangle3 AddRadiusTo(rectangle3 Rectangle, v3 Radius)
+static rectangle3 AddRadiusTo(rectangle3 rectangle, v3 radius)
 {
-    rectangle3 Result;
+    rectangle3 result;
 
-    Result.Min = Rectangle.Min - Radius;
-    Result.Max = Rectangle.Max + Radius;
+    result.min = rectangle.min - radius;
+    result.max = rectangle.max + radius;
 
-    return(Result);
+    return(result);
 }
 
-static rectangle3 Offset(rectangle3 Rectangle, v3 Offset)
+static rectangle3 Offset(rectangle3 rectangle, v3 offset)
 {
-    rectangle3 Result;
+    rectangle3 result;
 
-    Result.Min = Rectangle.Min + Offset;
-    Result.Max = Rectangle.Max + Offset;
+    result.min = rectangle.min + offset;
+    result.max = rectangle.max + offset;
 
-    return(Result);
+    return(result);
 }
 
-static b32 IsInRectangle(rectangle3 Rectangle, v3 Test)
+static b32 IsInRectangle(rectangle3 rectangle, v3 test)
 {
-    b32 Result = (
-        Test.x >= Rectangle.Min.x && Test.y >= Rectangle.Min.y && Test.z >= Rectangle.Min.z &&
-        Test.x < Rectangle.Max.x && Test.y < Rectangle.Max.y && Test.z < Rectangle.Max.z
+    b32 result = (
+        test.x >= rectangle.min.x && test.y >= rectangle.min.y && test.z >= rectangle.min.z &&
+        test.x < rectangle.max.x && test.y < rectangle.max.y && test.z < rectangle.max.z
     );
 
-    return(Result);
+    return(result);
 }
 
-static v3 GetBarycentric(rectangle3 A, v3 Position)
+static v3 GetBarycentric(rectangle3 a, v3 position)
 {
-    v3 Result;
+    v3 result;
 
-    Result.x = SafeRatio0(Position.x - A.Min.x, A.Max.x - A.Min.x);
-    Result.y = SafeRatio0(Position.y - A.Min.y, A.Max.y - A.Min.y);
-    Result.z = SafeRatio0(Position.z - A.Min.z, A.Max.z - A.Min.z);
+    result.x = SafeRatio0(position.x - a.min.x, a.max.x - a.min.x);
+    result.y = SafeRatio0(position.y - a.min.y, a.max.y - a.min.y);
+    result.z = SafeRatio0(position.z - a.min.z, a.max.z - a.min.z);
     
-    return(Result);
+    return(result);
 }
 
-static rectangle2 ToRectangleXY(rectangle3 A)
+static rectangle2 ToRectanglexY(rectangle3 a)
 {
-    rectangle2 Result;
+    rectangle2 result;
 
-    Result.Min = A.Min.xy;
-    Result.Max = A.Max.xy;
+    result.min = a.min.xy;
+    result.max = a.max.xy;
 
-    return(Result);
+    return(result);
 }
 
-static b32 RectanglesIntersect(rectangle3 A, rectangle3 B)
+static b32 RectanglesIntersect(rectangle3 a, rectangle3 b)
 {
-    b32 Result = !(B.Max.x <= A.Min.x || B.Min.x >= A.Max.x ||
-        B.Max.y <= A.Min.y || B.Min.y >= A.Max.y || 
-        B.Max.z <= A.Min.z || B.Min.z >= A.Max.z);
+    b32 result = !(b.max.x <= a.min.x || b.min.x >= a.max.x ||
+        b.max.y <= a.min.y || b.min.y >= a.max.y || 
+        b.max.z <= a.min.z || b.min.z >= a.max.z);
 
-    return(Result);
+    return(result);
 }
 
-// NOTE(Juan): matrix2x2
+// #NOTE(Juan): matrix2x2
 
 union m22
 {
@@ -608,36 +618,36 @@ union m22
         f32 _00, _01,
             _10, _11;
     };
-    f32 E[4];
+    f32 e[4];
 };
 
 static m22 M22(
     f32 _00, f32 _01,
     f32 _10, f32 _11)
 {
-    m22 Result = {};
+    m22 result = {};
 
-    Result._00 = _00;
-    Result._01 = _01;
-    Result._10 = _10;
-    Result._11 = _11;
+    result._00 = _00;
+    result._01 = _01;
+    result._10 = _10;
+    result._11 = _11;
 
-    return Result;
+    return result;
 }
 
 static m22 IdM22()
 {
-    m22 Result = {};
+    m22 result = {};
 
-    Result._00 = 1;
-    Result._01 = 0;
-    Result._10 = 0;
-    Result._11 = 1;
+    result._00 = 1;
+    result._01 = 0;
+    result._10 = 0;
+    result._11 = 1;
 
-    return Result;
+    return result;
 }
 
-// NOTE(Juan): matrix3x3
+// #NOTE(Juan): matrix3x3
 
 union m33
 {
@@ -647,7 +657,7 @@ union m33
             _10, _11, _12,
             _20, _21, _22;
     };
-    f32 E[9];
+    f32 e[9];
 };
 
 static m33 M33(
@@ -655,39 +665,39 @@ static m33 M33(
     f32 _10, f32 _11, f32 _12,
     f32 _20, f32 _21, f32 _22)
 {
-    m33 Result = {};
+    m33 result = {};
 
-    Result._00 = _00;
-    Result._01 = _01;
-    Result._02 = _02;
-    Result._10 = _10;
-    Result._11 = _11;
-    Result._12 = _12;
-    Result._20 = _20;
-    Result._21 = _21;
-    Result._22 = _22;
+    result._00 = _00;
+    result._01 = _01;
+    result._02 = _02;
+    result._10 = _10;
+    result._11 = _11;
+    result._12 = _12;
+    result._20 = _20;
+    result._21 = _21;
+    result._22 = _22;
 
-    return Result;
+    return result;
 }
 
 static m33 IdM33()
 {
-    m33 Result = {};
+    m33 result = {};
 
-    Result._00 = 1;
-    Result._01 = 0;
-    Result._02 = 0;
-    Result._10 = 0;
-    Result._11 = 1;
-    Result._12 = 0;
-    Result._20 = 0;
-    Result._21 = 0;
-    Result._22 = 1;
+    result._00 = 1;
+    result._01 = 0;
+    result._02 = 0;
+    result._10 = 0;
+    result._11 = 1;
+    result._12 = 0;
+    result._20 = 0;
+    result._21 = 0;
+    result._22 = 1;
 
-    return Result;
+    return result;
 }
 
-// NOTE(Juan): matrix4x4
+// #NOTE(Juan): matrix4x4
 
 union m44
 {
@@ -698,7 +708,7 @@ union m44
             _20, _21, _22, _23,
             _30, _31, _32, _33;
     };
-    f32 E[16];
+    f32 e[16];
 };
 
 static m44 M44(
@@ -707,53 +717,53 @@ static m44 M44(
     f32 _20, f32 _21, f32 _22, f32 _23,
     f32 _30, f32 _31, f32 _32, f32 _33)
 {
-    m44 Result = {};
+    m44 result = {};
 
-    Result._00 = _00;
-    Result._01 = _01;
-    Result._02 = _02;
-    Result._03 = _03;
-    Result._10 = _10;
-    Result._11 = _11;
-    Result._12 = _12;
-    Result._13 = _13;
-    Result._20 = _20;
-    Result._21 = _21;
-    Result._22 = _22;
-    Result._23 = _23;
-    Result._30 = _30;
-    Result._31 = _31;
-    Result._32 = _32;
-    Result._33 = _33;
+    result._00 = _00;
+    result._01 = _01;
+    result._02 = _02;
+    result._03 = _03;
+    result._10 = _10;
+    result._11 = _11;
+    result._12 = _12;
+    result._13 = _13;
+    result._20 = _20;
+    result._21 = _21;
+    result._22 = _22;
+    result._23 = _23;
+    result._30 = _30;
+    result._31 = _31;
+    result._32 = _32;
+    result._33 = _33;
 
-    return Result;
+    return result;
 }
 
 static m44 IdM44()
 {
-    m44 Result = {};
+    m44 result = {};
 
-    Result._00 = 1;
-    Result._01 = 0;
-    Result._02 = 0;
-    Result._03 = 0;
-    Result._10 = 0;
-    Result._11 = 1;
-    Result._12 = 0;
-    Result._13 = 0;
-    Result._20 = 0;
-    Result._21 = 0;
-    Result._22 = 1;
-    Result._23 = 0;
-    Result._30 = 0;
-    Result._31 = 0;
-    Result._32 = 0;
-    Result._33 = 1;
+    result._00 = 1;
+    result._01 = 0;
+    result._02 = 0;
+    result._03 = 0;
+    result._10 = 0;
+    result._11 = 1;
+    result._12 = 0;
+    result._13 = 0;
+    result._20 = 0;
+    result._21 = 0;
+    result._22 = 1;
+    result._23 = 0;
+    result._30 = 0;
+    result._31 = 0;
+    result._32 = 0;
+    result._33 = 1;
 
-    return Result;
+    return result;
 }
 
-static m44 OrtographicProyection(f32 left, f32 right, f32 top, f32 bottom, f32 nearPlane, f32 farPlane)
+static m44 OrtographicProjection(f32 left, f32 right, f32 top, f32 bottom, f32 nearPlane, f32 farPlane)
 {
     return M44(
         2 / (right - left), 0, 0, -((right + left) / (right - left)),
@@ -763,12 +773,12 @@ static m44 OrtographicProyection(f32 left, f32 right, f32 top, f32 bottom, f32 n
     );
 }
 
-static m44 OrtographicProyection(f32 size, f32 aspect, f32 nearPlane, f32 farPlane)
+static m44 OrtographicProjection(f32 size, f32 aspect, f32 nearPlane, f32 farPlane)
 {
-    return OrtographicProyection(-size * aspect, size * aspect, -size, size, nearPlane, farPlane);
+    return OrtographicProjection(-size * aspect, size * aspect, -size, size, nearPlane, farPlane);
 }
 
-static m44 PerspectiveProyection(f32 fovY, f32 aspect, f32 nearPlane, f32 farPlane)
+static m44 PerspectiveProjection(f32 fovY, f32 aspect, f32 nearPlane, f32 farPlane)
 {
     return M44(
         1 / (aspect * Tan(fovY / 2)), 0, 0, 0,

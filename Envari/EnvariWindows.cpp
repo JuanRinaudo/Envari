@@ -41,6 +41,7 @@ int CALLBACK WinMain(
     gameState->memory.permanentStorage = gameMemory;
     gameState->memory.temporalStorage = (u8 *)gameMemory + gameState->memory.permanentStorageSize;
 
+    permanentState = (PermanentData *)gameState->memory.permanentStorage + sizeof(Data);
     temporalState = (TemporalData *)gameState->memory.temporalStorage;
 
     const char* glsl_version = 0;
@@ -78,14 +79,14 @@ int CALLBACK WinMain(
     ImGui_ImplGlfw_InitForOpenGL(Window, true);
     ImGui_ImplOpenGL3_Init(glsl_version);
 
-    char *scriptsPath = "../../data/scripts/";
+    char *scriptsPath = "scripts/";
     ScriptingInit(scriptsPath);
 
     GameInit();
 
-    GLInit();
-    coloredProgram = GLCompileProgram(vertexColored, fragmentColored);
-    texturedProgram = GLCompileProgram(vertexTextured, fragmentTextured);
+    GL_Init();
+    coloredProgram = GL_CompileProgram(vertexColored, fragmentColored);
+    texturedProgram = GL_CompileProgram(vertexTextured, fragmentTextured);
 
     Running = true;
     while (Running)
@@ -110,9 +111,10 @@ int CALLBACK WinMain(
 
         Begin2D();
 
+        ScriptingUpdate();
         GameLoop();
 
-        GLRender();
+        GL_Render(); 
 
         End2D();
 
