@@ -85,8 +85,8 @@ int CALLBACK WinMain(
     GameInit();
 
     GL_Init();
-    coloredProgram = GL_CompileProgram(vertexColored, fragmentColored);
-    texturedProgram = GL_CompileProgram(vertexTextured, fragmentTextured);
+    coloredProgram = GL_CompileProgram("shaders/glcore/colored.vert", "shaders/glcore/colored.frag");
+    texturedProgram = GL_CompileProgram("shaders/glcore/textured.vert", "shaders/glcore/textured.frag");
 
     Running = true;
     while (Running)
@@ -114,7 +114,8 @@ int CALLBACK WinMain(
         ScriptingUpdate();
         GameLoop();
 
-        GL_Render(); 
+        GL_WatchChanges();
+        GL_Render();
 
         End2D();
 

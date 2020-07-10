@@ -6,69 +6,12 @@
 #ifdef GL_PROFILE_GLES3
 #include <GLES3/gl3.h>
 
-const char *vertexColored = "#version 300 es\n"
-    "layout (location = 0) in vec3 position;\n"
-    "void main()\n"
-    "{\n"
-    "   gl_Position = vec4(position.x, position.y, position.z, 1.0);\n"
-    "}\0";
-
-const char *fragmentColored = "#version 300 es\n"
-    "precision mediump float;\n"
-    "uniform vec4 color;\n"
-    "out vec4 fragColor;\n"
-    "void main()\n"
-    "{\n"
-    "    fragColor = color;\n"
-    "}\0";
+const char* shaderPath = "shaders/gles";
 
 #else
 #include <gl/gl.h>
 
-const char *vertexColored = "#version 330 core\n"
-    "layout (location = 0) in vec3 position;\n"
-    "uniform mat4 model;\n"
-    "uniform mat4 view;\n"
-    "uniform mat4 projection;\n"
-    "void main()\n"
-    "{\n"
-    "   gl_Position = projection * view * model * vec4(position.x, position.y, position.z, 1.0);\n"
-    "}\0";
-
-const char *fragmentColored = "#version 330 core\n"
-    "precision mediump float;\n"
-    "uniform vec4 color;\n"
-    "out vec4 fragColor;\n"
-    "void main()\n"
-    "{\n"
-    "    fragColor = color;\n"
-    "}\0";
-
-const char *vertexTextured = "#version 330 core\n"
-    "layout (location = 0) in vec3 position;\n"
-    "layout (location = 1) in vec2 uv;\n"
-    "uniform mat4 model;\n"
-    "uniform mat4 view;\n"
-    "uniform mat4 projection;\n"
-    "out vec2 texCoord;"
-    "void main()\n"
-    "{\n"
-    "   texCoord = uv;"
-    "   gl_Position = projection * view * model * vec4(position.x, position.y, position.z, 1.0);\n"
-    "}\0";
-
-const char *fragmentTextured = "#version 330 core\n"
-    "precision mediump float;\n"
-    "uniform vec4 color;\n"
-    "uniform sampler2D texture;\n"
-    "in vec2 texCoord;"
-    "out vec4 fragColor;\n"
-    "void main()\n"
-    "{\n"
-    "    fragColor = texture2D(texture, texCoord.xy) * color;\n"
-    "}\0";
-
-//color * texture2D(texture, texCoord.st);
+const char* shaderPath = "shaders/glcore";
 
 #endif
 
@@ -138,6 +81,26 @@ GLVendor currentVendor = GL_VENDOR_UNKOWN;
 // GLuint uNoOfGPUs = wglGetGPUIDsAMD( 0, 0 );
 // GLuint* uGPUIDs = new GLuint[uNoOfGPUs];
 // wglGetGPUIDsAMD( uNoOfGPUs, uGPUIDs );
+
+#define FILE_BUFFER_SIZE 1<<20
+char fileBuffer[FILE_BUFFER_SIZE];
+
+#if GAME_INTERNAL
+#include <filesystem>
+
+struct WatchedProgram {
+    u32 vertexShader;
+    u32 fragmentShader;
+    u32 shaderProgram;
+    char vertexFilename[100];
+    char fragmentFilename[100];
+    std::filesystem::file_time_type vertexTime;
+    std::filesystem::file_time_type fragmentTime;
+};
+
+static i32 watchedProgramsCount = 0;
+static WatchedProgram watchedPrograms[50];
+#endif
 
 static bool GL_CheckVendor(const char* vendor)
 {
@@ -253,11 +216,15 @@ static void GL_Init()
 
 static i32 GL_CompileProgram(const char *vertexShaderSource, const char *fragmentShaderSource)
 {
-
     // NOTE(Juan): Shaders
     u32 vertexShader;
     vertexShader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
+    
+    u32 data_size = 0;
+    void* data = ImFileLoadToMemory(vertexShaderSource, "rb", &data_size, 0);
+    const char* const vertexSource = static_cast<const char* const>(data);
+    
+    glShaderSource(vertexShader, 1, &vertexSource, &((i32)data_size));
     glCompileShader(vertexShader);
 
     i32 success;
@@ -267,19 +234,23 @@ static i32 GL_CompileProgram(const char *vertexShaderSource, const char *fragmen
     if (!success)
     {
         glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
-        console.AddLog("[error] ERROR::VERTEX::COMPILATION_FAILED\n");
+        console.AddLog("[error] ERROR::VERTEX::COMPILATION_FAILED %s\n", vertexShaderSource);
         console.AddLog(infoLog);
     }
 
     u32 fragmentShader;
     fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
+
+    data = ImFileLoadToMemory(fragmentShaderSource, "rb", &data_size, 0);
+    const char* const fragmentSource = static_cast<const char* const>(data);
+
+    glShaderSource(fragmentShader, 1, &fragmentSource, &((i32)data_size));
     glCompileShader(fragmentShader);
 
     if (!success)
     {
         glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
-        console.AddLog("[error] ERROR::FRAGMENT::COMPILATION_FAILED\n");
+        console.AddLog("[error] ERROR::FRAGMENT::COMPILATION_FAILED %s\n", fragmentShaderSource);
         console.AddLog(infoLog);
     }
 
@@ -299,8 +270,95 @@ static i32 GL_CompileProgram(const char *vertexShaderSource, const char *fragmen
     glDeleteShader(vertexShader);
     glDeleteShader(fragmentShader);
 
-    return shaderProgram;
+    #if GAME_INTERNAL
+    WatchedProgram watched;
+    watched.vertexShader = vertexShader;
+    watched.fragmentShader = fragmentShader;
+    watched.shaderProgram = shaderProgram;
+    strcpy(watched.vertexFilename, vertexShaderSource);
+    strcpy(watched.fragmentFilename, fragmentShaderSource);
+    watched.vertexTime = std::filesystem::last_write_time(vertexShaderSource);
+    watched.fragmentTime = std::filesystem::last_write_time(fragmentShaderSource);
 
+    watchedPrograms[watchedProgramsCount] = watched;
+    watchedProgramsCount++;
+    #endif
+
+    return shaderProgram;
+}
+
+static void GL_WatchChanges()
+{
+    #if GAME_INTERNAL
+    for(i32 i = 0; i < watchedProgramsCount; ++i) {
+        WatchedProgram watched = watchedPrograms[i];
+
+        std::filesystem::file_time_type vertexTime = std::filesystem::last_write_time(watched.vertexFilename);
+        std::filesystem::file_time_type fragmentTime = std::filesystem::last_write_time(watched.fragmentFilename);
+
+        if(vertexTime != watched.vertexTime || fragmentTime != watched.fragmentTime) {
+            u32 vertexSouceSize = 0;
+            void* data = ImFileLoadToMemory(watched.vertexFilename, "rb", &vertexSouceSize, 0);
+            const char* const vertexSource = static_cast<const char* const>(data);
+
+            u32 fragmentSouceSize = 0;
+            data = ImFileLoadToMemory(watched.fragmentFilename, "rb", &fragmentSouceSize, 0);
+            const char* const fragmentSource = static_cast<const char* const>(data);
+
+            if(vertexSource[0] != '\0' && fragmentSource[0] != '\0') {
+                console.AddLog("Started to reload program %d, vertex %s, fragment %s", watched.shaderProgram, watched.vertexFilename, watched.fragmentFilename);
+                glDetachShader(watched.shaderProgram, watched.vertexShader);
+                glDetachShader(watched.shaderProgram, watched.fragmentShader);
+                
+                watched.vertexShader = glCreateShader(GL_VERTEX_SHADER);
+                
+                glShaderSource(watched.vertexShader, 1, &vertexSource, &((i32)vertexSouceSize));
+                glCompileShader(watched.vertexShader);
+
+                i32 success;
+                char infoLog[512];
+                glGetShaderiv(watched.vertexShader, GL_COMPILE_STATUS, &success);
+
+                if (!success)
+                {
+                    glGetShaderInfoLog(watched.vertexShader, 512, NULL, infoLog);
+                    console.AddLog("[error] ERROR::VERTEX::COMPILATION_FAILED %s\n", watched.vertexFilename);
+                    console.AddLog(infoLog);
+                }
+
+                watched.fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+
+                glShaderSource(watched.fragmentShader, 1, &fragmentSource, &((i32)fragmentSouceSize));
+                glCompileShader(watched.fragmentShader);
+
+                if (!success)
+                {
+                    glGetShaderInfoLog(watched.vertexShader, 512, NULL, infoLog);
+                    console.AddLog("[error] ERROR::FRAGMENT::COMPILATION_FAILED %s\n", watched.fragmentFilename);
+                    console.AddLog(infoLog);
+                }
+
+                glAttachShader(watched.shaderProgram, watched.vertexShader);
+                glAttachShader(watched.shaderProgram, watched.fragmentShader);
+                glLinkProgram(watched.shaderProgram);
+
+                glGetProgramiv(watched.shaderProgram, GL_LINK_STATUS, &success);
+                if (!success) {
+                    glGetProgramInfoLog(watched.shaderProgram, 512, NULL, infoLog);
+                    console.AddLog("[error] ERROR::PROGRAM::COMPILATION_FAILED\n");
+                    console.AddLog(infoLog);
+                }
+
+                glDeleteShader(watched.vertexShader);
+                glDeleteShader(watched.fragmentShader);
+
+                watched.vertexTime = vertexTime;
+                watched.fragmentTime = fragmentTime;
+                watchedPrograms[i] = watched;
+            }
+        }
+    }
+    #endif
 }
 
 static stbtt_bakedchar *CalculateCharacterOffset(FontAtlas *Font, char Char, v2 *Offset, float LineHeight)
