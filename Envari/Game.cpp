@@ -1,7 +1,6 @@
 #define SOL_ALL_SAFETIES_ON 1
 
 #include "IMGUI/imgui.h"
-#include "LUA/sol.hpp"
 
 #include "Defines.h"
 #include "GameMath.h"

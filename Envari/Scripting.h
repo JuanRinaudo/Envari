@@ -1,9 +1,7 @@
 #if !defined(SCRIPTING_H)
 #define SCRIPTING_H
 
-#include "Render.h"
 #include "Game.h"
-#include "LUA/sol.hpp"
 #include "ScriptingWrappers.h"
 
 #include <string>
@@ -21,6 +19,7 @@ static i32 watchFiles = 0;
 
 static void LoadScriptFile(char* name)
 {
+
     char completePath[100]; // #TODO (Juan): Max file path is 100 chars for now, should be calculated and not have a limit
     strcpy(completePath, scriptDataPath);
     strcat(completePath, name);
@@ -55,6 +54,11 @@ static void ScriptingPanic(sol::optional<std::string> message)
 	// console.AddLogSimple(message);
 }
 
+static void stringInputTest(const char* stringInput) {
+    printf(stringInput);
+    printf("\n");
+}
+
 static void ScriptingInit(char* dataPath)
 {
 
@@ -63,6 +67,10 @@ static void ScriptingInit(char* dataPath)
     lua = sol::state(sol::c_call<decltype(&ScriptingPanic), &ScriptingPanic>);
 
     lua.open_libraries(sol::lib::base, sol::lib::package);
+
+    // #NOTE (Juan): C/C++
+    lua["printf"] = printf;
+    lua["stringInputTest"] = stringInputTest;
 
     // #NOTE (Juan): Data
     lua["camera"] = lua.create_table();
@@ -176,8 +184,9 @@ static void ScriptingInit(char* dataPath)
     // #NOTE (Juan): Console
     lua["ConsoleAddLog"] = ConsoleAddLog;
 
-    LoadScriptFile("test.lua");
-    LoadScriptFile("test2.lua");
+    LoadScriptFile((char *)"test.lua");
+    LoadScriptFile((char *)"test2.lua");
+
 
 }
 
@@ -188,6 +197,7 @@ static void ScriptingUpdate()
     lua["time"]["lastFrameGameTime"] = (gameState->time).lastFrameGameTime;
 }
 
+#if GAME_INTERNAL
 static void ReloadScriptIfChanged(char *name, i32 fileIndex) {
     char completePath[100]; // #TODO (Juan): Max file path is 100 chars for now, should be calculated and not have a limit
     strcpy(completePath, scriptDataPath);
@@ -220,6 +230,7 @@ static void ReloadScriptIfChanged(char *name, i32 fileIndex) {
         watchListTimes[fileIndex] = fileTime;
     }
 }
+#endif
 
 static void ScriptingWatchChanges()
 {

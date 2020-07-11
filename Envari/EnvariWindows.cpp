@@ -1,5 +1,7 @@
 #include <windows.h>
 
+#define SOURCE_TYPE const char* const
+
 #include "GL3W/gl3w.c"
 
 #include "Defines.h"
@@ -44,14 +46,12 @@ int CALLBACK WinMain(
     permanentState = (PermanentData *)gameState->memory.permanentStorage + sizeof(Data);
     temporalState = (TemporalData *)gameState->memory.temporalStorage;
 
-    const char* glsl_version = 0;
-
-    if (!glfwInit())
+    if (!glfwInit()) {
         return -1;
+    }
 
     GLFWmonitor* mainMonitor = glfwGetPrimaryMonitor();
     const GLFWvidmode* videoMode = glfwGetVideoMode( mainMonitor );
-
     gameState->screen.width = FloorToInt(videoMode->width * .5f);
     gameState->screen.height = FloorToInt(videoMode->height * .5f);
     gameState->screen.refreshRate = videoMode->refreshRate;
@@ -70,6 +70,8 @@ int CALLBACK WinMain(
 	if (gl3wInit()) {
 		return -1;
 	}
+
+    const char* glsl_version = 0;
     
     // NOTE(Juan): Dear IMGUI
     IMGUI_CHECKVERSION();

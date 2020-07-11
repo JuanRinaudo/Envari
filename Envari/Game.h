@@ -1,9 +1,10 @@
 #if !defined(GAME_H)
 #define GAME_H
 
+#include "LUA/sol.hpp"
+
 #include "Defines.h"
 #include "Editor.h"
-#include "LUA/sol.hpp"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "STB/stb_image.h"

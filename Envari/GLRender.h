@@ -174,7 +174,7 @@ static FontAtlas GL_LoadFont(const char *filename, f32 fontSize, u32 width, u32 
         result.width = width;
         result.height = height;
 
-        u32 data_size = 0;
+        size_t data_size = 0;
         void* data = ImFileLoadToMemory(filename, "rb", &data_size, 0);
 
         u8* tempBitmap = PushArray(&temporalState->arena, width * height, u8);
@@ -220,11 +220,12 @@ static i32 GL_CompileProgram(const char *vertexShaderSource, const char *fragmen
     u32 vertexShader;
     vertexShader = glCreateShader(GL_VERTEX_SHADER);
     
-    u32 data_size = 0;
+    size_t data_size = 0;
     void* data = ImFileLoadToMemory(vertexShaderSource, "rb", &data_size, 0);
-    const char* const vertexSource = static_cast<const char* const>(data);
+    SOURCE_TYPE vertexSource = static_cast<SOURCE_TYPE>(data);
     
-    glShaderSource(vertexShader, 1, &vertexSource, &((i32)data_size));
+    i32 size = (i32)data_size;
+    glShaderSource(vertexShader, 1, &vertexSource, &size);
     glCompileShader(vertexShader);
 
     i32 success;
@@ -242,9 +243,10 @@ static i32 GL_CompileProgram(const char *vertexShaderSource, const char *fragmen
     fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
 
     data = ImFileLoadToMemory(fragmentShaderSource, "rb", &data_size, 0);
-    const char* const fragmentSource = static_cast<const char* const>(data);
+    SOURCE_TYPE fragmentSource = static_cast<SOURCE_TYPE>(data);
 
-    glShaderSource(fragmentShader, 1, &fragmentSource, &((i32)data_size));
+    size = (i32)data_size;
+    glShaderSource(fragmentShader, 1, &fragmentSource, &size);
     glCompileShader(fragmentShader);
 
     if (!success)
@@ -263,7 +265,7 @@ static i32 GL_CompileProgram(const char *vertexShaderSource, const char *fragmen
     glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
     if (!success) {
         glGetProgramInfoLog(shaderProgram, 512, NULL, infoLog);
-        console.AddLog("[error] ERROR::PROGRAM::COMPILATION_FAILED\n");
+        console.AddLog("[error] ERROR::PROGRAM::LINK_FAILED\n");
         console.AddLog(infoLog);
     }
 
@@ -297,13 +299,13 @@ static void GL_WatchChanges()
         std::filesystem::file_time_type fragmentTime = std::filesystem::last_write_time(watched.fragmentFilename);
 
         if(vertexTime != watched.vertexTime || fragmentTime != watched.fragmentTime) {
-            u32 vertexSouceSize = 0;
+            size_t vertexSouceSize = 0;
             void* data = ImFileLoadToMemory(watched.vertexFilename, "rb", &vertexSouceSize, 0);
-            const char* const vertexSource = static_cast<const char* const>(data);
+            SOURCE_TYPE vertexSource = static_cast<SOURCE_TYPE>(data);
 
-            u32 fragmentSouceSize = 0;
+            size_t fragmentSouceSize = 0;
             data = ImFileLoadToMemory(watched.fragmentFilename, "rb", &fragmentSouceSize, 0);
-            const char* const fragmentSource = static_cast<const char* const>(data);
+            SOURCE_TYPE fragmentSource = static_cast<SOURCE_TYPE>(data);
 
             if(vertexSource[0] != '\0' && fragmentSource[0] != '\0') {
                 console.AddLog("Started to reload program %d, vertex %s, fragment %s", watched.shaderProgram, watched.vertexFilename, watched.fragmentFilename);
@@ -312,7 +314,8 @@ static void GL_WatchChanges()
                 
                 watched.vertexShader = glCreateShader(GL_VERTEX_SHADER);
                 
-                glShaderSource(watched.vertexShader, 1, &vertexSource, &((i32)vertexSouceSize));
+                i32 size = (i32)vertexSouceSize;
+                glShaderSource(watched.vertexShader, 1, &vertexSource, &size);
                 glCompileShader(watched.vertexShader);
 
                 i32 success;
@@ -328,7 +331,8 @@ static void GL_WatchChanges()
 
                 watched.fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
 
-                glShaderSource(watched.fragmentShader, 1, &fragmentSource, &((i32)fragmentSouceSize));
+                size = (i32)fragmentSouceSize;
+                glShaderSource(watched.fragmentShader, 1, &fragmentSource, &size);
                 glCompileShader(watched.fragmentShader);
 
                 if (!success)

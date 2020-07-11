@@ -306,7 +306,7 @@ void    ImGui_ImplOpenGL3_RenderDrawData(ImDrawData* draw_data)
 #ifndef IMGUI_IMPL_OPENGL_ES2
     GLint last_vertex_array_object; glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &last_vertex_array_object);
 #endif
-#ifdef GL_POLYGON_MODE
+#if !defined(__EMSCRIPTEN__) && defined(GL_POLYGON_MODE)
     GLint last_polygon_mode[2]; glGetIntegerv(GL_POLYGON_MODE, last_polygon_mode);
 #endif
     GLint last_viewport[4]; glGetIntegerv(GL_VIEWPORT, last_viewport);
