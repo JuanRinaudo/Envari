@@ -20,30 +20,30 @@ function Update()
     ReloadCameraData();
     projection = OrtographicProjection(camera.size, camera.ratio, camera.nearPlane, camera.farPlane);
 
-    -- PushRectangle(V2(-0, -1), V2(1, 1));
+    -- PushRenderRectangle(V2(-0, -1), V2(1, 1));
 
     currentImage = (Floor(time.gameTime) % #characterFrames) + 1;
     
-    PushTransparent(GL_FUNC_ADD, GL_FUNC_ADD, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+    PushRenderTransparent(GL_FUNC_ADD, GL_FUNC_ADD, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
     
-    PushColor(1, 1, 1, 1);
-    PushImage(V2(-1, -1.5), V2(2, 3), "images/Background-Day.png", IMAGE_KEEP_RATIO_Y);
-    PushColor(1, 1, 1, .5);
-    PushCircle(V2(time.gameTime % 2 - 1, time.gameTime % 2 - 1), 0.5, 20);
-    PushColor(1, 1, 1, 1);
-    PushImage(V2(-1, -1), V2(2, 2), characterFrames[currentImage], IMAGE_KEEP_RATIO_Y);
-    PushImage(V2(-1, 0.5), V2(2, .5), "images/Panel_Dialogue.png", IMAGE_KEEP_RATIO_Y);
+    PushRenderColor(1, 1, 1, 1);
+    PushRenderImage(V2(-1, -1.5), V2(2, 3), "images/Background-Day.png", IMAGE_KEEP_RATIO_Y);
+    PushRenderColor(1, 1, 1, .5);
+    PushRenderCircle(V2(time.gameTime % 2 - 1, time.gameTime % 2 - 1), 0.5, 20);
+    PushRenderColor(1, 1, 1, 1);
+    PushRenderImage(V2(-1, -1), V2(2, 2), characterFrames[currentImage], IMAGE_KEEP_RATIO_Y);
+    PushRenderImage(V2(-1, 0.5), V2(2, .5), "images/Panel_Dialogue.png", IMAGE_KEEP_RATIO_Y);
     
-    PushFont("fonts/VarelaRound-Regular.ttf", 128.0, 1024, 1024);
-    PushRectangle(V2(-1, 0.5), V2(.1, .1));
-    PushText(V2(-1, 0.5), V2(.1, .1), "Hola mi nombre es juan\nY esto es\nUna prueba");
-    -- PushImage(V2(-1, 0.5), V2(2, .5), "fonts/VarelaRound-Regular.ttf", IMAGE_KEEP_RATIO_Y);
+    PushRenderFont("fonts/VarelaRound-Regular.ttf", 128.0, 1024, 1024);
+    PushRenderRectangle(V2(-1, 0.5), V2(.1, .1));
+    PushRenderText(V2(-1, 0.5), V2(.1, .1), "Hola mi nombre es juan\nY esto es\nUna prueba");
+    -- PushRenderImage(V2(-1, 0.5), V2(2, .5), "fonts/VarelaRound-Regular.ttf", IMAGE_KEEP_RATIO_Y);
     
-    PushColor(1, 1, 1, .3);
-    PushRectangle(V2(Sin(time.gameTime), -.5), V2(.5, .5));
-    PushRectangle(V2(Cos(time.gameTime), .5), V2(.5, .5));
+    PushRenderColor(1, 1, 1, .3);
+    PushRenderRectangle(V2(Sin(time.gameTime), -.5), V2(.5, .5));
+    PushRenderRectangle(V2(Cos(time.gameTime), .5), V2(.5, .5));
 
-    -- PushTransparentDisable();
+    -- PushRenderTransparentDisable();
     
     -- ConsoleAddLog("Test" + time.gameTime);
 

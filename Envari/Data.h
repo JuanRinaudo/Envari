@@ -1,5 +1,5 @@
-#define DATA_H
 #if !defined(DATA_H)
+#define DATA_H
 
 #include <cstdlib>
 
@@ -40,6 +40,27 @@ static bool TokenIsFloat(const char* string)
     return true;
 }
 
+// #NOTE (Juan): This does a linear scan of the current data to check the ammount of parameters, dataString must point to the start of the line
+static i32 GetDataLineParameters(char* dataString, i32 index) {
+    char currentChar = dataString[index];
+    bool parsingString = false;
+    bool parsingKey = false;
+    i32 parameterCount = 0;
+    while(parsingString || (currentChar != ';' && currentChar != '#')) {
+        currentChar = dataString[index];
+        if (!parsingString && dataString[index - 1] <= ' ' && currentChar > ' ') {
+            parameterCount++;
+        }
+        if(currentChar == '"') {
+            parsingString = !parsingString;
+        }
+
+        index++;
+    }
+
+    currentChar = dataString[index];
+}
+
 static bool ParseDataTable(DataTable** table, const char* filename)
 {
     u32 dataSize = 0;
@@ -47,70 +68,71 @@ static bool ParseDataTable(DataTable** table, const char* filename)
 
     char* dataString = (char*)fileData;
 
-    u32 parameterCount = 0;
     u32 tokenBufferIndex = 0;
     // #TODO (Juan): Currently there is a hard cap for a token length, maybe fix this later?
     char tokenBuffer[128];
     bool onComment = false;
     bool parsingString = false;
     bool parsingKey = true; 
-	for (i32 i = 0; i < dataSize; ++i) {
-        char currentChar = dataString[i];
+
+    i32 index = 0;
+    while (index < dataSize) {
+        char currentChar = dataString[index];        
         
         if(!parsingString && currentChar == '#') {
             onComment = true;
         }
 
-        // #NOTE #PERFORMANCE (Juan): This does a linear scan of the current data to check the ammount of parameters
-        if(parameterCount == 0 && !parsingKey) {
-            i32 savedIndex = i;
-            while(parsingString || (currentChar != ';' && currentChar != '#')) {
-                currentChar = dataString[i];
-				if (!parsingString && dataString[i - 1] <= ' ' && currentChar > ' ') {
-					parameterCount++;
-				}
-				if(currentChar == '"') {
-                    parsingString = !parsingString;
-                }
-
-                i++;
-            }
-            console.AddLog("Parameters: %d", parameterCount);
-            i = savedIndex;
-            currentChar = dataString[i];
-        }
-
-		if (!onComment && currentChar > ' ') {
+        if (parsingString || (!onComment && currentChar > ' ')) {
             if(currentChar == '"') {
                 parsingString = !parsingString;
             }
-
-            if(parsingKey && currentChar == ':') {
-                parsingKey = false;
-                tokenBuffer[tokenBufferIndex] = '\0';
-                char* tokenPointer = (char*)PushArray(&permanentState->arena, tokenBufferIndex, char);
-                strcpy(tokenPointer, tokenBuffer);
-                console.AddLog(tokenBuffer);
+            
+            // #NOTE (Juan): End of line stop one line comments
+            if (!parsingString && currentChar == ';') {
+                // NOTE (Juan): Double 0 character represents and end of the parameters in the data
+                PushChar(&permanentState->arena, '\0');
+                parsingKey = true;
                 tokenBufferIndex = 0;
             }
             else {
-                tokenBuffer[tokenBufferIndex] = currentChar;
-                tokenBufferIndex++;
-            
-                if(tokenBufferIndex == ArrayCount(tokenBuffer)) {
-                    console.AddLog("%s parsing error, max token count reached %d", filename, ArrayCount(tokenBuffer));
-                    return false;
+                if(parsingKey && currentChar == ':') {
+                    parsingKey = false;
+                    tokenBuffer[tokenBufferIndex] = '\0';
+                    PushString(&permanentState->arena, tokenBuffer, tokenBufferIndex);
+                    tokenBufferIndex = 0;
+
+                    console.AddLog(tokenBuffer);
+                }
+                else {
+                    tokenBuffer[tokenBufferIndex] = currentChar;
+                    tokenBufferIndex++;
+                    
+                    if(tokenBufferIndex == ArrayCount(tokenBuffer)) {
+                        console.AddLog("%s parsing error, max token count reached %d", filename, ArrayCount(tokenBuffer));
+                        return false;
+                    }
+
+                    if(!parsingKey && !parsingString) {
+                        char nextChar = dataString[index + 1];
+                        if(nextChar == ';' || nextChar == ' ') {
+                            tokenBuffer[tokenBufferIndex] = '\0';
+                            PushString(&permanentState->arena, tokenBuffer, tokenBufferIndex);
+                            tokenBufferIndex = 0;
+
+                            console.AddLog(tokenBuffer);
+                        }
+                    }
                 }
             }
-		}        
-        // #NOTE (Juan): End of line stop one line comments
-		if (!parsingString && (currentChar == ';' || (onComment && currentChar == '\n'))) {
+        }
+
+        if(onComment && currentChar == '\n') {
             onComment = false;
-            parsingKey = true;
-            tokenBufferIndex = 0;
-            parameterCount = 0;
-		}
-	}
+        }
+
+        ++index;
+    }
 
     return true;
 }

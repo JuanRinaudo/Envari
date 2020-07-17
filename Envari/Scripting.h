@@ -101,18 +101,18 @@ static void ScriptingInit(char* dataPath)
     lua["IdM44"] = IdM44;
 
     // #NOTE (Juan): Render
-    lua["PushClear"] = PushClear;
-    lua["PushColor"] = PushColor;
-    lua["PushTriangle"] = PushTriangle;
-    lua["PushRectangle"] = PushRectangle;
-    lua["PushCircle"] = PushCircle;
-    lua["PushImage"] = PushImage;
-    lua["PushImageUV"] = PushImageUV;
-    lua["PushTransparent"] = PushTransparent;
-    lua["PushTransparentDisable"] = PushTransparentDisable;
-    lua["PushFont"] = PushFont;
-    lua["PushChar"] = PushChar;
-    lua["PushText"] = PushText;
+    lua["PushRenderClear"] = PushRenderClear;
+    lua["PushRenderColor"] = PushRenderColor;
+    lua["PushRenderTriangle"] = PushRenderTriangle;
+    lua["PushRenderRectangle"] = PushRenderRectangle;
+    lua["PushRenderCircle"] = PushRenderCircle;
+    lua["PushRenderImage"] = PushRenderImage;
+    lua["PushRenderImageUV"] = PushRenderImageUV;
+    lua["PushRenderTransparent"] = PushRenderTransparent;
+    lua["PushRenderTransparentDisable"] = PushRenderTransparentDisable;
+    lua["PushRenderFont"] = PushRenderFont;
+    lua["PushRenderChar"] = PushRenderChar;
+    lua["PushRenderText"] = PushRenderText;
     
     lua["IMAGE_ADAPTATIVE_FIT"] = IMAGE_ADAPTATIVE_FIT;
     lua["IMAGE_KEEP_RATIO_X"] = IMAGE_KEEP_RATIO_X;

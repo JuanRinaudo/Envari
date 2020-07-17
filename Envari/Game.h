@@ -53,16 +53,65 @@ static void* PushSize_(MemoryArena *arena, memoryIndex size)
     return(result);
 }
 
-static char* PushString(MemoryArena *arena, const char* string, u32 *stringSize)
+static void* PushSize_(TemporaryMemory *memory, memoryIndex size)
 {
+    void *result = PushSize_(memory->arena, size);
+    memory->used += size;
+    return(result);
+}
+
+static char *PushChar(MemoryArena *arena, char singleChar)
+{
+    char *result = 0;
+
+    if(arena->used + 1 < arena->size) {
+        result = (char*)PushSize(arena, 1);
+        *result = singleChar;
+    }
+    else {
+        InvalidCodePath;
+    }
+
+    return result;
+}
+
+static char *PushString(MemoryArena *arena, const char *string, u32 *stringSize)
+{
+    char *result = 0;
+
     u32 size = strlen(string) + 1;
     *stringSize = size;
 
-    Assert(arena->used + size < arena->size);
+    if(arena->used + size < arena->size) {
+        result = (char*)PushSize(arena, size);
+        strcpy(result, string);
+    }
+    else {
+        InvalidCodePath;
+    }
 
-    char *result = (char*)PushSize(arena, sizeof(char) * size);
-    strcpy(result, string);
-    arena->used += size;
+    return result;
+}
+
+static char *PushString(MemoryArena *arena, const char *string, u32 size)
+{
+    char *result = 0;
+
+    if(arena->used + size < arena->size) {
+        result = (char*)PushSize(arena, size);
+        strcpy(result, string);
+    }
+    else {
+        InvalidCodePath;
+    }
+
+    return result;
+}
+
+static char *PushString(TemporaryMemory *memory, const char *string, u32 *stringSize)
+{
+    char *result = PushString(memory->arena, string, stringSize);
+    memory->used += *stringSize;
 
     return result;
 }
@@ -101,9 +150,9 @@ static void CheckArena(MemoryArena *arena)
 }
 
 struct Screen {
-	int refreshRate;
-	int width;
-	int height;
+    int refreshRate;
+    int width;
+    int height;
 };
 
 struct Camera {
@@ -114,15 +163,15 @@ struct Camera {
 };
 
 struct TimeData {
-	f32 lastFrameGameTime;
-	f32 gameTime;
-	f32 deltaTime;
+    f32 lastFrameGameTime;
+    f32 gameTime;
+    f32 deltaTime;
 };
 
 struct Memory {
-	void *permanentStorage;
+    void *permanentStorage;
     u64 permanentStorageSize;
-	void *temporalStorage;
+    void *temporalStorage;
     u64 temporalStorageSize;
 };
 
@@ -137,20 +186,20 @@ struct DemoData {
 
 struct Data {
     Camera camera;
-	Screen screen;
-	TimeData time;
-	Memory memory;
+    Screen screen;
+    TimeData time;
+    Memory memory;
     
     DemoData demo;
 };
 
 struct PermanentData {
-	b32 initialized;
+    b32 initialized;
     MemoryArena arena;
 };
 
 struct TemporalData {
-	b32 initialized;
+    b32 initialized;
     MemoryArena arena;
 };
 

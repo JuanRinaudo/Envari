@@ -142,8 +142,8 @@ static void Begin2D()
     ZeroSize(sizeof(RenderHeader), clearFirstHeader);
 }
 
-#define PushRenderElement(arena, type) (type *)PushRenderElement_(arena, sizeof(type), type_##type);
-static RenderHeader *PushRenderElement_(TemporaryMemory *memory, u32 size, RenderType type)
+#define RenderPushElement(arena, type) (type *)RenderPushElement_(arena, sizeof(type), type_##type);
+static RenderHeader *RenderPushElement_(TemporaryMemory *memory, u32 size, RenderType type)
 {
     RenderHeader *result = 0;
     renderState.lastRenderID++;
@@ -161,41 +161,21 @@ static RenderHeader *PushRenderElement_(TemporaryMemory *memory, u32 size, Rende
     return(result);
 }
 
-static char *PushRenderString(TemporaryMemory *memory, const char *string, u32 *stringSize)
+static void PushRenderClear(f32 red = 0, f32 green = 0, f32 blue = 0, f32 alpha = 1)
 {
-    char *result = 0;
-    renderState.lastRenderID++;
-
-    u32 size = strlen(string) + 1;
-    *stringSize = size;
-
-    if(memory->arena->used + size < memory->arena->size) {
-        result = (char*)PushSize(memory->arena, sizeof(char) * size);
-        strcpy(result, string);
-        memory->used += size;
-    }
-    else {
-        InvalidCodePath;
-    }
-
-    return(result);
-}
-
-static void PushClear(f32 red = 0, f32 green = 0, f32 blue = 0, f32 alpha = 1)
-{
-    RenderClear *clear = PushRenderElement(&renderTemporaryMemory, RenderClear);
+    RenderClear *clear = RenderPushElement(&renderTemporaryMemory, RenderClear);
     clear->color = V4(red, green, blue, alpha);
 }
 
-static void PushColor(f32 red = 0, f32 green = 0, f32 blue = 0, f32 alpha = 1)
+static void PushRenderColor(f32 red = 0, f32 green = 0, f32 blue = 0, f32 alpha = 1)
 {
-    RenderColor *color = PushRenderElement(&renderTemporaryMemory, RenderColor);
+    RenderColor *color = RenderPushElement(&renderTemporaryMemory, RenderColor);
     color->color = V4(red, green, blue, alpha);
 }
 
-static void PushTransparentDisable()
+static void PushRenderTransparentDisable()
 {
-    RenderTransparent *transparent = PushRenderElement(&renderTemporaryMemory, RenderTransparent);
+    RenderTransparent *transparent = RenderPushElement(&renderTemporaryMemory, RenderTransparent);
     transparent->enabled = false;
     transparent->modeRGB = 0;
     transparent->modeAlpha = 0;
@@ -205,9 +185,9 @@ static void PushTransparentDisable()
     transparent->dstAlpha = 0;
 }
 
-static void PushTransparent(u32 modeRGB, u32 modeAlpha, u32 srcRGB, u32 dstRGB, u32 srcAlpha, u32 dstAlpha)
+static void PushRenderTransparent(u32 modeRGB, u32 modeAlpha, u32 srcRGB, u32 dstRGB, u32 srcAlpha, u32 dstAlpha)
 {
-    RenderTransparent *transparent = PushRenderElement(&renderTemporaryMemory, RenderTransparent);
+    RenderTransparent *transparent = RenderPushElement(&renderTemporaryMemory, RenderTransparent);
     transparent->enabled = true;
     transparent->modeRGB = modeRGB;
     transparent->modeAlpha = modeAlpha;
@@ -217,71 +197,71 @@ static void PushTransparent(u32 modeRGB, u32 modeAlpha, u32 srcRGB, u32 dstRGB, 
     transparent->dstAlpha = dstAlpha;
 }
 
-static void PushTriangle(v2 position, v2 point1, v2 point2, v2 point3)
+static void PushRenderTriangle(v2 position, v2 point1, v2 point2, v2 point3)
 {
-    RenderTriangle *triangle = PushRenderElement(&renderTemporaryMemory, RenderTriangle);
+    RenderTriangle *triangle = RenderPushElement(&renderTemporaryMemory, RenderTriangle);
     triangle->position = position;
     triangle->point1 = point1;
     triangle->point2 = point2;
     triangle->point3 = point3;
 }
 
-static void PushRectangle(v2 position, v2 size)
+static void PushRenderRectangle(v2 position, v2 size)
 {
-    RenderRectangle *rectangle = PushRenderElement(&renderTemporaryMemory, RenderRectangle);
+    RenderRectangle *rectangle = RenderPushElement(&renderTemporaryMemory, RenderRectangle);
     rectangle->position = position;
     rectangle->size = size;
 }
 
-static void PushCircle(v2 position, f32 radius, i32 segments)
+static void PushRenderCircle(v2 position, f32 radius, i32 segments)
 {
-    RenderCircle *circle = PushRenderElement(&renderTemporaryMemory, RenderCircle);
+    RenderCircle *circle = RenderPushElement(&renderTemporaryMemory, RenderCircle);
     circle->position = position;
     circle->radius = radius;
     circle->segments = segments;
 }
 
-static void PushImage(v2 position, v2 size, const char* filename, u32 renderFlags)
+static void PushRenderImage(v2 position, v2 size, const char* filename, u32 renderFlags)
 {
-    RenderImage *image = PushRenderElement(&renderTemporaryMemory, RenderImage);
+    RenderImage *image = RenderPushElement(&renderTemporaryMemory, RenderImage);
     image->position = position;
     image->size = size;
     image->header.renderFlags = renderFlags;
-    image->filename = PushRenderString(&renderTemporaryMemory, filename, &image->filenameSize);
+    image->filename = PushString(&renderTemporaryMemory, filename, &image->filenameSize);
 }
 
-static void PushImageUV(v2 position, v2 size, rectangle2 uv, const char* filename)
+static void PushRenderImageUV(v2 position, v2 size, rectangle2 uv, const char* filename)
 {
-    RenderImageUV *image = PushRenderElement(&renderTemporaryMemory, RenderImageUV);
+    RenderImageUV *image = RenderPushElement(&renderTemporaryMemory, RenderImageUV);
     image->position = position;
     image->size = size;
     image->uv = uv;
-    image->filename = PushRenderString(&renderTemporaryMemory, filename, &image->filenameSize);
+    image->filename = PushString(&renderTemporaryMemory, filename, &image->filenameSize);
 }
 
-static void PushFont(const char* filename, f32 fontSize, u32 width, u32 height)
+static void PushRenderFont(const char* filename, f32 fontSize, u32 width, u32 height)
 {
-    RenderFont *font = PushRenderElement(&renderTemporaryMemory, RenderFont);
-    font->filename = PushRenderString(&renderTemporaryMemory, filename, &font->filenameSize);
+    RenderFont *font = RenderPushElement(&renderTemporaryMemory, RenderFont);
+    font->filename = PushString(&renderTemporaryMemory, filename, &font->filenameSize);
     font->fontSize = fontSize;
     font->width = width;
     font->height = height;
 }
 
-static void PushChar(v2 position, v2 size, const char singleChar)
+static void PushRenderChar(v2 position, v2 size, const char singleChar)
 {
-    RenderChar *renderChar = PushRenderElement(&renderTemporaryMemory, RenderChar);
+    RenderChar *renderChar = RenderPushElement(&renderTemporaryMemory, RenderChar);
     renderChar->position = position;
     renderChar->size = size;
     renderChar->singleChar = singleChar;
 }
 
-static void PushText(v2 position, v2 size, const char* string)
+static void PushRenderText(v2 position, v2 size, const char* string)
 {
-    RenderText *text = PushRenderElement(&renderTemporaryMemory, RenderText);
+    RenderText *text = RenderPushElement(&renderTemporaryMemory, RenderText);
     text->position = position;
     text->size = size;
-    text->string = PushRenderString(&renderTemporaryMemory, string, &text->stringSize);
+    text->string = PushString(&renderTemporaryMemory, string, &text->stringSize);
 }
 
 static void End2D()

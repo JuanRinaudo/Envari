@@ -17,7 +17,7 @@ static u32 GameInit() {
 
     console.InitConsole();
     
-    // ParseDataTable(&initialConfig, "data/initialconfig.envt");
+    ParseDataTable(&initialConfig, "data/initialconfig.envt");
     // i32* value = (i32*)shget(initialConfig, "TestKey");
     // console.AddLog("Data test size: %d", shlen(initialConfig));
     // console.AddLog("Data test log: %d", *value);
@@ -45,11 +45,9 @@ static u32 GameLoop() {
 
     console.Draw("Example: Console", &consoleOpen);
 
-    PushClear(clearR, clearG, clearB);
-    PushColor(gameState->demo.renderColor.r, gameState->demo.renderColor.g, gameState->demo.renderColor.b, gameState->demo.renderColor.a);
-    //PushTriangle(V2(0, 0), V2(-0.5f, -0.5f), V2(0.5f, -0.5f), V2(gameState->demo.triangleTopX,  0.5f));
-    // PushRectangle(V2(0, 0), V2(Sin(gameState->time.gameTime), Cos(gameState->time.gameTime)));
-    
+    PushRenderClear(clearR, clearG, clearB);
+    PushRenderColor(gameState->demo.renderColor.r, gameState->demo.renderColor.g, gameState->demo.renderColor.b, gameState->demo.renderColor.a);
+     
     sol::protected_function Update(lua["Update"]);
     if(Update.valid()) {
         Update();
