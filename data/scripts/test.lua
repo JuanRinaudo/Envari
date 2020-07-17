@@ -12,7 +12,6 @@ characterFrames = {
     "images/sprite_female_mage_suspicious01.png",
 };
 
-boolValue = false;
 function Update()
     camera.size = 1;
     camera.ratio = screen.width / screen.height;
@@ -50,7 +49,6 @@ function Update()
 
     -- ImguiBegin("Lua IMGUI");
     -- ImguiLabelText("Label", "Test");
-    -- boolValue = ImguiCheckbox("Label", boolValue);
     -- ImguiButton("Test", V2());
     -- ImguiEnd();
 end

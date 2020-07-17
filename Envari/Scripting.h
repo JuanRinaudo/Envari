@@ -9,8 +9,6 @@
 static char* scriptDataPath;
 
 #if GAME_INTERNAL
-#include <filesystem>
-
 static char watchList[200];
 static std::filesystem::file_time_type watchListTimes[20];
 static i32 watchListSize = 0;
@@ -61,7 +59,6 @@ static void stringInputTest(const char* stringInput) {
 
 static void ScriptingInit(char* dataPath)
 {
-
     scriptDataPath = dataPath;
 
     lua = sol::state(sol::c_call<decltype(&ScriptingPanic), &ScriptingPanic>);
@@ -185,9 +182,6 @@ static void ScriptingInit(char* dataPath)
     lua["ConsoleAddLog"] = ConsoleAddLog;
 
     LoadScriptFile((char *)"test.lua");
-    LoadScriptFile((char *)"test2.lua");
-
-
 }
 
 static void ScriptingUpdate()

@@ -86,8 +86,6 @@ GLVendor currentVendor = GL_VENDOR_UNKOWN;
 char fileBuffer[FILE_BUFFER_SIZE];
 
 #if GAME_INTERNAL
-#include <filesystem>
-
 struct WatchedProgram {
     u32 vertexShader;
     u32 fragmentShader;

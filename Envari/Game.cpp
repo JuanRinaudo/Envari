@@ -2,7 +2,8 @@
 
 #include "IMGUI/imgui.h"
 
-#include "Defines.h"
+#include "File.h"
+#include "Data.h"
 #include "GameMath.h"
 #include "Intrinsics.h"
 #include "Render.h"
@@ -15,6 +16,11 @@ static u32 GameInit() {
     InitializeArena(&temporalState->arena, (memoryIndex)(gameState->memory.temporalStorageSize - sizeof(TemporalData)), (u8 *)gameState->memory.temporalStorage + sizeof(TemporalData));
 
     console.InitConsole();
+    
+    // ParseDataTable(&initialConfig, "data/initialconfig.envt");
+    // i32* value = (i32*)shget(initialConfig, "TestKey");
+    // console.AddLog("Data test size: %d", shlen(initialConfig));
+    // console.AddLog("Data test log: %d", *value);
 
     gameState->demo.backgroundR = true;
     gameState->demo.backgroundG = true;

@@ -156,6 +156,19 @@ struct TemporalData {
 
 sol::state lua;
 
+enum DataType {
+    data_Int,
+    data_Float,
+    data_String,
+    data_V2,
+};
+
+struct DataTable {
+    char* key;
+    void* pointer;
+};
+DataTable* initialConfig = NULL;
+
 static EnvariConsole console;
 bool consoleOpen;
 

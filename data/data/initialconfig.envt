@@ -1,0 +1,12 @@
+resolution: 0.5 0.5; #Comment
+#TestComment
+#OtherTestComment
+initialScripts: "test.lua"; #Other comment with spaces
+stringInnerText: "This   #   is  a  ;  :   test";
+multilineTest: "This
+is
+a
+multiline
+text";
+
+   keyWithSpacesLeftAndRightTest    : "Hi";
