@@ -61,6 +61,36 @@ static i32 GetDataLineParameters(char* dataString, i32 index) {
     currentChar = dataString[index];
 }
 
+static char* TableGetString(DataTable** table, const char* key)
+{
+    char* tableString = shget(*table, key);
+    return tableString;
+}
+
+static i32 TableGetInt(DataTable** table, const char* key)
+{
+    char* tableString = shget(*table, key);
+    return atoi(tableString);
+}
+
+static f32 TableGetFloat(DataTable** table, const char* key)
+{
+    char* tableString = shget(*table, key);
+    char* endPointer = 0;
+    return strtof(tableString, &endPointer);
+}
+
+static v2 TableGetV2(DataTable** table, const char* key)
+{
+    char* tableString = shget(*table, key);
+    char* endPointer = 0;
+    f32 x = strtof(tableString, &endPointer);
+    tableString = endPointer;
+    tableString++;
+    f32 y = strtof(tableString, &endPointer);
+    return V2(x, y);
+}
+
 static bool ParseDataTable(DataTable** table, const char* filename)
 {
     u32 dataSize = 0;
@@ -70,14 +100,16 @@ static bool ParseDataTable(DataTable** table, const char* filename)
 
     u32 tokenBufferIndex = 0;
     // #TODO (Juan): Currently there is a hard cap for a token length, maybe fix this later?
+    char* keyPointer = 0;
     char tokenBuffer[128];
     bool onComment = false;
     bool parsingString = false;
-    bool parsingKey = true; 
+    bool parsingKey = true;
+    bool firstToken = false;
 
     i32 index = 0;
     while (index < dataSize) {
-        char currentChar = dataString[index];        
+        char currentChar = dataString[index];
         
         if(!parsingString && currentChar == '#') {
             onComment = true;
@@ -85,6 +117,10 @@ static bool ParseDataTable(DataTable** table, const char* filename)
 
         if (parsingString || (!onComment && currentChar > ' ')) {
             if(currentChar == '"') {
+                if(!parsingString) {
+                    index++;
+                    currentChar = dataString[index];
+                }
                 parsingString = !parsingString;
             }
             
@@ -98,11 +134,11 @@ static bool ParseDataTable(DataTable** table, const char* filename)
             else {
                 if(parsingKey && currentChar == ':') {
                     parsingKey = false;
+                    firstToken = true;
                     tokenBuffer[tokenBufferIndex] = '\0';
-                    PushString(&permanentState->arena, tokenBuffer, tokenBufferIndex);
+                    tokenBufferIndex++;
+                    keyPointer = PushString(&permanentState->arena, tokenBuffer, tokenBufferIndex);
                     tokenBufferIndex = 0;
-
-                    console.AddLog(tokenBuffer);
                 }
                 else {
                     tokenBuffer[tokenBufferIndex] = currentChar;
@@ -116,11 +152,20 @@ static bool ParseDataTable(DataTable** table, const char* filename)
                     if(!parsingKey && !parsingString) {
                         char nextChar = dataString[index + 1];
                         if(nextChar == ';' || nextChar == ' ') {
-                            tokenBuffer[tokenBufferIndex] = '\0';
-                            PushString(&permanentState->arena, tokenBuffer, tokenBufferIndex);
+                            if(tokenBuffer[tokenBufferIndex - 1] == '"') {
+                                tokenBuffer[tokenBufferIndex - 1] = '\0';
+                            }
+                            else {
+                                tokenBuffer[tokenBufferIndex] = '\0';
+                                tokenBufferIndex++;
+                            }
+                            char* tokenPointer = PushString(&permanentState->arena, tokenBuffer, tokenBufferIndex);
                             tokenBufferIndex = 0;
 
-                            console.AddLog(tokenBuffer);
+                            if(firstToken) {
+                                shput(*table, keyPointer, tokenPointer);
+                                firstToken = false;
+                            }
                         }
                     }
                 }

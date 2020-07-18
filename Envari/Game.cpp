@@ -12,15 +12,9 @@
 
 static u32 GameInit() {
 
-    InitializeArena(&permanentState->arena, (memoryIndex)(gameState->memory.permanentStorageSize - sizeof(PermanentData) - sizeof(Data)), (u8 *)gameState->memory.permanentStorage + sizeof(PermanentData) + sizeof(Data));
-    InitializeArena(&temporalState->arena, (memoryIndex)(gameState->memory.temporalStorageSize - sizeof(TemporalData)), (u8 *)gameState->memory.temporalStorage + sizeof(TemporalData));
-
     console.InitConsole();
-    
-    ParseDataTable(&initialConfig, "data/initialconfig.envt");
-    // i32* value = (i32*)shget(initialConfig, "TestKey");
-    // console.AddLog("Data test size: %d", shlen(initialConfig));
-    // console.AddLog("Data test log: %d", *value);
+
+    LoadScriptFile(TableGetString(&initialConfig, "initLuaScript"));
 
     gameState->demo.backgroundR = true;
     gameState->demo.backgroundG = true;

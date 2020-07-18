@@ -46,17 +46,29 @@ int CALLBACK WinMain(
     permanentState = (PermanentData *)gameState->memory.permanentStorage + sizeof(Data);
     temporalState = (TemporalData *)gameState->memory.temporalStorage;
 
+    InitializeArena(&permanentState->arena, (memoryIndex)(gameState->memory.permanentStorageSize - sizeof(PermanentData) - sizeof(Data)), (u8 *)gameState->memory.permanentStorage + sizeof(PermanentData) + sizeof(Data));
+    InitializeArena(&temporalState->arena, (memoryIndex)(gameState->memory.temporalStorageSize - sizeof(TemporalData)), (u8 *)gameState->memory.temporalStorage + sizeof(TemporalData));
+
+    ParseDataTable(&initialConfig, "data/initialconfig.envt");
+
     if (!glfwInit()) {
         return -1;
     }
 
     GLFWmonitor* mainMonitor = glfwGetPrimaryMonitor();
     const GLFWvidmode* videoMode = glfwGetVideoMode( mainMonitor );
-    gameState->screen.width = FloorToInt(videoMode->width * .5f);
-    gameState->screen.height = FloorToInt(videoMode->height * .5f);
+    v2 windowSize = TableGetV2(&initialConfig, "windowSize");
+    if(windowSize.x <= 1 && windowSize.y <= 1) {
+        gameState->screen.width = FloorToInt(videoMode->width * windowSize.x);
+        gameState->screen.height = FloorToInt(videoMode->height * windowSize.y);
+    }
+    else {
+        gameState->screen.width = FloorToInt(windowSize.x);
+        gameState->screen.height = FloorToInt(windowSize.y);
+    }
     gameState->screen.refreshRate = videoMode->refreshRate;
 
-    Window = glfwCreateWindow(gameState->screen.width, gameState->screen.height, "OpenGL Test", NULL, NULL);
+    Window = glfwCreateWindow(gameState->screen.width, gameState->screen.height, TableGetString(&initialConfig, "windowTitle"), NULL, NULL);
     glfwSetWindowSizeCallback(Window, WindowResizeCallback);
 
     if (!Window)

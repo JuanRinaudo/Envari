@@ -1,14 +1,6 @@
+initLuaScript: "test.lua"; #Initial lua script for GameInit
+windowSize: 800 800; #Game resolution (if < 1 is relative, if > 1 is fixed)
+windowTitle: "Envari Engine";
 
-   keyWithSpacesLeftAndRightTest    : "Hi";
-
-resolution : 0.5 0.5; #Comment
-#TestComment
-#OtherTestComment
-
-initialScripts: "test.lua"; #Other comment with spaces
-stringInnerText: "This   #   is  a  ;  :   test";
-multilineTest: "This
-is
-a
-multiline
-text";
+fps: 60; #Not yet implemented int test
+vsync: 1; #Not yet working, just int bool test

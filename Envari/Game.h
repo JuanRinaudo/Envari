@@ -214,7 +214,7 @@ enum DataType {
 
 struct DataTable {
     char* key;
-    void* pointer;
+    char* value;
 };
 DataTable* initialConfig = NULL;
 

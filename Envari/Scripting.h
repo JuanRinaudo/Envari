@@ -65,6 +65,9 @@ static void ScriptingInit(char* dataPath)
 
     lua.open_libraries(sol::lib::base, sol::lib::package);
 
+    // #NOTE (Juan): Lua
+    lua["LoadScriptFile"] = LoadScriptFile;
+    
     // #NOTE (Juan): C/C++
     lua["printf"] = printf;
     lua["stringInputTest"] = stringInputTest;
@@ -180,8 +183,6 @@ static void ScriptingInit(char* dataPath)
 
     // #NOTE (Juan): Console
     lua["ConsoleAddLog"] = ConsoleAddLog;
-
-    LoadScriptFile((char *)"test.lua");
 }
 
 static void ScriptingUpdate()
