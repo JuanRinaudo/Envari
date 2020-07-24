@@ -20,7 +20,7 @@ static bool TokenIsInt(const char* string)
 }
 
 static bool TokenIsFloat(const char* string)
-{    
+{
     i32 i = 0;
     bool hasDot = false;
     while(string[i] != '\0') {
@@ -61,6 +61,12 @@ static i32 GetDataLineParameters(char* dataString, i32 index) {
     currentChar = dataString[index];
 }
 
+static bool TableHasKey(DataTable** table, const char* key)
+{
+    bool keyPointer = shgetp_null(*table, key);
+    return keyPointer != 0;
+}
+
 static char* TableGetString(DataTable** table, const char* key)
 {
     char* tableString = shget(*table, key);
@@ -71,6 +77,12 @@ static i32 TableGetInt(DataTable** table, const char* key)
 {
     char* tableString = shget(*table, key);
     return atoi(tableString);
+}
+
+static bool TableGetBool(DataTable** table, const char* key)
+{
+    char* tableString = shget(*table, key);
+    return atoi(tableString) != 0;
 }
 
 static f32 TableGetFloat(DataTable** table, const char* key)
@@ -89,6 +101,20 @@ static v2 TableGetV2(DataTable** table, const char* key)
     tableString++;
     f32 y = strtof(tableString, &endPointer);
     return V2(x, y);
+}
+
+static v3 TableGetV3(DataTable** table, const char* key)
+{
+    char* tableString = shget(*table, key);
+    char* endPointer = 0;
+    f32 x = strtof(tableString, &endPointer);
+    tableString = endPointer;
+    tableString++;
+    f32 y = strtof(tableString, &endPointer);
+    tableString = endPointer;
+    tableString++;
+    f32 z = strtof(tableString, &endPointer);
+    return V3(x, y, z);
 }
 
 static bool ParseDataTable(DataTable** table, const char* filename)

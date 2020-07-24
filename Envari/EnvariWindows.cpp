@@ -1,4 +1,6 @@
 #include <windows.h>
+#include <chrono>
+#include <thread>
 
 #define SOURCE_TYPE const char* const
 
@@ -49,7 +51,7 @@ int CALLBACK WinMain(
     InitializeArena(&permanentState->arena, (memoryIndex)(gameState->memory.permanentStorageSize - sizeof(PermanentData) - sizeof(Data)), (u8 *)gameState->memory.permanentStorage + sizeof(PermanentData) + sizeof(Data));
     InitializeArena(&temporalState->arena, (memoryIndex)(gameState->memory.temporalStorageSize - sizeof(TemporalData)), (u8 *)gameState->memory.temporalStorage + sizeof(TemporalData));
 
-    ParseDataTable(&initialConfig, "data/initialconfig.envt");
+    ParseDataTable(&initialConfig, "data/windowsConfig.envt");
 
     if (!glfwInit()) {
         return -1;
@@ -68,7 +70,8 @@ int CALLBACK WinMain(
     }
     gameState->screen.refreshRate = videoMode->refreshRate;
 
-    Window = glfwCreateWindow(gameState->screen.width, gameState->screen.height, TableGetString(&initialConfig, "windowTitle"), NULL, NULL);
+    char* windowTitle = TableGetString(&initialConfig, "windowTitle");
+    Window = glfwCreateWindow(gameState->screen.width, gameState->screen.height, windowTitle, NULL, NULL);
     glfwSetWindowSizeCallback(Window, WindowResizeCallback);
 
     if (!Window)
@@ -82,6 +85,11 @@ int CALLBACK WinMain(
 	if (gl3wInit()) {
 		return -1;
 	}
+
+    int fpsLimit = TableGetInt(&initialConfig, "fpsLimit");
+    int fpsDelta = 1000 / fpsLimit;
+    int vsync = TableGetInt(&initialConfig, "vsync");
+    glfwSwapInterval(vsync);
 
     const char* glsl_version = 0;
     
@@ -103,14 +111,25 @@ int CALLBACK WinMain(
     texturedProgram = GL_CompileProgram("shaders/glcore/textured.vert", "shaders/glcore/textured.frag");
 
     Running = true;
+    auto start = std::chrono::steady_clock::now();
     while (Running)
     {
-
-        glfwPollEvents();
 
         double gameTime = glfwGetTime();
         gameState->time.gameTime = (f32)gameTime;
         gameState->time.deltaTime = (f32)(gameTime - gameState->time.lastFrameGameTime);
+        gameState->time.frames++;
+
+        auto now = std::chrono::steady_clock::now();
+        i64 epochTime = now.time_since_epoch().count() / 1000000;
+        auto diff = now - start;
+        auto end = now + std::chrono::milliseconds(fpsDelta - epochTime % fpsDelta);
+        if(diff >= std::chrono::seconds(1))
+        {
+            start = now;
+        }
+
+        glfwPollEvents();
 
         gameState->time.lastFrameGameTime = gameState->time.gameTime;
 
@@ -133,10 +152,10 @@ int CALLBACK WinMain(
 
         End2D();
 
-        // Render dear imgui into screen
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
+        std::this_thread::sleep_until(end);
         glfwSwapBuffers(Window);
 
     }

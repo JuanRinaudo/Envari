@@ -166,6 +166,7 @@ struct TimeData {
     f32 lastFrameGameTime;
     f32 gameTime;
     f32 deltaTime;
+    i64 frames;
 };
 
 struct Memory {

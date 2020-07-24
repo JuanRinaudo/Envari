@@ -34,19 +34,20 @@ struct EnvariConsole
     static char* Strdup(const char *str)                             { size_t len = strlen(str) + 1; void* buf = malloc(len); IM_ASSERT(buf); return (char*)memcpy(buf, (const void*)str, len); }
     static void  Strtrim(char* str)                                  { char* str_end = str + strlen(str); while (str_end > str && str_end[-1] == ' ') str_end--; *str_end = 0; }
 
-    void    ClearLog()
+    void ClearLog()
     {
-        for (int i = 0; i < Items.Size; i++)
+        for (int i = 0; i < Items.Size; i++) {
             free(Items[i]);
+        }
         Items.clear();
     }
 
-    void    AddLogSimple(const char* log)
+    void AddLogSimple(const char* log)
     {
         Items.push_back(Strdup(log));
     }
 
-    void    AddLog(const char* fmt, ...) IM_FMTARGS(2)
+    void AddLog(const char* fmt, ...) IM_FMTARGS(2)
     {
         // FIXME-OPT
         char buf[1024];
@@ -58,7 +59,7 @@ struct EnvariConsole
         Items.push_back(Strdup(buf));
     }
 
-    void    Draw(const char* title, bool* p_open)
+    void Draw(const char* title, bool* p_open)
     {
         ImGui::SetNextWindowSize(ImVec2(520,600), ImGuiCond_FirstUseEver);
         if (!ImGui::Begin(title, p_open))
@@ -77,9 +78,12 @@ struct EnvariConsole
         if (ImGui::SmallButton("Clear")) {
             ClearLog();
         }
+        
         ImGui::SameLine();
-
         bool copy_to_clipboard = ImGui::SmallButton("Copy");
+        
+        ImGui::SameLine();
+        ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 
         ImGui::Separator();
 
@@ -105,10 +109,11 @@ struct EnvariConsole
         }
 
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4,1));
-        if (copy_to_clipboard)
+        if (copy_to_clipboard) {
             ImGui::LogToClipboard();
-        for (int i = 0; i < Items.Size; i++)
-        {
+        }
+
+        for (int i = 0; i < Items.Size; i++) {
             const char* item = Items[i];
             if (!Filter.PassFilter(item)) {
                 continue;
@@ -144,8 +149,7 @@ struct EnvariConsole
 
         // Command-line
         bool reclaim_focus = false;
-        if (ImGui::InputText("Input", InputBuf, IM_ARRAYSIZE(InputBuf), ImGuiInputTextFlags_EnterReturnsTrue|ImGuiInputTextFlags_CallbackCompletion|ImGuiInputTextFlags_CallbackHistory, &TextEditCallbackStub, (void*)this))
-        {
+        if (ImGui::InputText("Input", InputBuf, IM_ARRAYSIZE(InputBuf), ImGuiInputTextFlags_EnterReturnsTrue|ImGuiInputTextFlags_CallbackCompletion|ImGuiInputTextFlags_CallbackHistory, &TextEditCallbackStub, (void*)this)) {
             char* s = InputBuf;
             Strtrim(s);
             if (s[0])
@@ -163,40 +167,38 @@ struct EnvariConsole
         ImGui::End();
     }
 
-    void    ExecCommand(const char* command_line)
+    void ExecCommand(const char* command_line)
     {
         AddLog("# %s\n", command_line);
 
         // Insert into history. First find match and delete it so it can be pushed to the back. This isn't trying to be smart or optimal.
         HistoryPos = -1;
-        for (int i = History.Size-1; i >= 0; i--)
-            if (Stricmp(History[i], command_line) == 0)
-            {
+        for (int i = History.Size-1; i >= 0; i--) {
+            if (Stricmp(History[i], command_line) == 0) {
                 free(History[i]);
                 History.erase(History.begin() + i);
                 break;
             }
+        }
         History.push_back(Strdup(command_line));
 
         // Process command
-        if (Stricmp(command_line, "CLEAR") == 0)
-        {
+        if (Stricmp(command_line, "CLEAR") == 0) {
             ClearLog();
         }
-        else if (Stricmp(command_line, "HELP") == 0)
-        {
+        else if (Stricmp(command_line, "HELP") == 0) {
             AddLog("Commands:");
-            for (int i = 0; i < Commands.Size; i++)
+            for (int i = 0; i < Commands.Size; i++) {
                 AddLog("- %s", Commands[i]);
+            }
         }
-        else if (Stricmp(command_line, "HISTORY") == 0)
-        {
+        else if (Stricmp(command_line, "HISTORY") == 0) {
             int first = History.Size - 10;
-            for (int i = first > 0 ? first : 0; i < History.Size; i++)
+            for (int i = first > 0 ? first : 0; i < History.Size; i++) {
                 AddLog("%3d: %s\n", i, History[i]);
+            }
         }
-        else
-        {
+        else {
             AddLog("Unknown command: '%s'\n", command_line);
         }
 
@@ -210,12 +212,10 @@ struct EnvariConsole
         return console->TextEditCallback(data);
     }
 
-    int     TextEditCallback(ImGuiInputTextCallbackData* data)
+    int TextEditCallback(ImGuiInputTextCallbackData* data)
     {
-        switch (data->EventFlag)
-        {
-            case ImGuiInputTextFlags_CallbackCompletion:
-            {
+        switch (data->EventFlag) {
+            case ImGuiInputTextFlags_CallbackCompletion: {
                 // Locate beginning of current word
                 const char* word_end = data->Buf + data->CursorPos;
                 const char* word_start = word_end;
@@ -229,28 +229,26 @@ struct EnvariConsole
 
                 // Build a list of candidates
                 ImVector<const char*> candidates;
-                for (int i = 0; i < Commands.Size; i++)
-                    if (Strnicmp(Commands[i], word_start, (int)(word_end-word_start)) == 0)
+                for (int i = 0; i < Commands.Size; i++) {
+                    if (Strnicmp(Commands[i], word_start, (int)(word_end-word_start)) == 0) {
                         candidates.push_back(Commands[i]);
+                    }
+                }
 
-                if (candidates.Size == 0)
-                {
+                if (candidates.Size == 0) {
                     // No match
                     AddLog("No match for \"%.*s\"!\n", (int)(word_end-word_start), word_start);
                 }
-                else if (candidates.Size == 1)
-                {
+                else if (candidates.Size == 1) {
                     // Single match. Delete the beginning of the word and replace it entirely so we've got nice casing
                     data->DeleteChars((int)(word_start-data->Buf), (int)(word_end-word_start));
                     data->InsertChars(data->CursorPos, candidates[0]);
                     data->InsertChars(data->CursorPos, " ");
                 }
-                else
-                {
+                else {
                     // Multiple matches. Complete as much as we can, so inputing "C" will complete to "CL" and display "CLEAR" and "CLASSIFY"
                     int match_len = (int)(word_end - word_start);
-                    for (;;)
-                    {
+                    while(true) {
                         int c = 0;
                         bool all_candidates_matches = true;
                         for (int i = 0; i < candidates.Size && all_candidates_matches; i++)
@@ -271,33 +269,34 @@ struct EnvariConsole
 
                     // List matches
                     AddLog("Possible matches:\n");
-                    for (int i = 0; i < candidates.Size; i++)
+                    for (int i = 0; i < candidates.Size; i++) {
                         AddLog("- %s\n", candidates[i]);
+                    }
                 }
 
                 break;
             }
-            case ImGuiInputTextFlags_CallbackHistory:
-            {
+            case ImGuiInputTextFlags_CallbackHistory: {
                 // Example of HISTORY
                 const int prev_history_pos = HistoryPos;
-                if (data->EventKey == ImGuiKey_UpArrow)
-                {
-                    if (HistoryPos == -1)
+                if (data->EventKey == ImGuiKey_UpArrow) {
+                    if (HistoryPos == -1) {
                         HistoryPos = History.Size - 1;
-                    else if (HistoryPos > 0)
+                    }
+                    else if (HistoryPos > 0) {
                         HistoryPos--;
+                    }
                 }
-                else if (data->EventKey == ImGuiKey_DownArrow)
-                {
-                    if (HistoryPos != -1)
-                        if (++HistoryPos >= History.Size)
+                else if (data->EventKey == ImGuiKey_DownArrow) {
+                    if (HistoryPos != -1) {
+                        if (++HistoryPos >= History.Size) {
                             HistoryPos = -1;
+                        }
+                    }
                 }
 
                 // A better implementation would preserve the data on the current input line along with cursor position.
-                if (prev_history_pos != HistoryPos)
-                {
+                if (prev_history_pos != HistoryPos) {
                     const char* history_str = (HistoryPos >= 0) ? History[HistoryPos] : "";
                     data->DeleteChars(0, data->BufTextLen);
                     data->InsertChars(0, history_str);
