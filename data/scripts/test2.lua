@@ -1,1 +1,0 @@
-config = { test = "this is a test", fullscreen = true, resolution = { x = 1024, y = 768 } }

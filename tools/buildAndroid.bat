@@ -9,13 +9,13 @@ pushd android
 popd
 popd
 
-set buildType=%1
-set runType=%2
-if [%1] == [] set buildType=debug
-if [%2] == [] set runType=none
+set BUILD_TYPE=%1
+set RUN_TYPE=%2
+if [%1] == [] set BUILD_TYPE=debug
+if [%2] == [] set RUN_TYPE=none
 
-echo "Build type: %buildType%"
-echo "Run type: %runType%"
+echo "Build type: %BUILD_TYPE%"
+echo "Run type: %RUN_TYPE%"
 
 REM robocopy buildassets\android build\html5 /MIR /NFL /NDL /NJH /NJS
 
@@ -24,22 +24,22 @@ set noCommand="true"
 pushd android-project
 
 echo "<< Start gradle build >>"
-if "%buildType%"=="debug" (
+if "%BUILD_TYPE%"=="debug" (
     cmd /C gradle assembleDebug
     echo "<< Copy build files >>"
     robocopy app\build\outputs\apk\debug ..\build\android app-debug.apk /NFL /NDL /NJH /NJS
     set noCommand="false"
 )
-if "%buildType%"=="release" (
+if "%BUILD_TYPE%"=="release" (
     cmd /C gradle assembleRelease
     echo "<< Copy build files >>"
     robocopy app\build\outputs\apk\release ..\build\android app-release-unsigned.apk /NFL /NDL /NJH /NJS
     set noCommand="false"
 )
-if "%buildType%"=="tasks" (
+if "%BUILD_TYPE%"=="tasks" (
     cmd /C gradle tasks
 )
-if "%buildType%"=="check" (
+if "%BUILD_TYPE%"=="check" (
     cmd /C gradle check
 )
 
@@ -52,19 +52,19 @@ if %noCommand%=="true" (
 popd
 
 echo "<< Start install or run >>"
-if "%runType%"=="install" (
-    if "%buildType%"=="debug" (
+if "%RUN_TYPE%"=="install" (
+    if "%BUILD_TYPE%"=="debug" (
         adb install build/android/app-debug.apk
     )
-    if "%buildType%"=="release" (
+    if "%BUILD_TYPE%"=="release" (
         adb install build/android/app-release-unsigned.apk
     )
 )
-if "%runType%"=="installRun" (
-    if "%buildType%"=="debug" (
+if "%RUN_TYPE%"=="installRun" (
+    if "%BUILD_TYPE%"=="debug" (
         adb install build/android/app-debug.apk
     )
-    if "%buildType%"=="release" (
+    if "%BUILD_TYPE%"=="release" (
         adb install build/android/app-release-unsigned.apk
     )
     adb shell am start -n org.libsdl.app/org.libsdl.app.SDLActivity
