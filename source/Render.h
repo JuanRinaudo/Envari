@@ -269,25 +269,21 @@ static void End2D()
     EndTemporaryMemory(&renderTemporaryMemory);
 }
 
-static v2 ScreenToViewport(m44 projection, v2 screenPosition)
+static v2 ScreenToViewport(v2 screenPosition, f32 size, f32 ratio)
 {
-    f32 x = screenPosition.x / gameState->screen.width;
-    f32 y = screenPosition.y / gameState->screen.height;
-    return V2(x, y);
+    v2 position = V2(0, 0);
+    
+    position.x = ((screenPosition.x / gameState->screen.width) - 0.5f) * size * ratio;
+    position.y = ((screenPosition.y / gameState->screen.height) - 0.5f) * size;
+
+    return position;
 }
 
-static v2 ViewportToScreen(m44 projection, v2 viewportPosition)
+static v2 ViewportToScreen(v2 viewportPosition, f32 size, f32 ratio)
 {
     f32 x = viewportPosition.x * gameState->screen.width;
     f32 y = viewportPosition.y * gameState->screen.height;
     return V2(x, y);
 }
-
-    // if(projection._33 > 0) { // #NOTE(Juan): Ortographic projection
-
-    // }
-    // else { // #NOTE(Juan): Perspective projection
-        
-    // }
 
 #endif

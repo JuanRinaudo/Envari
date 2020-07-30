@@ -5,6 +5,10 @@
 #define SOURCE_TYPE const char* const
 
 #include "GL3W/gl3w.c"
+#include <GLFW/glfw3.h>
+
+#define KEY_COUNT GLFW_KEY_LAST
+#define MOUSE_COUNT GLFW_MOUSE_BUTTON_LAST
 
 #include "Defines.h"
 #include "GameMath.h"
@@ -12,15 +16,13 @@
 #include "Game.h"
 #include "GLRender.h"
 
-#include <GLFW/glfw3.h>
-
 #include "IMGUI/imgui.h"
 #include "IMGUI/imgui_impl_glfw.h"
 #include "IMGUI/imgui_impl_opengl3.h"
 
 GLFWwindow* Window;
 
-static void WindowResizeCallback(GLFWwindow* targetWindow, int width, int height)
+static void WindowResizeCallback(GLFWwindow* targetWindow, i32 width, i32 height)
 {
     gameState->screen.width = width;
     gameState->screen.height = height;
@@ -30,11 +32,45 @@ static void WindowResizeCallback(GLFWwindow* targetWindow, int width, int height
 	lua["screen"]["refreshRate"] = (gameState->screen).refreshRate;
 }
 
-int CALLBACK WinMain(
+static void KeyCallback(GLFWwindow* window, i32 key, i32 scancode, i32 action, i32 mods)
+{
+    if(action == GLFW_RELEASE || action == GLFW_PRESS) {
+        gameState->input.keyState[key] = action == GLFW_RELEASE ? KEY_RELEASED : KEY_PRESSED;
+    }
+}
+
+static void MousePositionCallback(GLFWwindow* window, double xpos, double ypos)
+{
+    gameState->input.mousePosition.x = (f32)xpos;
+    gameState->input.mousePosition.y = (f32)ypos;
+}
+    
+static void MouseButtonCallback(GLFWwindow* window, i32 key, i32 action, i32 mods)
+{    
+    if(action == GLFW_RELEASE || action == GLFW_PRESS) {
+        gameState->input.mouseState[key] = action == GLFW_RELEASE ? KEY_RELEASED : KEY_PRESSED;
+    }
+}
+
+static void CheckInput() {
+    for(i32 key = 0; key < KEY_COUNT; ++key) {
+        u8 keyState = gameState->input.keyState[key];
+        if(keyState == KEY_PRESSED) { gameState->input.keyState[key] = KEY_DOWN; }
+        else if(keyState == KEY_RELEASED) { gameState->input.keyState[key] = KEY_UP; }
+    }
+
+    for(i32 key = 0; key < MOUSE_COUNT; ++key) {
+        u8 mouseState = gameState->input.mouseState[key];
+        if(mouseState == KEY_PRESSED) { gameState->input.mouseState[key] = KEY_DOWN; }
+        else if(mouseState == KEY_RELEASED) { gameState->input.mouseState[key] = KEY_UP; }
+    }
+} 
+
+i32 CALLBACK WinMain(
     HINSTANCE Instance,
     HINSTANCE PrevInstance,
     LPSTR CommandLine,
-    int ShowCode)
+    i32 ShowCode)
 {
 
     gameMemory = malloc(Megabytes(128));
@@ -86,12 +122,17 @@ int CALLBACK WinMain(
 		return -1;
 	}
 
-    int fpsLimit = TableGetInt(&initialConfig, "fpsLimit");
-    int fpsDelta = 1000 / fpsLimit;
-    int vsync = TableGetInt(&initialConfig, "vsync");
+    i32 fpsLimit = TableGetInt(&initialConfig, "fpsLimit");
+    i32 fpsDelta = 1000 / fpsLimit;
+    i32 vsync = TableGetInt(&initialConfig, "vsync");
     glfwSwapInterval(vsync);
 
-    const char* glsl_version = 0;
+    const char* glsl_version = 0;\
+
+    // Input
+    glfwSetKeyCallback(Window, KeyCallback);
+    glfwSetCursorPosCallback(Window, MousePositionCallback);
+    glfwSetMouseButtonCallback(Window, MouseButtonCallback);
     
     // NOTE(Juan): Dear IMGUI
     IMGUI_CHECKVERSION();
@@ -120,13 +161,16 @@ int CALLBACK WinMain(
         gameState->time.deltaTime = (f32)(gameTime - gameState->time.lastFrameGameTime);
         gameState->time.frames++;
 
-        auto now = std::chrono::steady_clock::now();
-        i64 epochTime = now.time_since_epoch().count() / 1000000;
-        auto diff = now - start;
-        auto end = now + std::chrono::milliseconds(fpsDelta - epochTime % fpsDelta);
-        if(diff >= std::chrono::seconds(1))
-        {
-            start = now;
+        std::chrono::steady_clock::time_point end;
+        if(fpsLimit > 0) {
+            auto now = std::chrono::steady_clock::now();
+            i64 epochTime = now.time_since_epoch().count() / 1000000;
+            auto diff = now - start;
+            end = now + std::chrono::milliseconds(fpsDelta - epochTime % fpsDelta);
+            if(diff >= std::chrono::seconds(1))
+            {
+                start = now;
+            }
         }
 
         glfwPollEvents();
@@ -155,8 +199,13 @@ int CALLBACK WinMain(
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
-        std::this_thread::sleep_until(end);
+        if(fpsLimit > 0) {
+            std::this_thread::sleep_until(end);
+        }
+        
         glfwSwapBuffers(Window);
+
+        CheckInput();
 
     }
 

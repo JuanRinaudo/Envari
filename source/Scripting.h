@@ -43,7 +43,7 @@ static void LoadScriptFile(char* name)
 
     strcat(watchList, name);
     strcat(watchList, "@");
-    watchListSize += strlen(name + 1);
+    watchListSize += strlen(name) + 1;
     #endif
 }
 
@@ -71,6 +71,8 @@ static void ScriptingInit(char* dataPath)
     // #NOTE (Juan): C/C++
     lua["printf"] = printf;
     lua["stringInputTest"] = stringInputTest;
+    lua["CharToInt"] = CharToInt;
+    lua["IntToChar"] = IntToChar;
 
     // #NOTE (Juan): Data
     lua["camera"] = lua.create_table();
@@ -89,6 +91,17 @@ static void ScriptingInit(char* dataPath)
     lua["time"]["gameTime"] = (gameState->time).gameTime;
     lua["time"]["deltaTime"] = (gameState->time).deltaTime;
     lua["time"]["lastFrameGameTime"] = (gameState->time).lastFrameGameTime;
+    
+    lua["input"] = lua.create_table();    
+    lua["input"]["mousePosition"] = lua.create_table();
+    lua["input"]["mousePosition"]["x"] = (gameState->input).mousePosition.x;
+    lua["input"]["mousePosition"]["y"] = (gameState->input).mousePosition.y;
+    lua["input"]["keyState"] = lua.create_table();
+    lua["input"]["mouseState"] = lua.create_table();
+    lua["KEY_UP"] = KEY_UP;
+    lua["KEY_RELEASED"] = KEY_RELEASED;
+    lua["KEY_PRESSED"] = KEY_PRESSED;
+    lua["KEY_DOWN"] = KEY_DOWN;
 
     // #NOTE (Juan): Math
     lua["V2"] = V2;
@@ -116,6 +129,9 @@ static void ScriptingInit(char* dataPath)
     lua["PushRenderFont"] = PushRenderFont;
     lua["PushRenderChar"] = PushRenderChar;
     lua["PushRenderText"] = PushRenderText;
+
+    lua["ScreenToViewport"] = ScreenToViewport;
+    lua["ViewportToScreen"] = ViewportToScreen;
     
     lua["IMAGE_ADAPTATIVE_FIT"] = IMAGE_ADAPTATIVE_FIT;
     lua["IMAGE_KEEP_RATIO_X"] = IMAGE_KEEP_RATIO_X;
@@ -186,10 +202,20 @@ static void ScriptingInit(char* dataPath)
 }
 
 static void ScriptingUpdate()
-{    
+{
     lua["time"]["gameTime"] = (gameState->time).gameTime;
     lua["time"]["deltaTime"] = (gameState->time).deltaTime;
     lua["time"]["lastFrameGameTime"] = (gameState->time).lastFrameGameTime;
+
+    lua["input"]["mousePosition"]["x"] = (gameState->input).mousePosition.x;
+    lua["input"]["mousePosition"]["y"] = (gameState->input).mousePosition.y;
+    for(i32 key = 0; key < KEY_COUNT; ++key) {
+        lua["input"]["keyState"][key + 1] = (gameState->input).keyState[key];
+    }
+
+    for(i32 key = 0; key < MOUSE_COUNT; ++key) {
+        lua["input"]["mouseState"][key + 1] = (gameState->input).mouseState[key];
+    }
 }
 
 #if GAME_INTERNAL

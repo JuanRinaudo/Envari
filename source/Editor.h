@@ -62,12 +62,12 @@ struct EnvariConsole
     void Draw(const char* title, bool* p_open)
     {
         ImGui::SetNextWindowSize(ImVec2(520,600), ImGuiCond_FirstUseEver);
-        if (!ImGui::Begin(title, p_open))
+        if (!ImGui::Begin(title, p_open, ImGuiWindowFlags_MenuBar))
         {
             ImGui::End();
             return;
         }
-
+        
         if (ImGui::BeginPopupContextItem())
         {
             if (ImGui::MenuItem("Close Console"))

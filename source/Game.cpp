@@ -15,13 +15,6 @@ static u32 GameInit() {
     console.InitConsole();
 
     LoadScriptFile(TableGetString(&initialConfig, "initLuaScript"));
-
-    gameState->demo.backgroundR = true;
-    gameState->demo.backgroundG = true;
-    gameState->demo.backgroundB = true;
-    gameState->demo.colorSpeed = 1.0f;
-    gameState->demo.triangleTopX = 0.0f;
-    gameState->demo.renderColor = V4(1, 1, 1, 1);
     
     return 0;
 
@@ -33,14 +26,7 @@ static u32 GameLoop() {
 
     // ss << "TIME: " << global.time.gameTime << " | DELTA TIME: " << global.time.deltaTime << " | FPS: " << fps << endl;
 
-    f32 clearR = Abs(Sin(gameState->time.gameTime * gameState->demo.colorSpeed) * gameState->demo.backgroundR);
-    f32 clearG = Abs(Cos(gameState->time.gameTime * gameState->demo.colorSpeed) * gameState->demo.backgroundG);
-    f32 clearB = Abs((Sin(gameState->time.gameTime * gameState->demo.colorSpeed) + Cos(gameState->time.gameTime * gameState->demo.colorSpeed)) * 0.5f * gameState->demo.backgroundB);
-
     console.Draw("Example: Console", &consoleOpen);
-
-    PushRenderClear(clearR, clearG, clearB);
-    PushRenderColor(gameState->demo.renderColor.r, gameState->demo.renderColor.g, gameState->demo.renderColor.b, gameState->demo.renderColor.a);
      
     sol::protected_function Update(lua["Update"]);
     if(Update.valid()) {

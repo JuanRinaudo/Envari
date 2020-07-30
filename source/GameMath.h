@@ -775,6 +775,7 @@ static m44 OrtographicProjection(f32 left, f32 right, f32 top, f32 bottom, f32 n
 
 static m44 OrtographicProjection(f32 size, f32 aspect, f32 nearPlane, f32 farPlane)
 {
+    size *= 0.5f;
     return OrtographicProjection(-size * aspect, size * aspect, -size, size, nearPlane, farPlane);
 }
 

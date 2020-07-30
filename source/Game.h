@@ -16,6 +16,11 @@
 #include "STB/stb_truetype.h"
 #endif
 
+#define KEY_UP 0
+#define KEY_RELEASED 1
+#define KEY_PRESSED 2
+#define KEY_DOWN 3
+
 struct MemoryArena {
     memoryIndex size;
     u8 *base;
@@ -176,13 +181,11 @@ struct Memory {
     u64 temporalStorageSize;
 };
 
-struct DemoData {
-    b32 backgroundR;
-    b32 backgroundG;
-    b32 backgroundB;
-    f32 colorSpeed;
-    f32 triangleTopX;
-    v4 renderColor;
+struct Input
+{
+    v2 mousePosition;
+    u8 mouseState[MOUSE_COUNT];
+    u8 keyState[KEY_COUNT];
 };
 
 struct Data {
@@ -190,8 +193,7 @@ struct Data {
     Screen screen;
     TimeData time;
     Memory memory;
-    
-    DemoData demo;
+    Input input;
 };
 
 struct PermanentData {
