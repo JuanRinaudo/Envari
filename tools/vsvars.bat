@@ -15,10 +15,10 @@ if exist "%ProgramFiles%%VSVARSALLPATH_2017%" (
         call "%ProgramFiles(X86)%%VSVARSALLPATH_2017%" %ARCHITECTURE%
     ) else (
         if exist "%ProgramFiles(X86)%%VSVARSALLPATH_2019%" (
-            call "%ProgramFiles%%VSVARSALLPATH_2019%" %ARCHITECTURE%
+            call "%ProgramFiles(X86)%%VSVARSALLPATH_2019%" %ARCHITECTURE%
         ) else (
             if exist "%ProgramFiles%%VSVARSALLPATH_2019%" (
-                call "%ProgramFiles(X86)%%VSVARSALLPATH_2019%" %ARCHITECTURE%
+                call "%ProgramFiles%%VSVARSALLPATH_2019%" %ARCHITECTURE%
             ) else (
                 echo "Visual studio was not found, check vsvars inside Envari/tools/vsvars"
             )
