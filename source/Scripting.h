@@ -11,8 +11,8 @@ static char* scriptDataPath;
 #if GAME_INTERNAL
 static char watchList[200];
 static std::filesystem::file_time_type watchListTimes[20];
-static i32 watchListSize = 0;
-static i32 watchFiles = 0;
+static u32 watchListSize = 0;
+static u32 watchFiles = 0;
 #endif
 
 static void LoadScriptFile(char* name)
@@ -43,7 +43,7 @@ static void LoadScriptFile(char* name)
 
     strcat(watchList, name);
     strcat(watchList, "@");
-    watchListSize += strlen(name) + 1;
+    watchListSize += (u32)strlen(name) + 1;
     #endif
 }
 

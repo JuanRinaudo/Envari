@@ -134,7 +134,7 @@ static i32 GL_AvailableGPUMemoryKB()
 
 static GLTexture GL_LoadTexture(const char *textureKey)
 {
-    i32 index = shgeti(textureCache, textureKey);
+    i32 index = (i32)shgeti(textureCache, textureKey);
     if(index > -1) {
         return shget(textureCache, textureKey);
     } else {
@@ -162,7 +162,7 @@ static GLTexture GL_LoadTexture(const char *textureKey)
 
 static FontAtlas GL_LoadFont(const char *filename, f32 fontSize, u32 width, u32 height)
 {
-    i32 index = shgeti(fontCache, filename);
+    i32 index = (i32)shgeti(fontCache, filename);
     if(index > -1) {
         return shget(fontCache, filename); 
     } else {

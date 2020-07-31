@@ -84,7 +84,7 @@ static char *PushString(MemoryArena *arena, const char *string, u32 *stringSize)
 {
     char *result = 0;
 
-    u32 size = strlen(string) + 1;
+    u32 size = (u32)strlen(string) + 1;
     *stringSize = size;
 
     if(arena->used + size < arena->size) {
