@@ -1,5 +1,0 @@
-initLuaScript: "test.lua"; #Initial lua script for GameInit
-windowSize: .5 .5; #Game resolution (if < 1 is relative, if > 1 is fixed)
-windowTitle: "Envari Engine";
-vsync: 0; #0 disabled, 1 enabled
-fpsLimit: 100; #FPS limit
