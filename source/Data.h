@@ -1,6 +1,8 @@
 #if !defined(DATA_H)
 #define DATA_H
 
+#define DATA_MAX_TOKEN_COUNT 128
+
 #include <cstdlib>
 
 // #TODO (Juan): For now this works only with the ASCII and extended ASCII codes, add more support later
@@ -117,93 +119,158 @@ static v3 TableGetV3(DataTable** table, const char* key)
     return V3(x, y, z);
 }
 
-static bool ParseDataTable(DataTable** table, const char* filename)
+struct DataTokenizer {
+    bool active;
+    void* memory;
+    u32 memorySize;
+    char* dataString;
+    u32 dataIndex;
+    char currentChar;
+    char tokenBuffer[DATA_MAX_TOKEN_COUNT];
+    u32 tokenBufferIndex;
+    u32 currentLine;
+    i32 tokenLineCount;
+    bool onComment;
+    bool parsingString;
+};
+
+static void StartTokenizer(DataTokenizer* tokenizer, const char* filename)
 {
-    u32 dataSize = 0;
-    void* fileData = LoadFileToMemory(filename, "rb", &dataSize);
+    tokenizer->active = true;
+    tokenizer->memory = LoadFileToMemory(filename, "rb", &tokenizer->memorySize);
+    tokenizer->dataString = (char*)tokenizer->memory;
+    tokenizer->dataIndex = 0;
+    tokenizer->tokenBufferIndex = 0;
+    tokenizer->currentLine = 0;
+    tokenizer->tokenLineCount = -1;
+    tokenizer->onComment = false;
+    tokenizer->parsingString = false;
+}
 
-    char* dataString = (char*)fileData;
+static DataTokenizer StartTokenizer(const char* filename)
+{
+    DataTokenizer tokenizer;
+    StartTokenizer(&tokenizer, filename);
+    return tokenizer;
+}
 
-    u32 tokenBufferIndex = 0;
-    // #TODO (Juan): Currently there is a hard cap for a token length, maybe fix this later?
-    char* keyPointer = 0;
-    char tokenBuffer[128];
-    bool onComment = false;
-    bool parsingString = false;
-    bool parsingKey = true;
-    bool firstToken = false;
+static char* NextToken(DataTokenizer* tokenizer)
+{
+    if(tokenizer->active) {
+        tokenizer->tokenBufferIndex = 0;
 
-    i32 index = 0;
-    while (index < dataSize) {
-        char currentChar = dataString[index];
-        
-        if(!parsingString && currentChar == '#') {
-            onComment = true;
-        }
-
-        if (parsingString || (!onComment && currentChar > ' ')) {
-            if(currentChar == '"') {
-                if(!parsingString) {
-                    index++;
-                    currentChar = dataString[index];
-                }
-                parsingString = !parsingString;
-            }
+        while (tokenizer->dataIndex < tokenizer->memorySize) {
+            tokenizer->currentChar = tokenizer->dataString[tokenizer->dataIndex];
             
-            // #NOTE (Juan): End of line stop one line comments
-            if (!parsingString && currentChar == ';') {
-                // NOTE (Juan): Double 0 character represents and end of the parameters in the data
-                PushChar(&permanentState->arena, '\0');
-                parsingKey = true;
-                tokenBufferIndex = 0;
+            if(!tokenizer->parsingString && tokenizer->currentChar == '#') {
+                tokenizer->onComment = true;
             }
-            else {
-                if(parsingKey && currentChar == ':') {
-                    parsingKey = false;
-                    firstToken = true;
-                    tokenBuffer[tokenBufferIndex] = '\0';
-                    tokenBufferIndex++;
-                    keyPointer = PushString(&permanentState->arena, tokenBuffer, tokenBufferIndex);
-                    tokenBufferIndex = 0;
+
+            if (tokenizer->parsingString || (!tokenizer->onComment && tokenizer->currentChar > ' ')) {
+                if(tokenizer->currentChar == '"') {
+                    if(!tokenizer->parsingString) {
+                        tokenizer->dataIndex++;
+                        tokenizer->currentChar = tokenizer->dataString[tokenizer->dataIndex];
+                    }
+                    tokenizer->parsingString = !tokenizer->parsingString;
+                }
+                
+                if (!tokenizer->parsingString && tokenizer->currentChar == ';') {
+                    ++tokenizer->dataIndex;
+                    ++tokenizer->tokenLineCount;
+                    return tokenizer->tokenBuffer;
                 }
                 else {
-                    tokenBuffer[tokenBufferIndex] = currentChar;
-                    tokenBufferIndex++;
+                    tokenizer->tokenBuffer[tokenizer->tokenBufferIndex] = tokenizer->currentChar;
+                    tokenizer->tokenBufferIndex++;
                     
-                    if(tokenBufferIndex == ArrayCount(tokenBuffer)) {
-                        console.AddLog("%s parsing error, max token count reached %d", filename, ArrayCount(tokenBuffer));
-                        return false;
+                    if(tokenizer->tokenBufferIndex == DATA_MAX_TOKEN_COUNT) {
+                        console.AddLog("Parsing error, max token count reached %d", DATA_MAX_TOKEN_COUNT);
+                        return 0;
                     }
 
-                    if(!parsingKey && !parsingString) {
-                        char nextChar = dataString[index + 1];
-                        if(nextChar == ';' || nextChar == ' ') {
-                            if(tokenBuffer[tokenBufferIndex - 1] == '"') {
-                                tokenBuffer[tokenBufferIndex - 1] = '\0';
+                    if(!tokenizer->parsingString) {
+                        char nextChar = tokenizer->dataString[tokenizer->dataIndex + 1];
+                        if(nextChar == ';' || nextChar == ' ' || (tokenizer->tokenLineCount == -1 && nextChar == ':')) {
+                            if(tokenizer->tokenBuffer[tokenizer->tokenBufferIndex - 1] == '"') {
+                                tokenizer->tokenBuffer[tokenizer->tokenBufferIndex - 1] = '\0';
                             }
                             else {
-                                tokenBuffer[tokenBufferIndex] = '\0';
-                                tokenBufferIndex++;
+                                tokenizer->tokenBuffer[tokenizer->tokenBufferIndex] = '\0';
+                                tokenizer->tokenBufferIndex++;
                             }
-                            char* tokenPointer = PushString(&permanentState->arena, tokenBuffer, tokenBufferIndex);
-                            tokenBufferIndex = 0;
-
-                            if(firstToken) {
-                                shput(*table, keyPointer, tokenPointer);
-                                firstToken = false;
-                            }
+                            ++tokenizer->dataIndex;
+                            ++tokenizer->dataIndex;
+                            ++tokenizer->tokenLineCount;
+                            return tokenizer->tokenBuffer;
                         }
                     }
                 }
             }
-        }
 
-        if(onComment && currentChar == '\n') {
-            onComment = false;
-        }
+            if(tokenizer->currentChar == '\n' || tokenizer->currentChar == '\0') {
+                tokenizer->currentLine++;
+                tokenizer->tokenLineCount = -1;
 
-        ++index;
+                if(tokenizer->onComment) {
+                    tokenizer->onComment = false;
+                }
+            }
+
+            ++tokenizer->dataIndex;
+
+            if(tokenizer->dataIndex == tokenizer->memorySize) {
+                tokenizer->active = false;
+            }
+        }
     }
+
+    return 0;
+}
+
+static void EndTokenizer(DataTokenizer* tokenizer)
+{
+    tokenizer->active = false;
+    tokenizer->memory = 0;
+    tokenizer->memorySize = 0;
+    tokenizer->dataString = 0;
+    tokenizer->tokenBuffer[0] = '\0';
+    tokenizer->tokenBufferIndex = 0;
+    tokenizer->tokenLineCount = 0;
+    UnloadFileFromMemory(tokenizer->memory);
+}
+
+static bool ParseDataTable(DataTable** table, const char* filename)
+{
+    DataTokenizer tokenizer = StartTokenizer(filename);
+
+    char* keyPointer = 0;
+    while(tokenizer.active) {
+        char* token = NextToken(&tokenizer);
+
+        if(tokenizer.tokenLineCount == 0) {
+            if(keyPointer != 0) {
+                console.AddLog("Parsing error, parsing a key token when last token was a key, line: %d", tokenizer.currentLine);
+                return false;
+            }
+            
+            keyPointer = PushString(&permanentState->arena, tokenizer.tokenBuffer, tokenizer.tokenBufferIndex);
+        }
+        else if(token != 0) {
+            char* tokenPointer = PushString(&permanentState->arena, tokenizer.tokenBuffer, tokenizer.tokenBufferIndex);
+
+            if(tokenizer.currentChar == ';') {
+                PushChar(&permanentState->arena, '\0');
+            }
+
+            if(tokenizer.tokenLineCount == 1) {
+                shput(*table, keyPointer, tokenPointer);
+                keyPointer = 0;
+            }
+        }
+    }
+
+    EndTokenizer(&tokenizer);
 
     return true;
 }

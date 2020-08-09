@@ -36,4 +36,9 @@ static void* LoadFileToMemory(const char* filename, const char* mode, u32* fileS
     return fileBuffer;
 }
 
+static void UnloadFileFromMemory(void* fileBuffer)
+{
+	free(fileBuffer);
+}
+
 #endif

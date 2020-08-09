@@ -8,6 +8,7 @@
 #include "Intrinsics.h"
 #include "Render.h"
 #include "GLRender.h"
+#include "Input.h"
 #include "Scripting.h"
 
 static u32 GameInit() {
@@ -15,6 +16,14 @@ static u32 GameInit() {
     console.InitConsole();
 
     LoadScriptFile(TableGetString(&initialConfig, "initLuaScript"));
+
+    sol::protected_function Init(lua["Init"]);
+    if(Init.valid()) {
+        Init();
+    }
+    else {
+        console.AddLog("Error on script 'Init', not valid");
+    }
     
     return 0;
 
@@ -27,7 +36,7 @@ static u32 GameLoop() {
     // ss << "TIME: " << global.time.gameTime << " | DELTA TIME: " << global.time.deltaTime << " | FPS: " << fps << endl;
 
     console.Draw("Example: Console", &consoleOpen);
-     
+    
     sol::protected_function Update(lua["Update"]);
     if(Update.valid()) {
         Update();

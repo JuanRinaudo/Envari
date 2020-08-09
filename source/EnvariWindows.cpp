@@ -41,8 +41,10 @@ static void KeyCallback(GLFWwindow* window, i32 key, i32 scancode, i32 action, i
 
 static void MousePositionCallback(GLFWwindow* window, double xpos, double ypos)
 {
-    gameState->input.mousePosition.x = (f32)xpos;
-    gameState->input.mousePosition.y = (f32)ypos;
+    gameState->input.mouseScreenPosition.x = (f32)xpos;
+    gameState->input.mouseScreenPosition.y = (f32)ypos;
+
+    gameState->input.mousePosition = ScreenToViewport(gameState->input.mouseScreenPosition, gameState->camera.size, gameState->camera.ratio);
 }
     
 static void MouseButtonCallback(GLFWwindow* window, i32 key, i32 action, i32 mods)
@@ -104,6 +106,17 @@ i32 CALLBACK WinMain(
         gameState->screen.width = FloorToInt(windowSize.x);
         gameState->screen.height = FloorToInt(windowSize.y);
     }
+
+    v2 bufferSize = TableGetV2(&initialConfig, "bufferSize");
+    if(windowSize.x <= 1 && windowSize.y <= 1) {
+        gameState->screen.bufferWidth = FloorToInt(gameState->screen.width * bufferSize.x);
+        gameState->screen.bufferHeight = FloorToInt(gameState->screen.height * bufferSize.y);
+    }
+    else {
+        gameState->screen.bufferWidth = FloorToInt(bufferSize.x);
+        gameState->screen.bufferHeight = FloorToInt(bufferSize.y);
+    }
+
     gameState->screen.refreshRate = videoMode->refreshRate;
 
     char* windowTitle = TableGetString(&initialConfig, "windowTitle");
@@ -127,7 +140,7 @@ i32 CALLBACK WinMain(
     i32 vsync = TableGetInt(&initialConfig, "vsync");
     glfwSwapInterval(vsync);
 
-    const char* glsl_version = 0;\
+    const char* glsl_version = 0;
 
     // Input
     glfwSetKeyCallback(Window, KeyCallback);
@@ -150,6 +163,29 @@ i32 CALLBACK WinMain(
     GL_Init();
     coloredProgram = GL_CompileProgram("shaders/glcore/colored.vert", "shaders/glcore/colored.frag");
     texturedProgram = GL_CompileProgram("shaders/glcore/textured.vert", "shaders/glcore/textured.frag");
+
+    // #NOTE (Juan): Framebuffer
+    glGenFramebuffers(1, &frameBuffer);
+    glGenTextures(1, &renderBuffer);
+    glGenRenderbuffers(1, &depthrenderbuffer);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer);
+
+    glBindTexture(GL_TEXTURE_2D, renderBuffer);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, (i32)bufferSize.x, (i32)bufferSize.y, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, renderBuffer, 0);
+
+    glBindRenderbuffer(GL_RENDERBUFFER, depthrenderbuffer);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, (i32)bufferSize.x, (i32)bufferSize.y);
+    glFramebufferRenderbuffer(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depthrenderbuffer);
+
+    glDrawBuffers(1, DrawBuffers);
+
+    if(glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        console.AddLog("ERROR::FRAMEBUFFER:: Framebuffer is not complete!");
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);  
 
     Running = true;
     auto start = std::chrono::steady_clock::now();
@@ -186,15 +222,33 @@ i32 CALLBACK WinMain(
 
         ScriptingWatchChanges();
 
-        Begin2D();
+        GL_WatchChanges();
+
+        Begin2D(frameBuffer, (u32)bufferSize.x, (u32)bufferSize.y);
 
         ScriptingUpdate();
         GameLoop();
 
-        GL_WatchChanges();
         GL_Render();
 
         End2D();
+
+        f32 tempSize = gameState->camera.size;
+        f32 tempRatio = gameState->camera.ratio;
+        m44 tempProjection = gameState->camera.projection;
+
+        gameState->camera.size = 1;
+        gameState->camera.ratio = (f32)gameState->screen.width / (f32)gameState->screen.height;
+        gameState->camera.projection = OrtographicProjection(gameState->camera.size, gameState->camera.ratio, gameState->camera.nearPlane, gameState->camera.farPlane);
+        Begin2D(0, (u32)gameState->screen.width, (u32)gameState->screen.height);
+        PushRenderClear(0, 0, 0, 1);
+        PushRenderTexture(V2(-gameState->camera.size, gameState->camera.size) * 0.5f, V2(gameState->camera.size, -gameState->camera.size), renderBuffer);
+        GL_Render();
+        End2D();
+
+        gameState->camera.size = tempSize;
+        gameState->camera.ratio = tempRatio;
+        gameState->camera.projection = tempProjection;
 
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());

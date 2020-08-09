@@ -54,20 +54,6 @@ static v2 V2(f32 x, f32 y)
     return(result);
 }
 
-static v2 V2i(i32 x, i32 y)
-{
-    v2 result = V2((f32)x, (f32)y);
-
-    return(result);
-}
-
-static v2 V2i(u32 x, u32 y)
-{
-    v2 result = V2((f32)x, (f32)y);
-
-    return(result);
-}
-
 static v3 V3(f32 x, f32 y, f32 z)
 {
     v3 result;
@@ -258,6 +244,15 @@ static v2 Clamp01(v2 value)
     result.y = Clamp01(value.y);
 
     return(result);
+}
+
+static v2 Floor(v2 value) {
+    v2 result;
+
+    result.x = Floor(value.x);
+    result.y = Floor(value.y);
+
+    return result;
 }
 
 // #NOTE(Juan): v3 operations

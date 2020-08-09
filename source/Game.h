@@ -158,6 +158,8 @@ struct Screen {
     int refreshRate;
     int width;
     int height;
+    int bufferWidth;
+    int bufferHeight;
 };
 
 struct Camera {
@@ -165,6 +167,8 @@ struct Camera {
     f32 ratio;
     f32 nearPlane;
     f32 farPlane;
+    m44 view;
+    m44 projection;
 };
 
 struct TimeData {
@@ -184,6 +188,7 @@ struct Memory {
 struct Input
 {
     v2 mousePosition;
+    v2 mouseScreenPosition;
     u8 mouseState[MOUSE_COUNT];
     u8 keyState[KEY_COUNT];
 };
@@ -220,6 +225,11 @@ struct DataTable {
     char* value;
 };
 DataTable* initialConfig = NULL;
+
+u32 frameBuffer;
+u32 renderBuffer;
+u32 depthrenderbuffer;
+u32 DrawBuffers[1] = {GL_COLOR_ATTACHMENT0};
 
 static EnvariConsole console;
 bool consoleOpen;

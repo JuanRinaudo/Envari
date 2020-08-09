@@ -24,10 +24,12 @@ static void ConsoleAddLog(const char* log)
 // #NOTE(Juan): Engine
 static void ReloadCameraData()
 {	
-    (gameState->camera).size = lua["camera"]["size"];
-    (gameState->camera).ratio = lua["camera"]["ratio"];
-    (gameState->camera).nearPlane = lua["camera"]["nearPlane"];
-    (gameState->camera).farPlane = lua["camera"]["farPlane"];
+    gameState->camera.size = lua["camera"]["size"];
+    gameState->camera.ratio = lua["camera"]["ratio"];
+    gameState->camera.nearPlane = lua["camera"]["nearPlane"];
+    gameState->camera.farPlane = lua["camera"]["farPlane"];
+    gameState->camera.view = lua["camera"]["view"];
+    gameState->camera.projection = lua["camera"]["projection"];
 }
 
 // #NOTE(Juan): Cast

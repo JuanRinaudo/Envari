@@ -17,8 +17,10 @@ enum RenderType
     type_RenderTriangle,
     type_RenderRectangle,
     type_RenderCircle,
+    type_RenderTexture,
     type_RenderImage,
     type_RenderImageUV,
+    type_RenderAtlasSprite,
     type_RenderFont,
     type_RenderChar,
     type_RenderText,
@@ -79,6 +81,14 @@ struct RenderCircle
     u32 segments;
 };
 
+struct RenderTexture
+{
+    RenderHeader header;
+    v2 position;
+    v2 size;
+    u32 textureID;
+};
+
 struct RenderImage
 {
     RenderHeader header;
@@ -96,6 +106,19 @@ struct RenderImageUV
     rectangle2 uv;
     char* filename;
     u32 filenameSize;
+};
+
+struct RenderAtlasSprite
+{
+    RenderHeader header;
+    v2 position;
+    v2 size;
+    char* filename;
+    u32 filenameSize;
+    char* atlasName;
+    u32 atlasNameSize;
+    char* spriteKey;
+    u32 spriteKeySize;
 };
 
 struct RenderFont
@@ -132,7 +155,7 @@ struct RenderState {
 
 RenderState renderState;
 
-static void Begin2D()
+static void Begin2D(u32 frameBufferID, u32 width, u32 height)
 {
     renderState.lastRenderID = 0;
     renderState.renderColor = V4(1, 1, 1, 1);
@@ -140,6 +163,9 @@ static void Begin2D()
     
     RenderHeader *clearFirstHeader = (RenderHeader *)renderTemporaryMemory.arena->base;
     ZeroSize(sizeof(RenderHeader), clearFirstHeader);
+    
+	glBindFramebuffer(GL_FRAMEBUFFER, frameBufferID);
+	glViewport(0,0, width, height);
 }
 
 #define RenderPushElement(arena, type) (type *)RenderPushElement_(arena, sizeof(type), type_##type);
@@ -221,12 +247,20 @@ static void PushRenderCircle(v2 position, f32 radius, i32 segments)
     circle->segments = segments;
 }
 
-static void PushRenderImage(v2 position, v2 size, const char* filename, u32 renderFlags)
+static void PushRenderTexture(v2 position, v2 size, u32 textureID)
+{
+    RenderTexture *texture = RenderPushElement(&renderTemporaryMemory, RenderTexture);
+    texture->position = position;
+    texture->size = size;
+    texture->textureID = textureID;
+}
+
+static void PushRenderImage(v2 position, v2 size, const char* filename, u32 renderFlags = 0)
 {
     RenderImage *image = RenderPushElement(&renderTemporaryMemory, RenderImage);
+    image->header.renderFlags = renderFlags;
     image->position = position;
     image->size = size;
-    image->header.renderFlags = renderFlags;
     image->filename = PushString(&renderTemporaryMemory, filename, &image->filenameSize);
 }
 
@@ -237,6 +271,16 @@ static void PushRenderImageUV(v2 position, v2 size, rectangle2 uv, const char* f
     image->size = size;
     image->uv = uv;
     image->filename = PushString(&renderTemporaryMemory, filename, &image->filenameSize);
+}
+
+static void PushRenderAtlasSprite(v2 position, v2 size, const char* filename, const char* atlasName, const char* key)
+{
+    RenderAtlasSprite *atlas = RenderPushElement(&renderTemporaryMemory, RenderAtlasSprite);
+    atlas->position = position;
+    atlas->size = size;
+    atlas->filename = PushString(&renderTemporaryMemory, filename, &atlas->filenameSize);
+    atlas->atlasName = PushString(&renderTemporaryMemory, atlasName, &atlas->atlasNameSize);
+    atlas->spriteKey = PushString(&renderTemporaryMemory, key, &atlas->spriteKeySize);
 }
 
 static void PushRenderFont(const char* filename, f32 fontSize, u32 width, u32 height)
@@ -266,24 +310,22 @@ static void PushRenderText(v2 position, v2 size, const char* string)
 
 static void End2D()
 {
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
     EndTemporaryMemory(&renderTemporaryMemory);
 }
 
 static v2 ScreenToViewport(v2 screenPosition, f32 size, f32 ratio)
 {
     v2 position = V2(0, 0);
+
+    f32 scaleDifference = (f32)gameState->screen.height / (f32)gameState->screen.bufferHeight;
+    f32 scaledWidth = (f32)gameState->screen.bufferWidth * scaleDifference;
+    f32 offsetX = ((f32)gameState->screen.width - scaledWidth) * 0.5f;
     
-    position.x = ((screenPosition.x / gameState->screen.width) - 0.5f) * size * ratio;
+    position.x = (((screenPosition.x - offsetX) / scaledWidth) - 0.5f) * size * ratio;
     position.y = ((screenPosition.y / gameState->screen.height) - 0.5f) * size;
 
     return position;
-}
-
-static v2 ViewportToScreen(v2 viewportPosition, f32 size, f32 ratio)
-{
-    f32 x = viewportPosition.x * gameState->screen.width;
-    f32 y = viewportPosition.y * gameState->screen.height;
-    return V2(x, y);
 }
 
 #endif

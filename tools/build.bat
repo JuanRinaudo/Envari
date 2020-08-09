@@ -20,7 +20,9 @@ if not exist glfw3.dll copy ..\..\Envari\GLFW\x32\lib-vc2019\glfw3.dll glfw3.dll
 
 del /F *.pdb >NUL 2>NUL
 
+@echo Start time %time%
 cl -MD %CommonCompilerFlags% ..\..\Envari\source\EnvariWindows.cpp -FmEnvari.map /EHsc /I ..\..\Envari\GLFW\include /I ..\..\Envari\LUA\include /std:c++17 /link /LIBPATH:"..\..\Envari\GLFW\x32\lib-vc2019" /LIBPATH:"..\..\Envari\LUA\lib\x86" %CommonLinkerFlags% /PDB:Envari_%random%.pdb
+@echo End time %time%
 
 REM DLL SYSTEM WITH CODE RELOAD NOT WORKING RIGHT NOW
 REM Optimization Switches /O2

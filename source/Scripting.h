@@ -2,6 +2,7 @@
 #define SCRIPTING_H
 
 #include "Game.h"
+#include "ScriptingTypes.h"
 #include "ScriptingWrappers.h"
 
 #include <string>
@@ -49,12 +50,25 @@ static void LoadScriptFile(char* name)
 
 static void ScriptingPanic(sol::optional<std::string> message)
 {
-	// console.AddLogSimple(message);
+	console.AddLogSimple(message.value().c_str());
 }
 
-static void stringInputTest(const char* stringInput) {
-    printf(stringInput);
-    printf("\n");
+static void LoadLUALibrary(sol::lib library)
+{
+    lua.open_libraries(library);
+
+    // #NOTE (Juan): Add library extensions
+    switch(library) {
+        case sol::lib::math: {
+            lua["math"]["sign"] = Sign;
+            lua["math"]["round"] = RoundToInt;
+            lua["math"]["rotLeft"] = RotateLeft;
+            lua["math"]["rotRight"] = RotateRight;
+            lua["math"]["sqr"] = Square;
+            lua["math"]["floorV2"] = sol::resolve<v2(v2)>(Floor);;
+            break;
+        }
+    }
 }
 
 static void ScriptingInit(char* dataPath)
@@ -63,39 +77,55 @@ static void ScriptingInit(char* dataPath)
 
     lua = sol::state(sol::c_call<decltype(&ScriptingPanic), &ScriptingPanic>);
 
-    lua.open_libraries(sol::lib::base, sol::lib::package);
-
     // #NOTE (Juan): Lua
     lua["LoadScriptFile"] = LoadScriptFile;
+    lua["LoadLibrary"] = LoadLUALibrary;
+    lua["SOL_LIBRARY_BASE"] = sol::lib::base;
+    lua["SOL_LIBRARY_PACKAGE"] = sol::lib::package;
+    lua["SOL_LIBRARY_COROUTINE"] = sol::lib::coroutine;
+    lua["SOL_LIBRARY_STRING"] = sol::lib::string;
+    lua["SOL_LIBRARY_OS"] = sol::lib::os;
+    lua["SOL_LIBRARY_MATH"] = sol::lib::math;
+    lua["SOL_LIBRARY_TABLE"] = sol::lib::table;
+    lua["SOL_LIBRARY_DEBUG"] = sol::lib::debug;
+    lua["SOL_LIBRARY_BIT32"] = sol::lib::bit32;
+    lua["SOL_LIBRARY_IO"] = sol::lib::io;
+    lua["SOL_LIBRARY_BIT32"] = sol::lib::bit32;
+    lua["SOL_LIBRARY_FFI"] = sol::lib::ffi;
+    lua["SOL_LIBRARY_JIT"] = sol::lib::jit;
+    lua["SOL_LIBRARY_UTF8"] = sol::lib::utf8;
     
     // #NOTE (Juan): C/C++
-    lua["printf"] = printf;
-    lua["stringInputTest"] = stringInputTest;
     lua["CharToInt"] = CharToInt;
     lua["IntToChar"] = IntToChar;
 
     // #NOTE (Juan): Data
     lua["camera"] = lua.create_table();
-    lua["camera"]["size"] = (gameState->camera).size;
-    lua["camera"]["ratio"] = (gameState->camera).ratio;
-    lua["camera"]["nearPlane"] = (gameState->camera).nearPlane;
-    lua["camera"]["farPlane"] = (gameState->camera).farPlane;
+    lua["camera"]["size"] = gameState->camera.size;
+    lua["camera"]["ratio"] = gameState->camera.ratio;
+    lua["camera"]["nearPlane"] = gameState->camera.nearPlane;
+    lua["camera"]["farPlane"] = gameState->camera.farPlane;
     lua["ReloadCameraData"] = ReloadCameraData;
 
     lua["screen"] = lua.create_table();
-    lua["screen"]["width"] = (gameState->screen).width;
-    lua["screen"]["height"] = (gameState->screen).height;
-    lua["screen"]["refreshRate"] = (gameState->screen).refreshRate;
+    lua["screen"]["width"] = gameState->screen.width;
+    lua["screen"]["height"] = gameState->screen.height;
+    lua["screen"]["bufferWidth"] = gameState->screen.bufferWidth;
+    lua["screen"]["bufferHeight"] = gameState->screen.bufferHeight;
+    lua["screen"]["refreshRate"] = gameState->screen.refreshRate;
 
     lua["time"] = lua.create_table();
-    lua["time"]["gameTime"] = (gameState->time).gameTime;
-    lua["time"]["deltaTime"] = (gameState->time).deltaTime;
-    lua["time"]["lastFrameGameTime"] = (gameState->time).lastFrameGameTime;
+    lua["time"]["gameTime"] = gameState->time.gameTime;
+    lua["time"]["deltaTime"] = gameState->time.deltaTime;
+    lua["time"]["lastFrameGameTime"] = gameState->time.lastFrameGameTime;
     
     lua["input"] = lua.create_table();    
     lua["input"]["mousePosition"] = lua.create_table();
-    lua["input"]["mousePosition"]["x"] = (gameState->input).mousePosition.x;
-    lua["input"]["mousePosition"]["y"] = (gameState->input).mousePosition.y;
+    lua["input"]["mousePosition"]["x"] = gameState->input.mousePosition.x;
+    lua["input"]["mousePosition"]["y"] = gameState->input.mousePosition.y;
+    lua["input"]["mouseScreenPosition"] = lua.create_table();
+    lua["input"]["mouseScreenPosition"]["x"] = gameState->input.mouseScreenPosition.x;
+    lua["input"]["mouseScreenPosition"]["y"] = gameState->input.mouseScreenPosition.y;
     lua["input"]["keyState"] = lua.create_table();
     lua["input"]["mouseState"] = lua.create_table();
     lua["KEY_UP"] = KEY_UP;
@@ -103,7 +133,7 @@ static void ScriptingInit(char* dataPath)
     lua["KEY_PRESSED"] = KEY_PRESSED;
     lua["KEY_DOWN"] = KEY_DOWN;
 
-    // #NOTE (Juan): Math
+    // #NOTE (Juan): GameMath
     lua["V2"] = V2;
     lua["V3"] = V3;
     lua["V4"] = V4;
@@ -116,6 +146,10 @@ static void ScriptingInit(char* dataPath)
     lua["M44"] = M44;
     lua["IdM44"] = IdM44;
 
+    // #NOTE (Juan): Input
+    lua["MouseOverRectangle"] = MouseOverRectangle;
+    lua["ClickOnRectangle"] = ClickOnRectangle;
+
     // #NOTE (Juan): Render
     lua["PushRenderClear"] = PushRenderClear;
     lua["PushRenderColor"] = PushRenderColor;
@@ -124,6 +158,7 @@ static void ScriptingInit(char* dataPath)
     lua["PushRenderCircle"] = PushRenderCircle;
     lua["PushRenderImage"] = PushRenderImage;
     lua["PushRenderImageUV"] = PushRenderImageUV;
+    lua["PushRenderAtlasSprite"] = PushRenderAtlasSprite;
     lua["PushRenderTransparent"] = PushRenderTransparent;
     lua["PushRenderTransparentDisable"] = PushRenderTransparentDisable;
     lua["PushRenderFont"] = PushRenderFont;
@@ -131,7 +166,7 @@ static void ScriptingInit(char* dataPath)
     lua["PushRenderText"] = PushRenderText;
 
     lua["ScreenToViewport"] = ScreenToViewport;
-    lua["ViewportToScreen"] = ViewportToScreen;
+    // lua["ViewportToScreen"] = ViewportToScreen;
     
     lua["IMAGE_ADAPTATIVE_FIT"] = IMAGE_ADAPTATIVE_FIT;
     lua["IMAGE_KEEP_RATIO_X"] = IMAGE_KEEP_RATIO_X;
@@ -179,42 +214,28 @@ static void ScriptingInit(char* dataPath)
     lua["ImguiColorPicker4"] = ImGui::ColorPicker4;
     lua["ImguiEnd"] = ImGui::End;
 
-    // #NOTE (Juan): Math
-    lua["Sign"] = Sign;
-    lua["Abs"] = Abs;
-    lua["RotateLeft"] = RotateLeft;
-    lua["RotateRight"] = RotateRight;
-    lua["Floor"] = Floor;
-    lua["Ceil"] = Ceil;
-    lua["FloorToInt"] = FloorToInt;
-    lua["CeilToInt"] = CeilToInt;
-    lua["TruncateToInt"] = TruncateToInt;
-    lua["RoundToInt"] = RoundToInt;
-    lua["Sin"] = Sin;
-    lua["Cos"] = Cos;
-    lua["Tan"] = Tan;
-    lua["Atan2"] = Atan2;
-    lua["Square"] = Square;
-    lua["SquareRoot"] = SquareRoot;
-
     // #NOTE (Juan): Console
     lua["ConsoleAddLog"] = ConsoleAddLog;
 }
 
 static void ScriptingUpdate()
 {
-    lua["time"]["gameTime"] = (gameState->time).gameTime;
-    lua["time"]["deltaTime"] = (gameState->time).deltaTime;
-    lua["time"]["lastFrameGameTime"] = (gameState->time).lastFrameGameTime;
+    lua["time"]["gameTime"] = gameState->time.gameTime;
+    lua["time"]["deltaTime"] = gameState->time.deltaTime;
+    lua["time"]["lastFrameGameTime"] = gameState->time.lastFrameGameTime;
 
-    lua["input"]["mousePosition"]["x"] = (gameState->input).mousePosition.x;
-    lua["input"]["mousePosition"]["y"] = (gameState->input).mousePosition.y;
+    lua["input"]["mousePosition"]["x"] = gameState->input.mousePosition.x;
+    lua["input"]["mousePosition"]["y"] = gameState->input.mousePosition.y;
+
+    lua["input"]["mouseScreenPosition"]["x"] = gameState->input.mouseScreenPosition.x;
+    lua["input"]["mouseScreenPosition"]["y"] = gameState->input.mouseScreenPosition.y;
+
     for(i32 key = 0; key < KEY_COUNT; ++key) {
-        lua["input"]["keyState"][key + 1] = (gameState->input).keyState[key];
+        lua["input"]["keyState"][key + 1] = gameState->input.keyState[key];
     }
 
     for(i32 key = 0; key < MOUSE_COUNT; ++key) {
-        lua["input"]["mouseState"][key + 1] = (gameState->input).mouseState[key];
+        lua["input"]["mouseState"][key + 1] = gameState->input.mouseState[key];
     }
 }
 

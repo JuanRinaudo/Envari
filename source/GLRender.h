@@ -34,6 +34,21 @@ struct GLTextureCache {
 };
 GLTextureCache* textureCache = NULL;
 
+struct AtlasSprite {
+    char* key;
+    rectangle2 value;
+};
+
+struct TextureAtlas {
+    AtlasSprite* sprites;
+};
+
+struct GLTextureAtlasReference {
+    char* key;
+    TextureAtlas value;
+};
+GLTextureAtlasReference* atlasCache = NULL;
+
 #define SPECIAL_ASCII_CHAR_OFFSET 32
 #define FONT_CHAR_SIZE 96
 struct FontAtlas {
@@ -157,6 +172,41 @@ static GLTexture GL_LoadTexture(const char *textureKey)
         stbi_image_free(data);
 
         return texture;
+    }
+}
+
+static TextureAtlas GL_LoadAtlas(const char *atlasKey)
+{
+    i32 index = (i32)shgeti(atlasCache, atlasKey);
+    if(index > -1) {
+        return shget(atlasCache, atlasKey);
+    } else {
+        TextureAtlas atlas;
+        atlas.sprites = 0;
+
+        DataTokenizer tokenizer = StartTokenizer(atlasKey);
+
+        char* keyPointer = 0;
+        while(tokenizer.active) {
+            char* token = NextToken(&tokenizer);
+
+            if(tokenizer.tokenLineCount == 0) {
+                keyPointer = PushString(&permanentState->arena, tokenizer.tokenBuffer, tokenizer.tokenBufferIndex);
+
+                i32 x = atoi(NextToken(&tokenizer));
+                i32 y = atoi(NextToken(&tokenizer));
+                i32 width = atoi(NextToken(&tokenizer));
+                i32 height = atoi(NextToken(&tokenizer));
+                
+                shput(atlas.sprites, keyPointer, Rectangle2((f32)x, (f32)y, (f32)width, (f32)height));
+            }
+        }
+
+        EndTokenizer(&tokenizer);
+
+        shput(atlasCache, atlasKey, atlas);
+
+        return atlas;
     }
 }
 
@@ -380,20 +430,6 @@ static stbtt_bakedchar *CalculateCharacterOffset(FontAtlas *Font, char Char, v2 
     return bakedChar;
 }
 
-// static void DrawString(FontAtlas *font, const char* string, f32 x, f32 y, v4 color)
-// {
-//     v2 offset = V2(0, 0);
-//     for(i32 index = 0; string[index] != 0; ++index) {
-//         char singleChar = string[index];
-//         stbtt_bakedchar *charData = CalculateCharacterOffset(font, singleChar, &offset, font->fontSize);
-
-//         if(charData != 0) {
-//             DrawChar(font, charData, x + offset.x, y + offset.y, color);
-//             offset.x += charData->xadvance;
-//         }
-//     }
-// }
-
 // static void DrawStyledText(FontAtlas *font, const char* string, TextStyles* styleList, f32 x, f32 y, v4 color)
 // {
 //     u32 ActiveStyles = 0;
@@ -468,14 +504,12 @@ static stbtt_bakedchar *CalculateCharacterOffset(FontAtlas *Font, char Char, v2 
 
 static void GL_Render()
 {
-    glViewport(0, 0, gameState->screen.width, gameState->screen.height);
-
     RenderHeader *renderHeader = (RenderHeader *)renderTemporaryMemory.arena->base;
 
-    model = lua["model"];
-    view = lua["view"];
+    model = IdM44();
+    view = gameState->camera.view;
     view._23 = 1.0f;
-    projection = lua["projection"];
+    projection = gameState->camera.projection;
 
     while(renderHeader->id > 0 && (void*)renderHeader < (void*)(renderTemporaryMemory.arena->base + renderTemporaryMemory.used)) {
         i32 size = 0;
@@ -484,7 +518,6 @@ static void GL_Render()
         switch(renderHeader->type) {
             case type_RenderClear: {
                 RenderClear *clear = (RenderClear *)renderHeader;
-                glViewport(0, 0, gameState->screen.width, gameState->screen.height);
                 glClearColor(clear->color.r, clear->color.g, clear->color.b, clear->color.a);
                 glClear(GL_COLOR_BUFFER_BIT);
 
@@ -652,6 +685,57 @@ static void GL_Render()
                 size = sizeof(RenderRectangle);
                 break;
             }
+            case type_RenderTexture: {
+                RenderTexture *texture = (RenderTexture *)renderHeader;
+
+                glUseProgram(texturedProgram);
+
+                i32 colorLocation = glGetUniformLocation(texturedProgram, "color");
+                i32 modelLocation = glGetUniformLocation(texturedProgram, "model");
+                i32 viewLocation = glGetUniformLocation(texturedProgram, "view");
+                i32 projectionLocation = glGetUniformLocation(texturedProgram, "projection");
+                glUniformMatrix4fv(modelLocation, 1, false, model.e);
+                glUniformMatrix4fv(viewLocation, 1, false, view.e);
+                glUniformMatrix4fv(projectionLocation, 1, false, projection.e);
+
+                glBindTexture(GL_TEXTURE_2D, texture->textureID);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+                f32 vertices[] = {
+                    texture->position.x, texture->position.y, 0.0f, 0.0f, 0.0f,
+                    texture->position.x + texture->size.x, texture->position.y, 0.0f, 1.0f, 0.0f,
+                    texture->position.x, texture->position.y + texture->size.y, 0.0f, 0.0f, 1.0f,
+                    texture->position.x + texture->size.x, texture->position.y + texture->size.y, 0.0f, 1.0f, 1.0f
+                };
+
+                u32 indices[] = {
+                    0, 1, 2,
+                    1, 2, 3
+                };
+
+                glBindVertexArray(glVertexArray);
+
+                glBindBuffer(GL_ARRAY_BUFFER, glVertexBuffer);
+                glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, glIndexBuffer);
+                glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW); 
+
+                glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)0);
+                glEnableVertexAttribArray(0);
+                glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)(3 * sizeof(f32)));
+                glEnableVertexAttribArray(1);
+
+                glUniform4f(colorLocation, renderState.renderColor.r, renderState.renderColor.g, renderState.renderColor.b, renderState.renderColor.a);
+
+                glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+                
+                size = sizeof(RenderTexture);
+                break;
+            }
             case type_RenderImage: {
                 RenderImage *image = (RenderImage *)renderHeader;
 
@@ -667,8 +751,8 @@ static void GL_Render()
 
                 GLTexture texture = GL_LoadTexture(image->filename);
                 glBindTexture(GL_TEXTURE_2D, texture.textureID);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
@@ -744,8 +828,8 @@ static void GL_Render()
 
                 GLTexture texture = GL_LoadTexture(imageUV->filename);
                 glBindTexture(GL_TEXTURE_2D, texture.textureID);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
@@ -781,6 +865,66 @@ static void GL_Render()
                 size = sizeof(RenderImageUV) + imageUV->filenameSize;
                 break;
             }
+            case type_RenderAtlasSprite: {
+                RenderAtlasSprite *atlas = (RenderAtlasSprite *)renderHeader;
+
+                glUseProgram(texturedProgram);
+
+                i32 colorLocation = glGetUniformLocation(texturedProgram, "color");
+                i32 modelLocation = glGetUniformLocation(texturedProgram, "model");
+                i32 viewLocation = glGetUniformLocation(texturedProgram, "view");
+                i32 projectionLocation = glGetUniformLocation(texturedProgram, "projection");
+                glUniformMatrix4fv(modelLocation, 1, false, model.e);
+                glUniformMatrix4fv(viewLocation, 1, false, view.e);
+                glUniformMatrix4fv(projectionLocation, 1, false, projection.e);
+
+                TextureAtlas textureAtlas = GL_LoadAtlas(atlas->atlasName);
+                rectangle2 uvRect = shget(textureAtlas.sprites, atlas->spriteKey);
+
+                GLTexture texture = GL_LoadTexture(atlas->filename);
+                glBindTexture(GL_TEXTURE_2D, texture.textureID);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+                f32 normX = uvRect.min.x / texture.width;
+                f32 normY = uvRect.min.y / texture.height;
+                f32 normEndX = uvRect.max.x / texture.width;
+                f32 normEndY = uvRect.max.y / texture.height;
+
+                f32 vertices[] = {
+                    atlas->position.x, atlas->position.y, 0.0f, normX, normY,
+                    atlas->position.x + atlas->size.x, atlas->position.y, 0.0f, normEndX, normY,
+                    atlas->position.x, atlas->position.y + atlas->size.y, 0.0f, normX, normEndY,
+                    atlas->position.x + atlas->size.x, atlas->position.y + atlas->size.y, 0.0f, normEndX, normEndY,
+                };
+
+                u32 indices[] = {
+                    0, 1, 2,
+                    1, 2, 3
+                };
+
+                glBindVertexArray(glVertexArray);
+
+                glBindBuffer(GL_ARRAY_BUFFER, glVertexBuffer);
+                glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, glIndexBuffer);
+                glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW); 
+
+                glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)0);
+                glEnableVertexAttribArray(0);
+                glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)(3 * sizeof(f32)));
+                glEnableVertexAttribArray(1);
+
+                glUniform4f(colorLocation, renderState.renderColor.r, renderState.renderColor.g, renderState.renderColor.b, renderState.renderColor.a);
+
+                glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+                
+                size = sizeof(RenderAtlasSprite) + atlas->filenameSize + atlas->atlasNameSize + atlas->spriteKeySize;
+                break;
+            }
             case type_RenderFont: {
                 RenderFont *font = (RenderFont *)renderHeader;
                 currentFont = GL_LoadFont(font->filename, font->fontSize, font->width, font->height);
@@ -812,8 +956,8 @@ static void GL_Render()
 
                 GLTexture texture = GL_LoadTexture(currentFont.fontFilename);
                 glBindTexture(GL_TEXTURE_2D, texture.textureID);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
@@ -877,8 +1021,8 @@ static void GL_Render()
 
                 GLTexture texture = GL_LoadTexture(currentFont.fontFilename);
                 glBindTexture(GL_TEXTURE_2D, texture.textureID);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
