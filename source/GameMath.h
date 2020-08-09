@@ -4,13 +4,18 @@
 #include "Defines.h"
 #include "Intrinsics.h"
 
-union v2
+// union v2
+// {
+//     struct
+//     {
+//         f32 x, y;
+//     };
+//     f32 e[2];
+// }
+
+struct v2
 {
-    struct
-    {
-        f32 x, y;
-    };
-    f32 e[2];
+    f32 x, y;
 };
 
 union v3

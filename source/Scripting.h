@@ -2,7 +2,6 @@
 #define SCRIPTING_H
 
 #include "Game.h"
-#include "ScriptingTypes.h"
 #include "ScriptingWrappers.h"
 
 #include <string>
@@ -53,6 +52,10 @@ static void ScriptingPanic(sol::optional<std::string> message)
 	console.AddLogSimple(message.value().c_str());
 }
 
+static v2 FloorTest(v2 test) {
+    return test;
+}
+
 static void LoadLUALibrary(sol::lib library)
 {
     lua.open_libraries(library);
@@ -65,7 +68,8 @@ static void LoadLUALibrary(sol::lib library)
             lua["math"]["rotLeft"] = RotateLeft;
             lua["math"]["rotRight"] = RotateRight;
             lua["math"]["sqr"] = Square;
-            lua["math"]["floorV2"] = sol::resolve<v2(v2)>(Floor);;
+            // lua["math"]["floorV2"] = sol::resolve<v2(v2)>(Floor);
+            lua["math"]["floorV2"] = FloorTest;
             break;
         }
     }
@@ -76,6 +80,10 @@ static void ScriptingInit(char* dataPath)
     scriptDataPath = dataPath;
 
     lua = sol::state(sol::c_call<decltype(&ScriptingPanic), &ScriptingPanic>);
+
+    sol::usertype<v2> v2_usertype = lua.new_usertype<v2>("v2");
+    v2_usertype["x"] = &v2::x;
+    v2_usertype["y"] = &v2::y;
 
     // #NOTE (Juan): Lua
     lua["LoadScriptFile"] = LoadScriptFile;
@@ -120,12 +128,8 @@ static void ScriptingInit(char* dataPath)
     lua["time"]["lastFrameGameTime"] = gameState->time.lastFrameGameTime;
     
     lua["input"] = lua.create_table();    
-    lua["input"]["mousePosition"] = lua.create_table();
-    lua["input"]["mousePosition"]["x"] = gameState->input.mousePosition.x;
-    lua["input"]["mousePosition"]["y"] = gameState->input.mousePosition.y;
-    lua["input"]["mouseScreenPosition"] = lua.create_table();
-    lua["input"]["mouseScreenPosition"]["x"] = gameState->input.mouseScreenPosition.x;
-    lua["input"]["mouseScreenPosition"]["y"] = gameState->input.mouseScreenPosition.y;
+    lua["input"]["mousePosition"] = gameState->input.mousePosition;
+    lua["input"]["mouseScreenPosition"] = gameState->input.mouseScreenPosition;
     lua["input"]["keyState"] = lua.create_table();
     lua["input"]["mouseState"] = lua.create_table();
     lua["KEY_UP"] = KEY_UP;
