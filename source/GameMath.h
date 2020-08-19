@@ -4,18 +4,13 @@
 #include "Defines.h"
 #include "Intrinsics.h"
 
-// union v2
-// {
-//     struct
-//     {
-//         f32 x, y;
-//     };
-//     f32 e[2];
-// }
-
-struct v2
+union v2
 {
-    f32 x, y;
+    struct
+    {
+        f32 x, y;
+    };
+    f32 e[2];
 };
 
 union v3
@@ -393,6 +388,12 @@ static v2 GetMaxCorner(rectangle2 rectangle)
     return(result);
 }
 
+static v2 GetSize(rectangle2 rectangle)
+{
+    v2 result = rectangle.max - rectangle.min;    
+    return(result);
+}
+
 static v2 GetCenter(rectangle2 rectangle)
 {
     v2 result = 0.5f * (rectangle.min + rectangle.max);
@@ -761,6 +762,100 @@ static m44 IdM44()
     result._33 = 1;
 
     return result;
+}
+
+static m44 TranslationM44(f32 x, f32 y, f32 z)
+{
+    m44 result = {};
+
+    result._00 = 1;
+    result._01 = 0;
+    result._02 = 0;
+    result._03 = 0;
+    result._10 = 0;
+    result._11 = 1;
+    result._12 = 0;
+    result._13 = 0;
+    result._20 = 0;
+    result._21 = 0;
+    result._22 = 1;
+    result._23 = 0;
+    result._30 = x;
+    result._31 = y;
+    result._32 = z;
+    result._33 = 1;
+
+    return result;
+}
+
+static m44 TranslationM44(v2 vector)
+{
+    return TranslationM44(vector.x, vector.y, 0);
+}
+
+static m44 TranslationM44(v3 vector)
+{
+    return TranslationM44(vector.x, vector.y, vector.z);
+}
+
+static m44 ScaleM44(f32 x, f32 y, f32 z)
+{
+    m44 result = {};
+
+    result._00 = x;
+    result._01 = 0;
+    result._02 = 0;
+    result._03 = 0;
+    result._10 = 0;
+    result._11 = y;
+    result._12 = 0;
+    result._13 = 0;
+    result._20 = 0;
+    result._21 = 0;
+    result._22 = z;
+    result._23 = 0;
+    result._30 = 0;
+    result._31 = 0;
+    result._32 = 0;
+    result._33 = 1;
+
+    return result;
+}
+
+static m44 ScaleM44(v2 vector)
+{
+    return ScaleM44(vector.x, vector.y, 1);
+}
+
+static m44 ScaleM44(v3 vector)
+{
+    return ScaleM44(vector.x, vector.y, vector.z);
+}
+
+static m44 operator * (m44 a, m44 b)
+{
+    m44 result;
+
+    for(int x = 0; x < 4; ++x) {
+        for(int y = 0; y < 4; ++y) {
+            f32 value = 0;
+
+            for(int i = 0; i < 4; ++i) {
+                value += a.e[y * 4 + i] * b.e[4 * i + x];
+            }  
+
+            result.e[y * 4 + x] = value;
+        }
+    }
+
+    return(result);
+}
+
+static m44 &operator *= (m44 &a, m44 b)
+{
+    a = a * b;
+
+    return(a);
 }
 
 static m44 OrtographicProjection(f32 left, f32 right, f32 top, f32 bottom, f32 nearPlane, f32 farPlane)

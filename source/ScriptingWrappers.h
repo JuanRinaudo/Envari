@@ -45,4 +45,16 @@ static char* IntToChar(i32 value)
     return castChar;
 }
 
+// #NOTE(Juan): Render
+
+static const RenderOverrideVertices PushRenderDisableOverrideVertices()
+{
+    return PushRenderOverrideVertices(0, 0);
+}
+
+static const RenderOverrideIndices PushRenderDisableOverrideIndices()
+{    
+    return PushRenderOverrideIndices(0, 0);
+}
+
 #endif

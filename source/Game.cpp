@@ -35,7 +35,7 @@ static u32 GameLoop() {
 
     // ss << "TIME: " << global.time.gameTime << " | DELTA TIME: " << global.time.deltaTime << " | FPS: " << fps << endl;
 
-    console.Draw("Example: Console", &consoleOpen);
+    console.Draw("Console", &consoleOpen);
     
     sol::protected_function Update(lua["Update"]);
     if(Update.valid()) {

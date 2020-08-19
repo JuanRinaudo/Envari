@@ -123,8 +123,7 @@ i32 CALLBACK WinMain(
     Window = glfwCreateWindow(gameState->screen.width, gameState->screen.height, windowTitle, NULL, NULL);
     glfwSetWindowSizeCallback(Window, WindowResizeCallback);
 
-    if (!Window)
-    {
+    if (!Window) {
         glfwTerminate();
         return -1;
     }
@@ -183,15 +182,15 @@ i32 CALLBACK WinMain(
 
     glDrawBuffers(1, DrawBuffers);
 
-    if(glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+    if(glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
         console.AddLog("ERROR::FRAMEBUFFER:: Framebuffer is not complete!");
+    }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);  
 
     Running = true;
     auto start = std::chrono::steady_clock::now();
     while (Running)
     {
-
         double gameTime = glfwGetTime();
         gameState->time.gameTime = (f32)gameTime;
         gameState->time.deltaTime = (f32)(gameTime - gameState->time.lastFrameGameTime);
@@ -241,7 +240,9 @@ i32 CALLBACK WinMain(
         gameState->camera.ratio = (f32)gameState->screen.width / (f32)gameState->screen.height;
         gameState->camera.projection = OrtographicProjection(gameState->camera.size, gameState->camera.ratio, gameState->camera.nearPlane, gameState->camera.farPlane);
         Begin2D(0, (u32)gameState->screen.width, (u32)gameState->screen.height);
+        PushRenderOverrideVertices(0, 0);
         PushRenderClear(0, 0, 0, 1);
+        PushRenderTextureParameters(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, GL_NEAREST, GL_NEAREST);
         PushRenderTexture(V2(-gameState->camera.size, gameState->camera.size) * 0.5f, V2(gameState->camera.size, -gameState->camera.size), renderBuffer);
         GL_Render();
         End2D();
@@ -260,7 +261,6 @@ i32 CALLBACK WinMain(
         glfwSwapBuffers(Window);
 
         CheckInput();
-
     }
 
     glfwTerminate();

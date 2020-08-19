@@ -52,10 +52,6 @@ static void ScriptingPanic(sol::optional<std::string> message)
 	console.AddLogSimple(message.value().c_str());
 }
 
-static v2 FloorTest(v2 test) {
-    return test;
-}
-
 static void LoadLUALibrary(sol::lib library)
 {
     lua.open_libraries(library);
@@ -63,13 +59,40 @@ static void LoadLUALibrary(sol::lib library)
     // #NOTE (Juan): Add library extensions
     switch(library) {
         case sol::lib::math: {
+            // #NOTE (Juan): Math usertypes
+            sol::usertype<v2> v2_usertype = lua.new_usertype<v2>("v2");
+            v2_usertype["x"] = sol::property([](v2 &v) { return v.x; }, [](v2 &v, f32 f) { v.x = f; });
+            v2_usertype["y"] = sol::property([](v2 &v) { return v.y; }, [](v2 &v, f32 f) { v.y = f; });
+            v2_usertype["e"] = sol::property([](v2 &v) { return &v.e; });
+
+            // #TODO (Juan): Research if there is a better way to do usertype alias
+            sol::usertype<v3> v3_usertype = lua.new_usertype<v3>("v3");
+            v3_usertype["x"] = sol::property([](v3 &v) { return v.x; }, [](v3 &v, f32 f) { v.x = f; });
+            v3_usertype["y"] = sol::property([](v3 &v) { return v.y; }, [](v3 &v, f32 f) { v.y = f; });
+            v3_usertype["z"] = sol::property([](v3 &v) { return v.z; }, [](v3 &v, f32 f) { v.z = f; });
+            v3_usertype["r"] = sol::property([](v3 &v) { return v.x; }, [](v3 &v, f32 f) { v.x = f; });
+            v3_usertype["g"] = sol::property([](v3 &v) { return v.y; }, [](v3 &v, f32 f) { v.y = f; });
+            v3_usertype["b"] = sol::property([](v3 &v) { return v.z; }, [](v3 &v, f32 f) { v.z = f; });
+            v3_usertype["e"] = sol::property([](v3 &v) { return &v.e; });
+
+            sol::usertype<v4> v4_usertype = lua.new_usertype<v4>("v4");
+            v4_usertype["x"] = sol::property([](v4 &v) { return v.x; }, [](v4 &v, f32 f) { v.x = f; });
+            v4_usertype["y"] = sol::property([](v4 &v) { return v.y; }, [](v4 &v, f32 f) { v.y = f; });
+            v4_usertype["z"] = sol::property([](v4 &v) { return v.z; }, [](v4 &v, f32 f) { v.z = f; });
+            v4_usertype["w"] = sol::property([](v4 &v) { return v.w; }, [](v4 &v, f32 f) { v.w = f; });
+            v4_usertype["r"] = sol::property([](v4 &v) { return v.x; }, [](v4 &v, f32 f) { v.x = f; });
+            v4_usertype["g"] = sol::property([](v4 &v) { return v.y; }, [](v4 &v, f32 f) { v.y = f; });
+            v4_usertype["b"] = sol::property([](v4 &v) { return v.z; }, [](v4 &v, f32 f) { v.z = f; });
+            v4_usertype["a"] = sol::property([](v4 &v) { return v.w; }, [](v4 &v, f32 f) { v.w = f; });
+            v4_usertype["e"] = sol::property([](v4 &v) { return &v.e; });
+    
+            // #NOTE (Juan): Math custom functionality
             lua["math"]["sign"] = Sign;
             lua["math"]["round"] = RoundToInt;
             lua["math"]["rotLeft"] = RotateLeft;
             lua["math"]["rotRight"] = RotateRight;
             lua["math"]["sqr"] = Square;
-            // lua["math"]["floorV2"] = sol::resolve<v2(v2)>(Floor);
-            lua["math"]["floorV2"] = FloorTest;
+            lua["math"]["floorV2"] = sol::resolve<v2(v2)>(Floor);
             break;
         }
     }
@@ -80,10 +103,6 @@ static void ScriptingInit(char* dataPath)
     scriptDataPath = dataPath;
 
     lua = sol::state(sol::c_call<decltype(&ScriptingPanic), &ScriptingPanic>);
-
-    sol::usertype<v2> v2_usertype = lua.new_usertype<v2>("v2");
-    v2_usertype["x"] = &v2::x;
-    v2_usertype["y"] = &v2::y;
 
     // #NOTE (Juan): Lua
     lua["LoadScriptFile"] = LoadScriptFile;
@@ -160,6 +179,7 @@ static void ScriptingInit(char* dataPath)
     lua["PushRenderTriangle"] = PushRenderTriangle;
     lua["PushRenderRectangle"] = PushRenderRectangle;
     lua["PushRenderCircle"] = PushRenderCircle;
+    lua["PushRenderTextureParameters"] = PushRenderTextureParameters;
     lua["PushRenderImage"] = PushRenderImage;
     lua["PushRenderImageUV"] = PushRenderImageUV;
     lua["PushRenderAtlasSprite"] = PushRenderAtlasSprite;
@@ -168,6 +188,11 @@ static void ScriptingInit(char* dataPath)
     lua["PushRenderFont"] = PushRenderFont;
     lua["PushRenderChar"] = PushRenderChar;
     lua["PushRenderText"] = PushRenderText;
+    lua["PushRenderOverrideVertices"] = PushRenderOverrideVertices;
+    lua["PushRenderDisableOverrideVertices"] = PushRenderDisableOverrideVertices;
+    lua["PushRenderOverrideIndices"] = PushRenderOverrideIndices;
+    lua["PushRenderDisableOverrideIndices"] = PushRenderDisableOverrideIndices;
+ 
 
     lua["ScreenToViewport"] = ScreenToViewport;
     // lua["ViewportToScreen"] = ViewportToScreen;
@@ -180,6 +205,9 @@ static void ScriptingInit(char* dataPath)
     lua["OrtographicProjection"] = sol::resolve<m44(f32, f32, f32, f32)>(OrtographicProjection);
 
     // #NOTE (Juan): GLRender
+    lua["CreateQuadPosUV"] = CreateQuadPosUV;
+
+    // #NOTE (Juan): OpenGL
     lua["GL_ZERO"] = GL_ZERO;
     lua["GL_ONE"] = GL_ONE;
 
@@ -208,6 +236,48 @@ static void ScriptingInit(char* dataPath)
     lua["GL_ONE_MINUS_SRC1_COLOR"] = GL_ONE_MINUS_SRC1_COLOR;
     lua["GL_SRC1_ALPHA"] = GL_SRC1_ALPHA;
     lua["GL_ONE_MINUS_SRC1_ALPHA"] = GL_ONE_MINUS_SRC1_ALPHA;
+    
+    lua["GL_TEXTURE_1D"] = GL_TEXTURE_1D;
+    lua["GL_TEXTURE_1D_ARRAY"] = GL_TEXTURE_1D_ARRAY;
+    lua["GL_TEXTURE_2D"] = GL_TEXTURE_2D;
+    lua["GL_TEXTURE_2D_ARRAY"] = GL_TEXTURE_2D_ARRAY;
+    lua["GL_TEXTURE_2D_MULTISAMPLE"] = GL_TEXTURE_2D_MULTISAMPLE;
+    lua["GL_TEXTURE_2D_MULTISAMPLE_ARRAY"] = GL_TEXTURE_2D_MULTISAMPLE_ARRAY;
+    lua["GL_TEXTURE_3D"] = GL_TEXTURE_3D;
+    lua["GL_TEXTURE_CUBE_MAP"] = GL_TEXTURE_CUBE_MAP;
+    lua["GL_TEXTURE_CUBE_MAP_ARRAY"] = GL_TEXTURE_CUBE_MAP_ARRAY;
+    lua["GL_TEXTURE_RECTANGLE"] = GL_TEXTURE_RECTANGLE;
+
+    lua["GL_TEXTURE_WRAP_S"] = GL_TEXTURE_WRAP_S;
+    lua["GL_TEXTURE_WRAP_T"] = GL_TEXTURE_WRAP_T;
+    lua["GL_TEXTURE_WRAP_R"] = GL_TEXTURE_WRAP_R;
+    lua["GL_CLAMP_TO_EDGE"] = GL_CLAMP_TO_EDGE;
+    lua["GL_CLAMP_TO_BORDER"] = GL_CLAMP_TO_BORDER;
+    lua["GL_MIRRORED_REPEAT"] = GL_MIRRORED_REPEAT;
+    lua["GL_REPEAT"] = GL_REPEAT;
+    lua["GL_MIRROR_CLAMP_TO_EDGE"] = GL_MIRROR_CLAMP_TO_EDGE;
+    
+    lua["GL_TEXTURE_MIN_FILTER"] = GL_TEXTURE_MIN_FILTER;
+    lua["GL_TEXTURE_MAG_FILTER"] = GL_TEXTURE_MAG_FILTER;
+    lua["GL_NEAREST"] = GL_NEAREST;
+    lua["GL_LINEAR"] = GL_LINEAR;
+    lua["GL_NEAREST_MIPMAP_NEAREST"] = GL_NEAREST_MIPMAP_NEAREST;
+    lua["GL_LINEAR_MIPMAP_NEAREST"] = GL_LINEAR_MIPMAP_NEAREST;
+    lua["GL_NEAREST_MIPMAP_LINEAR"] = GL_NEAREST_MIPMAP_LINEAR;
+    lua["GL_LINEAR_MIPMAP_LINEAR"] = GL_LINEAR_MIPMAP_LINEAR;
+
+    lua["GL_DEPTH_STENCIL_TEXTURE_MODE"] = GL_DEPTH_STENCIL_TEXTURE_MODE;
+    lua["GL_TEXTURE_BASE_LEVEL"] = GL_TEXTURE_BASE_LEVEL;
+    lua["GL_TEXTURE_COMPARE_FUNC"] = GL_TEXTURE_COMPARE_FUNC;
+    lua["GL_TEXTURE_COMPARE_MODE"] = GL_TEXTURE_COMPARE_MODE;
+    lua["GL_TEXTURE_LOD_BIAS"] = GL_TEXTURE_LOD_BIAS;
+    lua["GL_TEXTURE_MIN_LOD"] = GL_TEXTURE_MIN_LOD;
+    lua["GL_TEXTURE_MAX_LOD"] = GL_TEXTURE_MAX_LOD;
+    lua["GL_TEXTURE_MAX_LEVEL"] = GL_TEXTURE_MAX_LEVEL;
+    lua["GL_TEXTURE_SWIZZLE_R"] = GL_TEXTURE_SWIZZLE_R;
+    lua["GL_TEXTURE_SWIZZLE_G"] = GL_TEXTURE_SWIZZLE_G;
+    lua["GL_TEXTURE_SWIZZLE_B"] = GL_TEXTURE_SWIZZLE_B;
+    lua["GL_TEXTURE_SWIZZLE_A"] = GL_TEXTURE_SWIZZLE_A;
 
     // #NOTE (Juan): IMGUI
     lua["ImguiBegin"] = ImguiBegin;
@@ -281,9 +351,9 @@ static void ReloadScriptIfChanged(char *name, i32 fileIndex) {
 static void ScriptingWatchChanges()
 {
     #if GAME_INTERNAL
-    int nameIndex = 0;
-    int fileIndex = 0;
-    int watchIndex = 0;
+    i32 nameIndex = 0;
+    i32 fileIndex = 0;
+    i32 watchIndex = 0;
     char name[100];
     while(watchIndex < watchListSize) {
         if(watchList[watchIndex] == '@') {

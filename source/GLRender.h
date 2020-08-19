@@ -15,9 +15,15 @@ const char* shaderPath = "shaders/glcore";
 
 #endif
 
-u32 glVertexBuffer;
-u32 glIndexBuffer;
-u32 glVertexArray;
+struct GLRenderBuffer {
+    u32 vertexArray;
+    u32 vertexBuffer;
+    u32 indexBuffer;
+};
+
+GLRenderBuffer quadBuffer;
+GLRenderBuffer overrideBuffer;
+GLRenderBuffer customBuffer;
 
 u32 coloredProgram;
 u32 texturedProgram;
@@ -75,10 +81,6 @@ enum TextStyles {
     style_FadeOut = 4,
     style_Typewriter = 5
 };
-
-m44 model;
-m44 view;
-m44 projection;
 
 enum GLVendor {
     GL_VENDOR_UNKOWN,
@@ -246,12 +248,57 @@ static FontAtlas GL_LoadFont(const char *filename, f32 fontSize, u32 width, u32 
     }
 }
 
+f32 quadVertices[20];
+static f32* CreateQuadPosUV(v2 posStart, v2 posEnd, v2 uvBegin, v2 uvEnd)
+{
+    quadVertices[0] = posStart.x;
+    quadVertices[1] = posStart.y;
+    quadVertices[2] = 0.0f;
+    quadVertices[3] = uvBegin.x;
+    quadVertices[4] = uvBegin.y;
+    quadVertices[5] = posEnd.x;
+    quadVertices[6] = posStart.y;
+    quadVertices[7] = 0.0f;
+    quadVertices[8] = uvEnd.x;
+    quadVertices[9] = uvBegin.y;
+    quadVertices[10] = posStart.x;
+    quadVertices[11] = posEnd.y;
+    quadVertices[12] = 0.0f;
+    quadVertices[13] = uvBegin.x;
+    quadVertices[14] = uvEnd.y;
+    quadVertices[15] = posEnd.x;
+    quadVertices[16] = posEnd.y;
+    quadVertices[17] = 0.0f;
+    quadVertices[18] = uvEnd.x;
+    quadVertices[19] = uvEnd.y;
+    return quadVertices;
+}
+
+u32 quadIndices[] = {
+    0, 1, 2,
+    1, 2, 3
+};
+
 static void GL_Init()
 {
-    glGenBuffers(1, &glVertexBuffer);
-    glGenBuffers(1, &glIndexBuffer);
-    
-    glGenVertexArrays(1, &glVertexArray);
+    glGenVertexArrays(1, &quadBuffer.vertexArray);
+    glGenBuffers(1, &quadBuffer.vertexBuffer);
+    glGenBuffers(1, &quadBuffer.indexBuffer);
+
+    glGenVertexArrays(1, &overrideBuffer.vertexArray);
+    glGenBuffers(1, &overrideBuffer.vertexBuffer);
+    glGenBuffers(1, &overrideBuffer.indexBuffer);
+
+    f32* vertices = CreateQuadPosUV(V2(0, 0), V2(1, 1), V2(0, 0), V2(1, 1));
+    glBindVertexArray(quadBuffer.vertexArray);
+    glBindBuffer(GL_ARRAY_BUFFER, quadBuffer.vertexBuffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), quadVertices, GL_STATIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, quadBuffer.indexBuffer);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(quadIndices), quadIndices, GL_STATIC_DRAW); 
+
+    glGenVertexArrays(1, &customBuffer.vertexArray);
+    glGenBuffers(1, &customBuffer.vertexBuffer);
+    glGenBuffers(1, &customBuffer.indexBuffer);
 
     // #NOTE(Juan): Check GPU vendor
     if(GL_CheckVendor(GL_STRING_VENDOR_NVIDIA)) {
@@ -502,18 +549,68 @@ static stbtt_bakedchar *CalculateCharacterOffset(FontAtlas *Font, char Char, v2 
 //     }
 // }
 
+static void SetupBaseUniforms(u32 programID, v4 color, m44 model, m44 view, m44 projection)
+{    
+    i32 colorLocation = glGetUniformLocation(programID, "color");
+    glUniform4f(colorLocation, renderState.renderColor.r, renderState.renderColor.g, renderState.renderColor.b, renderState.renderColor.a);
+
+    i32 modelLocation = glGetUniformLocation(programID, "model");
+    glUniformMatrix4fv(modelLocation, 1, false, model.e);
+    
+    i32 viewLocation = glGetUniformLocation(programID, "view");
+    glUniformMatrix4fv(viewLocation, 1, false, view.e);
+
+    i32 projectionLocation = glGetUniformLocation(programID, "projection");
+    glUniformMatrix4fv(projectionLocation, 1, false, projection.e);
+}
+
+static void SetupTextureParameters(u32 textureTarget)
+{
+    glTexParameteri(textureTarget, GL_TEXTURE_WRAP_S, renderState.wrapS);
+    glTexParameteri(textureTarget, GL_TEXTURE_WRAP_T, renderState.wrapT);
+    glTexParameteri(textureTarget, GL_TEXTURE_MIN_FILTER, renderState.minFilter);
+    glTexParameteri(textureTarget, GL_TEXTURE_MAG_FILTER, renderState.magFilter);
+}
+
+static void BindBuffer(GLRenderBuffer buffer)
+{
+    if(renderState.overridingVertices || renderState.overridingIndices) {
+        glBindVertexArray(overrideBuffer.vertexArray);
+    }
+    else {
+        glBindVertexArray(quadBuffer.vertexArray);
+    }
+
+    if(renderState.overridingVertices) {
+        glBindBuffer(GL_ARRAY_BUFFER, overrideBuffer.vertexBuffer);
+    }
+    else {
+        glBindBuffer(GL_ARRAY_BUFFER, quadBuffer.vertexBuffer);
+    }
+
+    if(renderState.overridingIndices) {
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, overrideBuffer.indexBuffer);
+    }
+    else {
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, quadBuffer.indexBuffer);
+    }
+}
+
 static void GL_Render()
 {
     RenderHeader *renderHeader = (RenderHeader *)renderTemporaryMemory.arena->base;
 
-    model = IdM44();
-    view = gameState->camera.view;
+    m44 view = gameState->camera.view;
     view._23 = 1.0f;
-    projection = gameState->camera.projection;
+    m44 projection = gameState->camera.projection;
+
+    CreateQuadPosUV(V2(0, 0), V2(1, 1), V2(0, 0), V2(1, 1));
 
     while(renderHeader->id > 0 && (void*)renderHeader < (void*)(renderTemporaryMemory.arena->base + renderTemporaryMemory.used)) {
+        m44 model = IdM44();
+
         i32 size = 0;
-        // #TODO #PERFORMANCE (Juan): This could be improved by generating some geometries on init time (rectangles and circles?)
+        // #TODO #PERFORMANCE (Juan): This could be improved by generating some geometries on init time (rectangles?)
         // #TODO (Juan): More render types can be added line, spline, etc
         switch(renderHeader->type) {
             case type_RenderClear: {
@@ -552,15 +649,9 @@ static void GL_Render()
                 
                 glUseProgram(coloredProgram);
 
-                i32 colorLocation = glGetUniformLocation(coloredProgram, "color");
-                i32 modelLocation = glGetUniformLocation(coloredProgram, "model");
-                i32 viewLocation = glGetUniformLocation(coloredProgram, "view");
-                i32 projectionLocation = glGetUniformLocation(coloredProgram, "projection");
-                glUniformMatrix4fv(modelLocation, 1, false, model.e);
-                glUniformMatrix4fv(viewLocation, 1, false, view.e);
-                glUniformMatrix4fv(projectionLocation, 1, false, projection.e);
+                SetupBaseUniforms(coloredProgram, renderState.renderColor, model, view, projection);
 
-                f32 vertices[] = {
+                f32 triangleVertices[] = {
                     triangle->position.x + triangle->point1.x, triangle->position.y + triangle->point1.y, 0.0f,
                     triangle->position.x + triangle->point2.x, triangle->position.y + triangle->point2.y, 0.0f,
                     triangle->position.x + triangle->point3.x, triangle->position.y + triangle->point3.y, 0.0f
@@ -570,17 +661,17 @@ static void GL_Render()
                     0, 1, 2
                 };
 
-                glBindVertexArray(glVertexArray);
-                glBindBuffer(GL_ARRAY_BUFFER, glVertexBuffer);
-                glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
-                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, glIndexBuffer);
+
+                glBindVertexArray(customBuffer.vertexArray);
+                glBindBuffer(GL_ARRAY_BUFFER, customBuffer.vertexBuffer);
+                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, customBuffer.indexBuffer);
+
+                glBufferData(GL_ARRAY_BUFFER, sizeof(triangleVertices), triangleVertices, GL_STATIC_DRAW);
                 glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW); 
 
                 glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(f32), (void*)0);
                 glEnableVertexAttribArray(0);
-
-                glUniform4f(colorLocation, renderState.renderColor.r, renderState.renderColor.g, renderState.renderColor.b, renderState.renderColor.a);
 
                 glDrawArrays(GL_TRIANGLES, 0, 3);
 
@@ -592,38 +683,16 @@ static void GL_Render()
 
                 glUseProgram(coloredProgram);
 
-                i32 colorLocation = glGetUniformLocation(coloredProgram, "color");
-                i32 modelLocation = glGetUniformLocation(coloredProgram, "model");
-                i32 viewLocation = glGetUniformLocation(coloredProgram, "view");
-                i32 projectionLocation = glGetUniformLocation(coloredProgram, "projection");
-                glUniformMatrix4fv(modelLocation, 1, false, model.e);
-                glUniformMatrix4fv(viewLocation, 1, false, view.e);
-                glUniformMatrix4fv(projectionLocation, 1, false, projection.e);
+                model *= ScaleM44(rectangle->scale);
+                model *= TranslationM44(rectangle->position);
+                SetupBaseUniforms(coloredProgram, renderState.renderColor, model, view, projection);
 
-                f32 vertices[] = {
-                    rectangle->position.x, rectangle->position.y, 0.0f,
-                    rectangle->position.x + rectangle->size.x, rectangle->position.y, 0.0f,
-                    rectangle->position.x, rectangle->position.y + rectangle->size.y, 0.0f,
-                    rectangle->position.x + rectangle->size.x, rectangle->position.y + rectangle->size.y, 0.0f
-                };
+                glBindVertexArray(quadBuffer.vertexArray);
+                glBindBuffer(GL_ARRAY_BUFFER, quadBuffer.vertexBuffer);
+                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, quadBuffer.indexBuffer);
 
-                u32 indices[] = {
-                    0, 1, 2,
-                    1, 2, 3
-                };
-
-                glBindVertexArray(glVertexArray);
-
-                glBindBuffer(GL_ARRAY_BUFFER, glVertexBuffer);
-                glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, glIndexBuffer);
-                glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW); 
-
-                glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(f32), (void*)0);
+                glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)0);
                 glEnableVertexAttribArray(0);
-
-                glUniform4f(colorLocation, renderState.renderColor.r, renderState.renderColor.g, renderState.renderColor.b, renderState.renderColor.a);
 
                 glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
@@ -635,13 +704,7 @@ static void GL_Render()
 
                 glUseProgram(coloredProgram);
 
-                i32 colorLocation = glGetUniformLocation(coloredProgram, "color");
-                i32 modelLocation = glGetUniformLocation(coloredProgram, "model");
-                i32 viewLocation = glGetUniformLocation(coloredProgram, "view");
-                i32 projectionLocation = glGetUniformLocation(coloredProgram, "projection");
-                glUniformMatrix4fv(modelLocation, 1, false, model.e);
-                glUniformMatrix4fv(viewLocation, 1, false, view.e);
-                glUniformMatrix4fv(projectionLocation, 1, false, projection.e);
+                SetupBaseUniforms(coloredProgram, renderState.renderColor, model, view, projection);
 
                 f32 vertices[300] = {
                     circle->position.x, circle->position.y, 0.0f,
@@ -667,22 +730,31 @@ static void GL_Render()
                 indices[circle->segments * 3 + 1] = circle->segments;
                 indices[circle->segments * 3 + 2] = 1;
 
-                glBindVertexArray(glVertexArray);
+                glBindVertexArray(customBuffer.vertexArray);
 
-                glBindBuffer(GL_ARRAY_BUFFER, glVertexBuffer);
+                glBindBuffer(GL_ARRAY_BUFFER, customBuffer.vertexBuffer);
+                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, customBuffer.indexBuffer);
+
                 glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, glIndexBuffer);
                 glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW); 
 
                 glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(f32), (void*)0);
                 glEnableVertexAttribArray(0);
 
-                glUniform4f(colorLocation, renderState.renderColor.r, renderState.renderColor.g, renderState.renderColor.b, renderState.renderColor.a);
-
                 glDrawElements(GL_TRIANGLES, (circle->segments + 1) * 3, GL_UNSIGNED_INT, 0);
 
                 size = sizeof(RenderRectangle);
+                break;
+            }
+            case type_RenderTextureParameters: {
+                RenderTextureParameters *textureParameters = (RenderTextureParameters *)renderHeader;
+                
+                renderState.wrapS = textureParameters->wrapS;
+                renderState.wrapT = textureParameters->wrapT;
+                renderState.minFilter = textureParameters->minFilter;
+                renderState.magFilter = textureParameters->magFilter;
+
+                size = sizeof(RenderTextureParameters);
                 break;
             }
             case type_RenderTexture: {
@@ -690,46 +762,19 @@ static void GL_Render()
 
                 glUseProgram(texturedProgram);
 
-                i32 colorLocation = glGetUniformLocation(texturedProgram, "color");
-                i32 modelLocation = glGetUniformLocation(texturedProgram, "model");
-                i32 viewLocation = glGetUniformLocation(texturedProgram, "view");
-                i32 projectionLocation = glGetUniformLocation(texturedProgram, "projection");
-                glUniformMatrix4fv(modelLocation, 1, false, model.e);
-                glUniformMatrix4fv(viewLocation, 1, false, view.e);
-                glUniformMatrix4fv(projectionLocation, 1, false, projection.e);
+                model *= ScaleM44(texture->scale);
+                model *= TranslationM44(texture->position);
+                SetupBaseUniforms(texturedProgram, renderState.renderColor, model, view, projection);
 
                 glBindTexture(GL_TEXTURE_2D, texture->textureID);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+                SetupTextureParameters(GL_TEXTURE_2D);
 
-                f32 vertices[] = {
-                    texture->position.x, texture->position.y, 0.0f, 0.0f, 0.0f,
-                    texture->position.x + texture->size.x, texture->position.y, 0.0f, 1.0f, 0.0f,
-                    texture->position.x, texture->position.y + texture->size.y, 0.0f, 0.0f, 1.0f,
-                    texture->position.x + texture->size.x, texture->position.y + texture->size.y, 0.0f, 1.0f, 1.0f
-                };
-
-                u32 indices[] = {
-                    0, 1, 2,
-                    1, 2, 3
-                };
-
-                glBindVertexArray(glVertexArray);
-
-                glBindBuffer(GL_ARRAY_BUFFER, glVertexBuffer);
-                glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, glIndexBuffer);
-                glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW); 
+                BindBuffer(quadBuffer);
 
                 glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)0);
                 glEnableVertexAttribArray(0);
                 glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)(3 * sizeof(f32)));
                 glEnableVertexAttribArray(1);
-
-                glUniform4f(colorLocation, renderState.renderColor.r, renderState.renderColor.g, renderState.renderColor.b, renderState.renderColor.a);
 
                 glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
                 
@@ -741,72 +786,48 @@ static void GL_Render()
 
                 glUseProgram(texturedProgram);
 
-                i32 colorLocation = glGetUniformLocation(texturedProgram, "color");
-                i32 modelLocation = glGetUniformLocation(texturedProgram, "model");
-                i32 viewLocation = glGetUniformLocation(texturedProgram, "view");
-                i32 projectionLocation = glGetUniformLocation(texturedProgram, "projection");
-                glUniformMatrix4fv(modelLocation, 1, false, model.e);
-                glUniformMatrix4fv(viewLocation, 1, false, view.e);
-                glUniformMatrix4fv(projectionLocation, 1, false, projection.e);
-
                 GLTexture texture = GL_LoadTexture(image->filename);
                 glBindTexture(GL_TEXTURE_2D, texture.textureID);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                SetupTextureParameters(GL_TEXTURE_2D);
+
+                image->scale.x *= texture.width;
+                image->scale.y *= texture.height;
 
                 if((image->header.renderFlags & IMAGE_ADAPTATIVE_FIT) > 0) {
                     // #TODO(Juan): Check this and fix errors
                     if(texture.height > texture.width) {
-                        f32 oldScaleX = image->size.x;
-                        image->size.x *= (f32)texture.width / (f32)texture.height;
-                        image->position.x += (oldScaleX - image->size.x) * 0.5f;
+                        f32 oldScaleX = image->scale.x;
+                        image->scale.x *= (f32)texture.width / (f32)texture.height;
+                        image->position.x += (oldScaleX - image->scale.x) * 0.5f;
                     } else {
-                        f32 oldScaleY = image->size.y;
-                        image->size.y *= (f32)texture.width / (f32)texture.height;
-                        image->position.y += (oldScaleY - image->size.y) * 0.5f;
+                        f32 oldScaleY = image->scale.y;
+                        image->scale.y *= (f32)texture.width / (f32)texture.height;
+                        image->position.y += (oldScaleY - image->scale.y) * 0.5f;
                     }
                 } else if((image->header.renderFlags & IMAGE_KEEP_RATIO_X) > 0) {
-                    f32 quadRatio = (f32)image->size.y / (f32)image->size.x;
+                    f32 quadRatio = (f32)image->scale.y / (f32)image->scale.x;
                     f32 textureRatio = (f32)texture.height / (f32)texture.width;
-                    f32 oldScaleY = image->size.y;
-                    image->size.y *= textureRatio / quadRatio;
-                    image->position.y += (oldScaleY - image->size.y) * 0.5f;
+                    f32 oldScaleY = image->scale.y;
+                    image->scale.y *= textureRatio / quadRatio;
+                    image->position.y += (oldScaleY - image->scale.y) * 0.5f;
                 } else if((image->header.renderFlags & IMAGE_KEEP_RATIO_Y) > 0) {
-                    f32 quadRatio = (f32)image->size.x / (f32)image->size.y;
+                    f32 quadRatio = (f32)image->scale.x / (f32)image->scale.y;
                     f32 textureRatio = (f32)texture.width / (f32)texture.height;
-                    f32 oldScaleX = image->size.x;
-                    image->size.x *= textureRatio / quadRatio;
-                    image->position.x += (oldScaleX - image->size.x) * 0.5f;
+                    f32 oldScaleX = image->scale.x;
+                    image->scale.x *= textureRatio / quadRatio;
+                    image->position.x += (oldScaleX - image->scale.x) * 0.5f;
                 }
 
-                f32 vertices[] = {
-                    image->position.x, image->position.y, 0.0f, 0.0f, 0.0f,
-                    image->position.x + image->size.x, image->position.y, 0.0f, 1.0f, 0.0f,
-                    image->position.x, image->position.y + image->size.y, 0.0f, 0.0f, 1.0f,
-                    image->position.x + image->size.x, image->position.y + image->size.y, 0.0f, 1.0f, 1.0f
-                };
+                model *= ScaleM44(image->scale);
+                model *= TranslationM44(image->position);
+                SetupBaseUniforms(texturedProgram, renderState.renderColor, model, view, projection);
 
-                u32 indices[] = {
-                    0, 1, 2,
-                    1, 2, 3
-                };
-
-                glBindVertexArray(glVertexArray);
-
-                glBindBuffer(GL_ARRAY_BUFFER, glVertexBuffer);
-                glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, glIndexBuffer);
-                glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW); 
+                BindBuffer(quadBuffer);
 
                 glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)0);
                 glEnableVertexAttribArray(0);
                 glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)(3 * sizeof(f32)));
                 glEnableVertexAttribArray(1);
-
-                glUniform4f(colorLocation, renderState.renderColor.r, renderState.renderColor.g, renderState.renderColor.b, renderState.renderColor.a);
 
                 glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
                 
@@ -818,47 +839,23 @@ static void GL_Render()
 
                 glUseProgram(texturedProgram);
 
-                i32 colorLocation = glGetUniformLocation(texturedProgram, "color");
-                i32 modelLocation = glGetUniformLocation(texturedProgram, "model");
-                i32 viewLocation = glGetUniformLocation(texturedProgram, "view");
-                i32 projectionLocation = glGetUniformLocation(texturedProgram, "projection");
-                glUniformMatrix4fv(modelLocation, 1, false, model.e);
-                glUniformMatrix4fv(viewLocation, 1, false, view.e);
-                glUniformMatrix4fv(projectionLocation, 1, false, projection.e);
-
                 GLTexture texture = GL_LoadTexture(imageUV->filename);
                 glBindTexture(GL_TEXTURE_2D, texture.textureID);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                SetupTextureParameters(GL_TEXTURE_2D);
 
-                f32 vertices[] = {
-                    imageUV->position.x, imageUV->position.y, 0.0f, imageUV->uv.min.x, imageUV->uv.min.y,
-                    imageUV->position.x + imageUV->size.x, imageUV->position.y, 0.0f, imageUV->uv.max.x, imageUV->uv.min.y,
-                    imageUV->position.x, imageUV->position.y + imageUV->size.y, 0.0f, imageUV->uv.min.x, imageUV->uv.max.y,
-                    imageUV->position.x + imageUV->size.x, imageUV->position.y + imageUV->size.y, 0.0f, imageUV->uv.max.x, imageUV->uv.max.y
-                };
+                imageUV->scale.x *= texture.width;
+                imageUV->scale.y *= texture.height;
 
-                u32 indices[] = {
-                    0, 1, 2,
-                    1, 2, 3
-                };
+                model *= ScaleM44(imageUV->scale);
+                model *= TranslationM44(imageUV->position);
+                SetupBaseUniforms(coloredProgram, renderState.renderColor, model, view, projection);
 
-                glBindVertexArray(glVertexArray);
-
-                glBindBuffer(GL_ARRAY_BUFFER, glVertexBuffer);
-                glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, glIndexBuffer);
-                glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW); 
+                BindBuffer(quadBuffer);
 
                 glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)0);
                 glEnableVertexAttribArray(0);
                 glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)(3 * sizeof(f32)));
                 glEnableVertexAttribArray(1);
-
-                glUniform4f(colorLocation, renderState.renderColor.r, renderState.renderColor.g, renderState.renderColor.b, renderState.renderColor.a);
 
                 glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
                 
@@ -870,55 +867,38 @@ static void GL_Render()
 
                 glUseProgram(texturedProgram);
 
-                i32 colorLocation = glGetUniformLocation(texturedProgram, "color");
-                i32 modelLocation = glGetUniformLocation(texturedProgram, "model");
-                i32 viewLocation = glGetUniformLocation(texturedProgram, "view");
-                i32 projectionLocation = glGetUniformLocation(texturedProgram, "projection");
-                glUniformMatrix4fv(modelLocation, 1, false, model.e);
-                glUniformMatrix4fv(viewLocation, 1, false, view.e);
-                glUniformMatrix4fv(projectionLocation, 1, false, projection.e);
-
                 TextureAtlas textureAtlas = GL_LoadAtlas(atlas->atlasName);
                 rectangle2 uvRect = shget(textureAtlas.sprites, atlas->spriteKey);
 
                 GLTexture texture = GL_LoadTexture(atlas->filename);
                 glBindTexture(GL_TEXTURE_2D, texture.textureID);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                SetupTextureParameters(GL_TEXTURE_2D);
 
-                f32 normX = uvRect.min.x / texture.width;
-                f32 normY = uvRect.min.y / texture.height;
-                f32 normEndX = uvRect.max.x / texture.width;
-                f32 normEndY = uvRect.max.y / texture.height;
+                v2 rectSize = GetSize(uvRect);
+                atlas->scale.x *= rectSize.x;
+                atlas->scale.y *= rectSize.y;
 
-                f32 vertices[] = {
-                    atlas->position.x, atlas->position.y, 0.0f, normX, normY,
-                    atlas->position.x + atlas->size.x, atlas->position.y, 0.0f, normEndX, normY,
-                    atlas->position.x, atlas->position.y + atlas->size.y, 0.0f, normX, normEndY,
-                    atlas->position.x + atlas->size.x, atlas->position.y + atlas->size.y, 0.0f, normEndX, normEndY,
-                };
+                model *= ScaleM44(atlas->scale);
+                model *= TranslationM44(atlas->position);
+                SetupBaseUniforms(coloredProgram, renderState.renderColor, model, view, projection);
 
-                u32 indices[] = {
-                    0, 1, 2,
-                    1, 2, 3
-                };
+                v2 spriteUVStart = V2(uvRect.min.x / texture.width, uvRect.min.y / texture.height);
+                v2 spriteUVEnd = V2(uvRect.max.x / texture.width, uvRect.max.y / texture.height);
 
-                glBindVertexArray(glVertexArray);
+                CreateQuadPosUV(V2(0, 0), V2(1, 1), spriteUVStart, spriteUVEnd);
 
-                glBindBuffer(GL_ARRAY_BUFFER, glVertexBuffer);
-                glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+                glBindVertexArray(customBuffer.vertexArray);
 
-                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, glIndexBuffer);
-                glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW); 
+                glBindBuffer(GL_ARRAY_BUFFER, customBuffer.vertexBuffer);
+                glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), quadVertices, GL_STATIC_DRAW);
+
+                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, customBuffer.indexBuffer);
+                glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(quadIndices), quadIndices, GL_STATIC_DRAW); 
 
                 glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)0);
                 glEnableVertexAttribArray(0);
                 glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)(3 * sizeof(f32)));
                 glEnableVertexAttribArray(1);
-
-                glUniform4f(colorLocation, renderState.renderColor.r, renderState.renderColor.g, renderState.renderColor.b, renderState.renderColor.a);
 
                 glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
                 
@@ -946,60 +926,32 @@ static void GL_Render()
 
                 glUseProgram(texturedProgram);
 
-                i32 colorLocation = glGetUniformLocation(texturedProgram, "color");
-                i32 modelLocation = glGetUniformLocation(texturedProgram, "model");
-                i32 viewLocation = glGetUniformLocation(texturedProgram, "view");
-                i32 projectionLocation = glGetUniformLocation(texturedProgram, "projection");
-                glUniformMatrix4fv(modelLocation, 1, false, model.e);
-                glUniformMatrix4fv(viewLocation, 1, false, view.e);
-                glUniformMatrix4fv(projectionLocation, 1, false, projection.e);
-
                 GLTexture texture = GL_LoadTexture(currentFont.fontFilename);
                 glBindTexture(GL_TEXTURE_2D, texture.textureID);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                SetupTextureParameters(GL_TEXTURE_2D);
 
                 f32 charWidth = (charRect.max.x - charRect.min.x);
                 f32 charHeight = (charRect.max.y - charRect.min.y);
                 
-                f32 quadRatio = (f32)renderChar->size.x / (f32)renderChar->size.y;
+                f32 quadRatio = (f32)renderChar->scale.x / (f32)renderChar->scale.y;
                 f32 textureRatio = (f32)charWidth / (f32)charHeight;
 
-                f32 oldScaleX = renderChar->size.x;
-                renderChar->size.x *= textureRatio / quadRatio;
-                renderChar->position.x += (oldScaleX - renderChar->size.x) * 0.5f;
+                f32 oldScaleX = renderChar->scale.x;
+                renderChar->scale.x *= textureRatio / quadRatio;
+                renderChar->position.x += (oldScaleX - renderChar->scale.x) * 0.5f;
 
                 renderChar->position.x += (f32)charData->xoff / (f32)currentFont.width;
-                // renderChar->position.y += (f32)charData->yoff / (f32)currentFont.height;
 
-                f32 vertices[] = {
-                    renderChar->position.x, renderChar->position.y, 0.0f, charRect.min.x, charRect.min.y,
-                    renderChar->position.x + renderChar->size.x, renderChar->position.y, 0.0f, charRect.max.x, charRect.min.y,
-                    renderChar->position.x, renderChar->position.y + renderChar->size.y, 0.0f, charRect.min.x, charRect.max.y,
-                    renderChar->position.x + renderChar->size.x, renderChar->position.y + renderChar->size.y, 0.0f, charRect.max.x, charRect.max.y
-                };
+                model *= ScaleM44(renderChar->scale);
+                model *= TranslationM44(renderChar->position);
+                SetupBaseUniforms(coloredProgram, renderState.renderColor, model, view, projection);
 
-                u32 indices[] = {
-                    0, 1, 2,
-                    1, 2, 3
-                };
-
-                glBindVertexArray(glVertexArray);
-
-                glBindBuffer(GL_ARRAY_BUFFER, glVertexBuffer);
-                glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, glIndexBuffer);
-                glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW); 
+                BindBuffer(quadBuffer);
 
                 glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)0);
                 glEnableVertexAttribArray(0);
                 glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)(3 * sizeof(f32)));
                 glEnableVertexAttribArray(1);
-
-                glUniform4f(colorLocation, renderState.renderColor.r, renderState.renderColor.g, renderState.renderColor.b, renderState.renderColor.a);
 
                 glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
                 
@@ -1011,31 +963,24 @@ static void GL_Render()
 
                 glUseProgram(texturedProgram);
 
-                i32 colorLocation = glGetUniformLocation(texturedProgram, "color");
-                i32 modelLocation = glGetUniformLocation(texturedProgram, "model");
-                i32 viewLocation = glGetUniformLocation(texturedProgram, "view");
-                i32 projectionLocation = glGetUniformLocation(texturedProgram, "projection");
-                glUniformMatrix4fv(modelLocation, 1, false, model.e);
-                glUniformMatrix4fv(viewLocation, 1, false, view.e);
-                glUniformMatrix4fv(projectionLocation, 1, false, projection.e);
+                model *= ScaleM44(text->scale);
+                model *= TranslationM44(text->position);
+                SetupBaseUniforms(coloredProgram, renderState.renderColor, model, view, projection);
 
                 GLTexture texture = GL_LoadTexture(currentFont.fontFilename);
                 glBindTexture(GL_TEXTURE_2D, texture.textureID);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                SetupTextureParameters(GL_TEXTURE_2D);
 
                 v2 offset = V2(0, 0);
 
-                v2 textSize = text->size;
+                v2 textSize = text->scale;
                 v2 textPosition = text->position;
                 v2 fontDividers = V2(currentFont.fontSize / currentFont.width, currentFont.fontSize / currentFont.height);
 
-                for(int i = 0; i < text->stringSize - 1; ++i) {
+                for(i32 i = 0; i < text->stringSize - 1; ++i) {
                     char currentChar = text->string[i];
 
-                    stbtt_bakedchar *charData = CalculateCharacterOffset(&currentFont, currentChar, &offset, text->size.y * 2.0f);
+                    stbtt_bakedchar *charData = CalculateCharacterOffset(&currentFont, currentChar, &offset, text->scale.y * 2.0f);
                     
                     if(charData != 0) {
                         rectangle2 charRect = RectMinMax(V2(charData->x0, charData->y0), V2(charData->x1, charData->y1));
@@ -1047,46 +992,52 @@ static void GL_Render()
                         f32 charWidth = (charRect.max.x - charRect.min.x);
                         f32 charHeight = (charRect.max.y - charRect.min.y);
 
-                        text->size.x = textSize.x * (charWidth / fontDividers.x);
-                        text->size.y = textSize.y * (charHeight / fontDividers.y);
+                        text->scale.x = textSize.x * (charWidth / fontDividers.x);
+                        text->scale.y = textSize.y * (charHeight / fontDividers.y);
 
                         text->position.x = textPosition.x + (f32)charData->xoff / currentFont.width + offset.x;
                         text->position.y = textPosition.y + (f32)charData->yoff / currentFont.height + offset.y;
 
-                        f32 vertices[] = {
-                            text->position.x, text->position.y, 0.0f, charRect.min.x, charRect.min.y,
-                            text->position.x + text->size.x, text->position.y, 0.0f, charRect.max.x, charRect.min.y,
-                            text->position.x, text->position.y + text->size.y, 0.0f, charRect.min.x, charRect.max.y,
-                            text->position.x + text->size.x, text->position.y + text->size.y, 0.0f, charRect.max.x, charRect.max.y
-                        };
-
                         offset.x += charData->xadvance / currentFont.width;
 
-                        u32 indices[] = {
-                            0, 1, 2,
-                            1, 2, 3
-                        };
-
-                        glBindVertexArray(glVertexArray);
-
-                        glBindBuffer(GL_ARRAY_BUFFER, glVertexBuffer);
-                        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-                        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, glIndexBuffer);
-                        glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW); 
+                        BindBuffer(quadBuffer);
 
                         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)0);
                         glEnableVertexAttribArray(0);
                         glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)(3 * sizeof(f32)));
                         glEnableVertexAttribArray(1);
 
-                        glUniform4f(colorLocation, renderState.renderColor.r, renderState.renderColor.g, renderState.renderColor.b, renderState.renderColor.a);
-
                         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
                     }
                 }
                 
                 size = sizeof(RenderText) + text->stringSize;
+                break;
+            }
+            case type_RenderOverrideVertices: {
+                RenderOverrideVertices *vertices = (RenderOverrideVertices *)renderHeader;
+ 
+                renderState.overridingVertices = vertices->vertices != 0;
+                if(renderState.overridingVertices) {
+                    glBindVertexArray(overrideBuffer.vertexArray);
+                    glBindBuffer(GL_ARRAY_BUFFER, overrideBuffer.vertexBuffer);
+                    glBufferData(GL_ARRAY_BUFFER, vertices->size, vertices->vertices, GL_STATIC_DRAW);
+                }
+
+                size = sizeof(RenderOverrideVertices) + vertices->size;
+                break;
+            }
+            case type_RenderOverrideIndices: {
+                RenderOverrideIndices *indices = (RenderOverrideIndices *)renderHeader;
+
+                renderState.overridingIndices = indices->indices != 0;
+                if(renderState.overridingIndices) {
+                    glBindVertexArray(overrideBuffer.vertexArray);
+                    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, overrideBuffer.indexBuffer);
+                    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices->size, indices->indices, GL_STATIC_DRAW);
+                }
+
+                size = sizeof(RenderOverrideIndices) + indices->size;
                 break;
             }
             default: {
@@ -1102,8 +1053,13 @@ static void GL_Render()
 
 static void GLEnd()
 {
-    glDeleteBuffers(1, &glVertexBuffer);
-    glDeleteBuffers(1, &glIndexBuffer);
+    glDeleteVertexArrays(1, &quadBuffer.vertexArray);
+    glDeleteBuffers(1, &quadBuffer.vertexBuffer);
+    glDeleteBuffers(1, &quadBuffer.indexBuffer);
+    
+    glDeleteVertexArrays(1, &customBuffer.vertexArray);
+    glDeleteBuffers(1, &customBuffer.vertexBuffer);
+    glDeleteBuffers(1, &customBuffer.indexBuffer);
 }
 
 #endif
