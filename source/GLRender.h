@@ -330,8 +330,8 @@ static i32 GL_CompileProgram(const char *vertexShaderSource, const char *fragmen
     if (!success)
     {
         glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
-        console.AddLog("[error] ERROR::VERTEX::COMPILATION_FAILED %s\n", vertexShaderSource);
-        console.AddLog(infoLog);
+        AddLog(&editorConsole, "[error] ERROR::VERTEX::COMPILATION_FAILED %s\n", vertexShaderSource);
+        AddLog(&editorConsole, infoLog);
     }
 
     u32 fragmentShader;
@@ -347,8 +347,8 @@ static i32 GL_CompileProgram(const char *vertexShaderSource, const char *fragmen
     if (!success)
     {
         glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
-        console.AddLog("[error] ERROR::FRAGMENT::COMPILATION_FAILED %s\n", fragmentShaderSource);
-        console.AddLog(infoLog);
+        AddLog(&editorConsole, "[error] ERROR::FRAGMENT::COMPILATION_FAILED %s\n", fragmentShaderSource);
+        AddLog(&editorConsole, infoLog);
     }
 
     i32 shaderProgram = glCreateProgram();
@@ -360,8 +360,8 @@ static i32 GL_CompileProgram(const char *vertexShaderSource, const char *fragmen
     glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
     if (!success) {
         glGetProgramInfoLog(shaderProgram, 512, NULL, infoLog);
-        console.AddLog("[error] ERROR::PROGRAM::LINK_FAILED\n");
-        console.AddLog(infoLog);
+        AddLog(&editorConsole, "[error] ERROR::PROGRAM::LINK_FAILED\n");
+        AddLog(&editorConsole, infoLog);
     }
 
     glDeleteShader(vertexShader);
@@ -403,7 +403,7 @@ static void GL_WatchChanges()
             SOURCE_TYPE fragmentSource = static_cast<SOURCE_TYPE>(data);
 
             if(vertexSource[0] != '\0' && fragmentSource[0] != '\0') {
-                console.AddLog("Started to reload program %d, vertex %s, fragment %s", watched.shaderProgram, watched.vertexFilename, watched.fragmentFilename);
+                AddLog(&editorConsole, "Started to reload program %d, vertex %s, fragment %s", watched.shaderProgram, watched.vertexFilename, watched.fragmentFilename);
                 glDetachShader(watched.shaderProgram, watched.vertexShader);
                 glDetachShader(watched.shaderProgram, watched.fragmentShader);
                 
@@ -420,8 +420,8 @@ static void GL_WatchChanges()
                 if (!success)
                 {
                     glGetShaderInfoLog(watched.vertexShader, 512, NULL, infoLog);
-                    console.AddLog("[error] ERROR::VERTEX::COMPILATION_FAILED %s\n", watched.vertexFilename);
-                    console.AddLog(infoLog);
+                    AddLog(&editorConsole, "[error] ERROR::VERTEX::COMPILATION_FAILED %s\n", watched.vertexFilename);
+                    AddLog(&editorConsole, infoLog);
                 }
 
                 watched.fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
@@ -433,8 +433,8 @@ static void GL_WatchChanges()
                 if (!success)
                 {
                     glGetShaderInfoLog(watched.vertexShader, 512, NULL, infoLog);
-                    console.AddLog("[error] ERROR::FRAGMENT::COMPILATION_FAILED %s\n", watched.fragmentFilename);
-                    console.AddLog(infoLog);
+                    AddLog(&editorConsole, "[error] ERROR::FRAGMENT::COMPILATION_FAILED %s\n", watched.fragmentFilename);
+                    AddLog(&editorConsole, infoLog);
                 }
 
                 glAttachShader(watched.shaderProgram, watched.vertexShader);
@@ -444,8 +444,8 @@ static void GL_WatchChanges()
                 glGetProgramiv(watched.shaderProgram, GL_LINK_STATUS, &success);
                 if (!success) {
                     glGetProgramInfoLog(watched.shaderProgram, 512, NULL, infoLog);
-                    console.AddLog("[error] ERROR::PROGRAM::COMPILATION_FAILED\n");
-                    console.AddLog(infoLog);
+                    AddLog(&editorConsole, "[error] ERROR::PROGRAM::COMPILATION_FAILED\n");
+                    AddLog(&editorConsole, infoLog);
                 }
 
                 glDeleteShader(watched.vertexShader);

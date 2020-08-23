@@ -884,4 +884,20 @@ static m44 PerspectiveProjection(f32 fovY, f32 aspect, f32 nearPlane, f32 farPla
     );
 }
 
+// #NOTE(Juan): transform2D
+
+struct transform2D
+{
+    v2 position;
+    v2 scale;
+};
+
+static transform2D Transform2D(v2 position, v2 scale)
+{
+    transform2D transform;
+    transform.position = position;
+    transform.scale = scale;
+    return transform;
+}
+
 #endif

@@ -1,10 +1,10 @@
 #if !defined(GAME_H)
 #define GAME_H
 
+#include "IMGUI/imgui.h"
 #include "LUA/sol.hpp"
 
 #include "Defines.h"
-#include "Editor.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "STB/stb_image.h"
@@ -231,9 +231,6 @@ u32 renderBuffer;
 u32 depthrenderbuffer;
 u32 DrawBuffers[1] = {GL_COLOR_ATTACHMENT0};
 
-static EnvariConsole console;
-bool consoleOpen;
-
 void *gameMemory;
 Data *gameState;
 PermanentData *permanentState;
@@ -248,6 +245,7 @@ static u32 GameInit();
 static u32 GameLoop();
 static u32 GameEnd();
 
+#include "Editor.h"
 #include "Game.cpp"
 
 #endif

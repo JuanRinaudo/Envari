@@ -13,7 +13,7 @@
 
 static u32 GameInit() {
 
-    console.InitConsole();
+    EditorInit(&editorConsole);
 
     LoadScriptFile(TableGetString(&initialConfig, "initLuaScript"));
 
@@ -22,7 +22,7 @@ static u32 GameInit() {
         Init();
     }
     else {
-        console.AddLog("Error on script 'Init', not valid");
+        AddLog(&editorConsole, "Error on script 'Init', not valid");
     }
     
     return 0;
@@ -35,14 +35,15 @@ static u32 GameLoop() {
 
     // ss << "TIME: " << global.time.gameTime << " | DELTA TIME: " << global.time.deltaTime << " | FPS: " << fps << endl;
 
-    console.Draw("Console", &consoleOpen);
+    EditorDraw(&editorConsole);
+    EditorDraw(&editorLUADebugger);
     
     sol::protected_function Update(lua["Update"]);
     if(Update.valid()) {
         Update();
     }
     else {
-        console.AddLog("Error on script 'Update', not valid");
+        AddLog(&editorConsole, "Error on script 'Update', not valid");
     }
 
     // ImGui::ShowDemoWindow();

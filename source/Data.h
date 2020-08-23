@@ -185,7 +185,7 @@ static char* NextToken(DataTokenizer* tokenizer)
                     tokenizer->tokenBufferIndex++;
                     
                     if(tokenizer->tokenBufferIndex == DATA_MAX_TOKEN_COUNT) {
-                        console.AddLog("Parsing error, max token count reached %d", DATA_MAX_TOKEN_COUNT);
+                        AddLog(&editorConsole, "Parsing error, max token count reached %d", DATA_MAX_TOKEN_COUNT);
                         return 0;
                     }
 
@@ -250,7 +250,7 @@ static bool ParseDataTable(DataTable** table, const char* filename)
 
         if(tokenizer.tokenLineCount == 0) {
             if(keyPointer != 0) {
-                console.AddLog("Parsing error, parsing a key token when last token was a key, line: %d", tokenizer.currentLine);
+                AddLog(&editorConsole, "Parsing error, parsing a key token when last token was a key, line: %d", tokenizer.currentLine);
                 return false;
             }
             

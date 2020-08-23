@@ -18,7 +18,7 @@ static bool ImguiButton(const char* label, v2 size) {
 // #NOTE(Juan): Console
 static void ConsoleAddLog(const char* log)
 {
-	console.AddLogSimple(log);
+	AddLogSimple(&editorConsole, log);
 }
 
 // #NOTE(Juan): Engine
@@ -47,14 +47,14 @@ static char* IntToChar(i32 value)
 
 // #NOTE(Juan): Render
 
-static const RenderOverrideVertices PushRenderDisableOverrideVertices()
+static void PushRenderDisableOverrideVertices()
 {
-    return PushRenderOverrideVertices(0, 0);
+    PushRenderOverrideVertices(0, 0);
 }
 
-static const RenderOverrideIndices PushRenderDisableOverrideIndices()
+static void PushRenderDisableOverrideIndices()
 {    
-    return PushRenderOverrideIndices(0, 0);
+    PushRenderOverrideIndices(0, 0);
 }
 
 #endif

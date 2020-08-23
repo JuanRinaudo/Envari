@@ -49,7 +49,7 @@ static void LoadScriptFile(char* name)
 
 static void ScriptingPanic(sol::optional<std::string> message)
 {
-	console.AddLogSimple(message.value().c_str());
+	AddLogSimple(&editorConsole, message.value().c_str());
 }
 
 static void LoadLUALibrary(sol::lib library)
@@ -85,6 +85,10 @@ static void LoadLUALibrary(sol::lib library)
             v4_usertype["b"] = sol::property([](v4 &v) { return v.z; }, [](v4 &v, f32 f) { v.z = f; });
             v4_usertype["a"] = sol::property([](v4 &v) { return v.w; }, [](v4 &v, f32 f) { v.w = f; });
             v4_usertype["e"] = sol::property([](v4 &v) { return &v.e; });
+
+            sol::usertype<transform2D> transform2D_usertype = lua.new_usertype<transform2D>("transform2D");
+            transform2D_usertype["position"] = &transform2D::position;
+            transform2D_usertype["scale"] = &transform2D::scale;
     
             // #NOTE (Juan): Math custom functionality
             lua["math"]["sign"] = Sign;
@@ -168,6 +172,8 @@ static void ScriptingInit(char* dataPath)
     lua["IdM33"] = IdM33;
     lua["M44"] = M44;
     lua["IdM44"] = IdM44;
+
+    lua["Transform2D"] = Transform2D;
 
     // #NOTE (Juan): Input
     lua["MouseOverRectangle"] = MouseOverRectangle;
@@ -320,7 +326,7 @@ static void ReloadScriptIfChanged(char *name, i32 fileIndex) {
     strcat(completePath, name);
     auto fileTime = std::filesystem::last_write_time(completePath);
     if(fileTime != watchListTimes[fileIndex]) {
-        console.AddLog("Started to reload script %s", name);
+        AddLog(&editorConsole, "Started to reload script %s", name);
 
         sol::load_result loadResult = lua.load_file(completePath);
 
@@ -332,15 +338,15 @@ static void ReloadScriptIfChanged(char *name, i32 fileIndex) {
             else {
                 sol::error luaError = loadResult;
                 std::string errorReport = luaError.what();
-                console.AddLog("Scripting reload run error");
-                console.AddLog(errorReport.c_str());
+                AddLog(&editorConsole, "Scripting reload run error");
+                AddLog(&editorConsole, errorReport.c_str());
             }
         }
         else {
             sol::error luaError = loadResult;
             std::string errorReport = luaError.what();
-            console.AddLog("Scripting reload file error");
-            console.AddLog(errorReport.c_str());
+            AddLog(&editorConsole, "Scripting reload file error");
+            AddLog(&editorConsole, errorReport.c_str());
         }
 
         watchListTimes[fileIndex] = fileTime;

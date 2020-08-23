@@ -183,7 +183,7 @@ i32 CALLBACK WinMain(
     glDrawBuffers(1, DrawBuffers);
 
     if(glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-        console.AddLog("ERROR::FRAMEBUFFER:: Framebuffer is not complete!");
+        AddLog(&editorConsole, "ERROR::FRAMEBUFFER:: Framebuffer is not complete!");
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);  
 
