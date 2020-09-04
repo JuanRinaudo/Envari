@@ -661,8 +661,6 @@ static void GL_Render()
                     0, 1, 2
                 };
 
-
-
                 glBindVertexArray(customBuffer.vertexArray);
                 glBindBuffer(GL_ARRAY_BUFFER, customBuffer.vertexBuffer);
                 glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, customBuffer.indexBuffer);

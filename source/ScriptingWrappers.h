@@ -18,7 +18,7 @@ static bool ImguiButton(const char* label, v2 size) {
 // #NOTE(Juan): Console
 static void ConsoleAddLog(const char* log)
 {
-	AddLogSimple(&editorConsole, log);
+	AddLog(&editorConsole, log);
 }
 
 // #NOTE(Juan): Engine

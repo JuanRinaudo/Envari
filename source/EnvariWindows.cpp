@@ -2,6 +2,9 @@
 #include <chrono>
 #include <thread>
 
+#include "CodeGen/FileMap.h"
+#include "CodeGen/WindowsConfigMap.h"
+
 #define SOURCE_TYPE const char* const
 
 #include "GL3W/gl3w.c"
@@ -89,7 +92,7 @@ i32 CALLBACK WinMain(
     InitializeArena(&permanentState->arena, (memoryIndex)(gameState->memory.permanentStorageSize - sizeof(PermanentData) - sizeof(Data)), (u8 *)gameState->memory.permanentStorage + sizeof(PermanentData) + sizeof(Data));
     InitializeArena(&temporalState->arena, (memoryIndex)(gameState->memory.temporalStorageSize - sizeof(TemporalData)), (u8 *)gameState->memory.temporalStorage + sizeof(TemporalData));
 
-    ParseDataTable(&initialConfig, "data/windowsConfig.envt");
+    ParseDataTable(&initialConfig, DATA_WINDOWSCONFIG_ENVT);
 
     if (!glfwInit()) {
         return -1;
@@ -97,7 +100,7 @@ i32 CALLBACK WinMain(
 
     GLFWmonitor* mainMonitor = glfwGetPrimaryMonitor();
     const GLFWvidmode* videoMode = glfwGetVideoMode( mainMonitor );
-    v2 windowSize = TableGetV2(&initialConfig, "windowSize");
+    v2 windowSize = TableGetV2(&initialConfig, WINDOWSCONFIG_WINDOWSIZE);
     if(windowSize.x <= 1 && windowSize.y <= 1) {
         gameState->screen.width = FloorToInt(videoMode->width * windowSize.x);
         gameState->screen.height = FloorToInt(videoMode->height * windowSize.y);
@@ -107,7 +110,7 @@ i32 CALLBACK WinMain(
         gameState->screen.height = FloorToInt(windowSize.y);
     }
 
-    v2 bufferSize = TableGetV2(&initialConfig, "bufferSize");
+    v2 bufferSize = TableGetV2(&initialConfig, WINDOWSCONFIG_BUFFERSIZE);
     if(windowSize.x <= 1 && windowSize.y <= 1) {
         gameState->screen.bufferWidth = FloorToInt(gameState->screen.width * bufferSize.x);
         gameState->screen.bufferHeight = FloorToInt(gameState->screen.height * bufferSize.y);
@@ -119,7 +122,7 @@ i32 CALLBACK WinMain(
 
     gameState->screen.refreshRate = videoMode->refreshRate;
 
-    char* windowTitle = TableGetString(&initialConfig, "windowTitle");
+    char* windowTitle = TableGetString(&initialConfig, WINDOWSCONFIG_WINDOWTITLE);
     Window = glfwCreateWindow(gameState->screen.width, gameState->screen.height, windowTitle, NULL, NULL);
     glfwSetWindowSizeCallback(Window, WindowResizeCallback);
 
@@ -134,9 +137,9 @@ i32 CALLBACK WinMain(
 		return -1;
 	}
 
-    i32 fpsLimit = TableGetInt(&initialConfig, "fpsLimit");
+    i32 fpsLimit = TableGetInt(&initialConfig, WINDOWSCONFIG_FPSLIMIT);
     i32 fpsDelta = 1000 / fpsLimit;
-    i32 vsync = TableGetInt(&initialConfig, "vsync");
+    i32 vsync = TableGetInt(&initialConfig, WINDOWSCONFIG_VSYNC);
     glfwSwapInterval(vsync);
 
     const char* glsl_version = 0;
@@ -160,8 +163,8 @@ i32 CALLBACK WinMain(
     GameInit();
 
     GL_Init();
-    coloredProgram = GL_CompileProgram("shaders/glcore/colored.vert", "shaders/glcore/colored.frag");
-    texturedProgram = GL_CompileProgram("shaders/glcore/textured.vert", "shaders/glcore/textured.frag");
+    coloredProgram = GL_CompileProgram(SHADERS_GLCORE_COLORED_VERT, SHADERS_GLCORE_COLORED_FRAG);
+    texturedProgram = GL_CompileProgram(SHADERS_GLCORE_TEXTURED_VERT, SHADERS_GLCORE_TEXTURED_FRAG);
 
     // #NOTE (Juan): Framebuffer
     glGenFramebuffers(1, &frameBuffer);

@@ -49,7 +49,7 @@ static void LoadScriptFile(char* name)
 
 static void ScriptingPanic(sol::optional<std::string> message)
 {
-	AddLogSimple(&editorConsole, message.value().c_str());
+	AddLog(&editorConsole, message.value().c_str());
 }
 
 static void LoadLUALibrary(sol::lib library)

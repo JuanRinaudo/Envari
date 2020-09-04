@@ -1,3 +1,3 @@
 @echo off
 
-call emsdk_env
+emsdk_env
