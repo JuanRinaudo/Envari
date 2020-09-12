@@ -19,10 +19,15 @@ static u32 GameInit()
 
     sol::protected_function Init(lua["Init"]);
     if(Init.valid()) {
-        Init();
+        sol::protected_function_result result = Init();
+        if (!result.valid()) {
+            sol::error error = result;
+		    std::string what = error.what();
+            LogError(&editorConsole, "%s", what.c_str());
+        }
     }
     else {
-        AddLog(&editorConsole, "Error on script 'Init', not valid");
+        LogError(&editorConsole, "Error on script 'Init', not valid");
     }
     
     return 0;
@@ -36,10 +41,15 @@ static u32 GameLoop()
     
     sol::protected_function Update(lua["Update"]);
     if(Update.valid()) {
-        Update();
+        sol::protected_function_result result = Update();
+        if (!result.valid()) {
+            sol::error error = result;
+		    std::string what = error.what();
+            LogError(&editorConsole, "%s", what.c_str());
+        }
     }
     else {
-        AddLog(&editorConsole, "Error on script 'Update', not valid");
+        LogError(&editorConsole, "Error on script 'Update', not valid");
     }
 
     // ImGui::ShowDemoWindow();

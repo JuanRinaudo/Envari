@@ -63,7 +63,7 @@ static i32 GetDataLineParameters(char* dataString, i32 index) {
 
 static bool TableHasKey(DataTable** table, const char* key)
 {
-    bool keyPointer = shgetp_null(*table, key);
+    void* keyPointer = shgetp_null(*table, key);
     return keyPointer != 0;
 }
 
@@ -127,7 +127,7 @@ static bool ParseDataTable(DataTable** table, const char* filename)
 
         if(tokenizer.tokenLineCount == 0) {
             if(keyPointer != 0) {
-                AddLog(&editorConsole, "Parsing error, parsing a key token when last token was a key, line: %d", tokenizer.currentLine);
+                Log(&editorConsole, "Parsing error, parsing a key token when last token was a key, line: %d", tokenizer.currentLine);
                 return false;
             }
             

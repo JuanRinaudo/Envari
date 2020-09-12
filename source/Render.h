@@ -13,7 +13,10 @@ enum RenderType
 {
     type_RenderClear,
     type_RenderColor,
+    type_RenderLineWidth,
     type_RenderTransparent,
+    type_RenderLine,
+    type_RenderLineStrip,
     type_RenderTriangle,
     type_RenderRectangle,
     type_RenderCircle,
@@ -48,6 +51,12 @@ struct RenderColor
     v4 color;
 };
 
+struct RenderLineWidth
+{
+    RenderHeader header;
+    float width;
+};
+
 struct RenderTransparent
 {
     RenderHeader header;
@@ -60,10 +69,22 @@ struct RenderTransparent
     u32 dstAlpha;
 };
 
+struct RenderLine
+{
+    RenderHeader header;
+    v2 start;
+    v2 end;
+};
+
+struct RenderLineStrip
+{
+    RenderHeader header;
+    v2* points;
+};
+
 struct RenderTriangle
 {
     RenderHeader header;
-    v2 position;
     v2 point1;
     v2 point2;
     v2 point3;
@@ -231,6 +252,12 @@ static void PushRenderColor(f32 red = 0, f32 green = 0, f32 blue = 0, f32 alpha 
     color->color = V4(red, green, blue, alpha);
 }
 
+static void PushRenderLineWidth(f32 width = 1)
+{
+    RenderLineWidth *line = RenderPushElement(&renderTemporaryMemory, RenderLineWidth);
+    line->width = width;
+}
+
 static void PushRenderTransparent(u32 modeRGB, u32 modeAlpha, u32 srcRGB, u32 dstRGB, u32 srcAlpha, u32 dstAlpha)
 {
     RenderTransparent *transparent = RenderPushElement(&renderTemporaryMemory, RenderTransparent);
@@ -255,10 +282,22 @@ static void PushRenderTransparentDisable()
     transparent->dstAlpha = 0;
 }
 
-static void PushRenderTriangle(v2 position, v2 point1, v2 point2, v2 point3)
+static void PushRenderLine(v2 start, v2 end)
+{
+    RenderLine *line = RenderPushElement(&renderTemporaryMemory, RenderLine);
+    line->start = start;
+    line->end = end;
+}
+
+static void PushRenderLineStrip(const v2* linePoints)
+{
+    RenderLineStrip *lineStrip = RenderPushElement(&renderTemporaryMemory, RenderLineStrip);
+    
+}
+
+static void PushRenderTriangle(v2 point1, v2 point2, v2 point3)
 {
     RenderTriangle *triangle = RenderPushElement(&renderTemporaryMemory, RenderTriangle);
-    triangle->position = position;
     triangle->point1 = point1;
     triangle->point2 = point2;
     triangle->point3 = point3;

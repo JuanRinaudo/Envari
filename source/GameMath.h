@@ -236,6 +236,14 @@ static f32 Length(v2 a)
     return(result);
 }
 
+static v2 Normalize(v2 a)
+{
+    f32 length = Length(a);
+    v2 result = V2(a.x / length, a.y / length);
+
+    return(result);
+}
+
 static v2 Clamp01(v2 value)
 {
     v2 result;
@@ -353,6 +361,14 @@ static f32 LengthSq(v3 a)
 static f32 Length(v3 a)
 {
     f32 result = SquareRoot(LengthSq(a));
+
+    return(result);
+}
+
+static v3 Normalize(v3 a)
+{
+    f32 length = Length(a);
+    v3 result = V3(a.x / length, a.y / length, a.z / length);
 
     return(result);
 }

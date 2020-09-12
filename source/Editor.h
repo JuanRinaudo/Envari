@@ -1,32 +1,47 @@
 #if !defined(EDITOR_H)
 #define EDITOR_H
 
-struct EnvariConsole;
+struct ConsoleWindow;
 
-struct EnvariHelp
+struct HelWindow
 {
     bool open;
 };
 
 enum DebugMenuAction {
-    NONE,
-    LUA_DEBUG_GOTOFUNCTION,
+    DebugMenuAction_None,
+    DebugMenuAction_GoToFunction,
+    DebugMenuAction_BreakOnFunction,
 };
 
-struct EnvariLUADebugger
+struct LUADebuggerWindow
 {
     bool open;
 
     bool debugging;
     char inputBuffer[256];
     char* currentFile;
-    u32 fileSize;
+    u32 currentFileSize;
 };
 
-struct EnvariConsole
+enum ConsoleLogType
+{
+    LOGTYPE_NORMAL,
+    LOGTYPE_COMMAND,
+    LOGTYPE_ERROR,
+};
+
+struct ConsoleLog
+{
+    char* log;
+    i32 count;
+    ConsoleLogType type;
+};
+
+struct ConsoleWindow
 {
     char inputBuffer[256];
-    ImVector<char*> items;
+    ImVector<ConsoleLog> items;
     ImVector<const char*> commands;
     ImVector<char*> history;
     int historyPos;    // -1: new line, 0..History.Size-1 browsing history.
@@ -36,32 +51,35 @@ struct EnvariConsole
     bool open;
 };
 
-static EnvariConsole editorConsole;
-static EnvariLUADebugger editorLUADebugger;
-static EnvariHelp editorHelp;
+static ConsoleWindow editorConsole;
+static LUADebuggerWindow editorLUADebugger;
+static HelWindow editorHelp;
 
 static int   Stricmp(const char* str1, const char* str2)         { int d; while ((d = toupper(*str2) - toupper(*str1)) == 0 && *str1) { str1++; str2++; } return d; }
 static int   Strnicmp(const char* str1, const char* str2, int n) { int d = 0; while (n > 0 && (d = toupper(*str2) - toupper(*str1)) == 0 && *str1) { str1++; str2++; n--; } return d; }
 static char* Strdup(const char *str)                             { size_t len = strlen(str) + 1; void* buf = malloc(len); IM_ASSERT(buf); return (char*)memcpy(buf, (const void*)str, len); }
 static void  Strtrim(char* str)                                  { char* str_end = str + strlen(str); while (str_end > str && str_end[-1] == ' ') str_end--; *str_end = 0; }
 
-static void ClearLog(EnvariConsole* console);
+static void ClearLog(ConsoleWindow* console);
 
-static void AddBasicLog(EnvariConsole* console, const char* log);
-static void AddLog(EnvariConsole* console, const char* fmt, ...) IM_FMTARGS(2);
+static void LogString(ConsoleWindow* console, const char* log, ConsoleLogType type);
+static void Log_(ConsoleWindow* console, ConsoleLogType type, const char* fmt, ...);
+#define Log(console, fmt, ...) Log_(console, LOGTYPE_NORMAL, fmt, ##__VA_ARGS__)
+#define LogError(console, fmt, ...) Log_(console, LOGTYPE_ERROR, fmt, ##__VA_ARGS__)
+#define LogCommand(console, fmt, ...) Log_(console, LOGTYPE_COMMAND, fmt, ##__VA_ARGS__)
 
-static void EditorInit(EnvariConsole* console);
-static void EditorInit(EnvariLUADebugger* debugger);
-static void EditorInit(EnvariHelp* help);
+static void EditorInit(ConsoleWindow* console);
+static void EditorInit(LUADebuggerWindow* debugger);
+static void EditorInit(HelWindow* help);
 
-static int TextEditCallback(EnvariConsole* console, ImGuiInputTextCallbackData* data);
+static int TextEditCallback(ConsoleWindow* console, ImGuiInputTextCallbackData* data);
 static int TextEditCallbackStub(ImGuiInputTextCallbackData* data);
 
-static void ExecCommand(EnvariConsole* console, const char* command_line);
-static void EditorDraw(EnvariConsole* console);
+static void ExecCommand(ConsoleWindow* console, const char* command_line);
+static void EditorDraw(ConsoleWindow* console);
 
-static void EditorDraw(EnvariLUADebugger* debugger);
-static void EditorDraw(EnvariHelp* help);
+static void EditorDraw(LUADebuggerWindow* debugger);
+static void EditorDraw(HelWindow* help);
 
 static void EditorDrawAllOpen();
 

@@ -41,6 +41,11 @@ static void UnloadFileFromMemory(void* fileBuffer)
 	free(fileBuffer);
 }
 
+static void UnloadFileFromMemory(char* fileBuffer)
+{
+    UnloadFileFromMemory((void*)fileBuffer);
+}
+
 #define DATA_MAX_TOKEN_COUNT 128
 
 struct DataTokenizer {
@@ -109,7 +114,7 @@ static char* NextToken(DataTokenizer* tokenizer)
                     tokenizer->tokenBufferIndex++;
                     
                     if(tokenizer->tokenBufferIndex == DATA_MAX_TOKEN_COUNT) {
-                        // AddLog(&editorConsole, "Parsing error, max token count reached %d", DATA_MAX_TOKEN_COUNT);
+                        // Log(&editorConsole, "Parsing error, max token count reached %d", DATA_MAX_TOKEN_COUNT);
                         return 0;
                     }
 

@@ -16,9 +16,19 @@ static bool ImguiButton(const char* label, v2 size) {
 }
 
 // #NOTE(Juan): Console
-static void ConsoleAddLog(const char* log)
+static void LogConsole(const char* log)
 {
-	AddLog(&editorConsole, log);
+	Log(&editorConsole, log);
+}
+
+static void LogConsoleError(const char* log)
+{
+	LogError(&editorConsole, log);
+}
+
+static void LogConsoleCommand(const char* log)
+{
+	LogCommand(&editorConsole, log);
 }
 
 // #NOTE(Juan): Engine

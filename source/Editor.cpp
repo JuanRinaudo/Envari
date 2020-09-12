@@ -1,29 +1,38 @@
-static void ClearLog(EnvariConsole* console)
+static void ClearLog(ConsoleWindow* console)
 {
     for (int i = 0; i < console->items.Size; i++) {
-        free(console->items[i]);
+        free(console->items[i].log);
     }
     console->items.clear();
 }
 
-static void AddBasicLog(EnvariConsole* console, const char* log)
+static void LogString(ConsoleWindow* console, const char* log, ConsoleLogType type = LOGTYPE_NORMAL)
 {
-    console->items.push_back(Strdup(log));
+    ConsoleLog* lastLog = console->items.Size > 0 ? &console->items.back() : 0;
+    if(lastLog && strcmp(log, lastLog->log) == 0) {
+        lastLog->count++;
+    }
+    else {
+        ConsoleLog newLog;
+        newLog.log = Strdup(log);
+        newLog.count = 1;
+        newLog.type = type;
+        console->items.push_back(newLog);
+    }
 }
 
-static void AddLog(EnvariConsole* console, const char* fmt, ...) IM_FMTARGS(2)
+static void Log_(ConsoleWindow* console, ConsoleLogType type, const char* fmt, ...)
 {
-    // FIXME-OPT
-    char buf[1024];
+    char buffer[1024];
     va_list args;
     va_start(args, fmt);
-    vsnprintf(buf, IM_ARRAYSIZE(buf), fmt, args);
-    buf[IM_ARRAYSIZE(buf)-1] = 0;
+    vsnprintf(buffer, ArrayCount(buffer), fmt, args);
     va_end(args);
-    console->items.push_back(Strdup(buf));
+    buffer[ArrayCount(buffer)-1] = 0;
+    LogString(console, buffer, type);
 }
 
-static void EditorInit(EnvariConsole* console)
+static void EditorInit(ConsoleWindow* console)
 {
     ClearLog(console);
     memset(console->inputBuffer, 0, sizeof(console->inputBuffer));
@@ -36,26 +45,26 @@ static void EditorInit(EnvariConsole* console)
 
     console->open = true;
     
-    AddLog(console, "Envari Console Start");
+    Log(console, "Envari Console Start");
 }
 
-static void EditorInit(EnvariLUADebugger* debugger)
+static void EditorInit(LUADebuggerWindow* debugger)
 {
     debugger->open = true;
 
-    if(TableHasKey(&initialConfig, "initLuaScript")) {
-        debugger->currentFile = (char*)LoadFileToMemory(TableGetString(&initialConfig, "initLuaScript"), "rb", &debugger->fileSize);
+    if(TableHasKey(&initialConfig, WINDOWSCONFIG_INITLUASCRIPT)) {
+        debugger->currentFile = (char*)LoadFileToMemory(TableGetString(&initialConfig, WINDOWSCONFIG_INITLUASCRIPT), "rb", &debugger->currentFileSize);
     }
 
     LoadLUALibrary(sol::lib::debug);
 }
 
-static void EditorInit(EnvariHelp* help)
+static void EditorInit(HelWindow* help)
 {
     help->open = true;
 }
 
-static int TextEditCallback(EnvariConsole* console, ImGuiInputTextCallbackData* data)
+static int TextEditCallback(ConsoleWindow* console, ImGuiInputTextCallbackData* data)
 {
     switch (data->EventFlag) {
         case ImGuiInputTextFlags_CallbackCompletion: {
@@ -80,7 +89,7 @@ static int TextEditCallback(EnvariConsole* console, ImGuiInputTextCallbackData* 
 
             if (candidates.Size == 0) {
                 // No match
-                AddLog(console, "No match for \"%.*s\"!\n", (int)(word_end-word_start), word_start);
+                Log(console, "No match for \"%.*s\"!\n", (int)(word_end-word_start), word_start);
             }
             else if (candidates.Size == 1) {
                 // Single match. Delete the beginning of the word and replace it entirely so we've got nice casing
@@ -111,9 +120,9 @@ static int TextEditCallback(EnvariConsole* console, ImGuiInputTextCallbackData* 
                 }
 
                 // List matches
-                AddLog(console, "Possible matches:\n");
+                Log(console, "Possible matches:\n");
                 for (int i = 0; i < candidates.Size; i++) {
-                    AddLog(console, "- %s\n", candidates[i]);
+                    Log(console, "- %s\n", candidates[i]);
                 }
             }
 
@@ -151,13 +160,13 @@ static int TextEditCallback(EnvariConsole* console, ImGuiInputTextCallbackData* 
 
 static int TextEditCallbackStub(ImGuiInputTextCallbackData* data)
 {
-    EnvariConsole* console = (EnvariConsole*)data->UserData;
+    ConsoleWindow* console = (ConsoleWindow*)data->UserData;
     return TextEditCallback(console, data);
 }
 
-static void ExecCommand(EnvariConsole* console, const char* command_line)
+static void ExecCommand(ConsoleWindow* console, const char* command_line)
 {
-    AddLog(console, "# %s\n", command_line);
+    LogString(console, command_line, LOGTYPE_COMMAND);
 
     // Insert into history. First find match and delete it so it can be pushed to the back. This isn't trying to be smart or optimal.
     console->historyPos = -1;
@@ -175,29 +184,30 @@ static void ExecCommand(EnvariConsole* console, const char* command_line)
         ClearLog(console);
     }
     else if (Stricmp(command_line, "HELP") == 0) {
-        AddLog(console, "Commands:");
+        Log(console, "Commands:");
         for (int i = 0; i < console->commands.Size; i++) {
-            AddLog(console, "- %s", console->commands[i]);
+            Log(console, "- %s", console->commands[i]);
         }
     }
     else if (Stricmp(command_line, "HISTORY") == 0) {
         int first = console->history.Size - 10;
         for (int i = first > 0 ? first : 0; i < console->history.Size; i++) {
-            AddLog(console, "%3d: %s\n", i, console->history[i]);
+            Log(console, "%3d: %s\n", i, console->history[i]);
         }
     }
     else {
-        AddLog(console, "Unknown command: '%s'\n", command_line);
+        Log(console, "Unknown command: '%s'\n", command_line);
     }
 
     // On commad input, we scroll to bottom even if autoScroll==false
     console->scrollToBottom = true;
 }
 
-static void EditorDraw(EnvariConsole* console)
+static void EditorDraw(ConsoleWindow* console)
 {
     if(!console->open) { return; };
-    ImGui::SetNextWindowSize(ImVec2(520,600), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSizeConstraints(ImVec2(300, 300), ImVec2(FLT_MAX, FLT_MAX));
+    ImGui::SetNextWindowSize(ImVec2(600,600), ImGuiCond_FirstUseEver);
 
     if (console->open && !ImGui::Begin("Console", &console->open, ImGuiWindowFlags_MenuBar))
     {
@@ -266,27 +276,57 @@ static void EditorDraw(EnvariConsole* console)
         ImGui::LogToClipboard();
     }
 
+    ImGui::BeginColumns("Logs", 2);
+    ImGui::SetColumnWidth(0, ImGui::GetWindowSize().x * 0.92f);
+
     for (int i = 0; i < console->items.Size; i++) {
-        const char* item = console->items[i];
-        if (!console->filter.PassFilter(item)) {
+        ConsoleLog* currentLog = &console->items[i];
+        if (!console->filter.PassFilter(currentLog->log)) {
             continue;
         }
 
-        // Normally you would store more information in your item (e.g. make Items[] an array of structure, store color/type etc.)
-        bool pop_color = false;
-        if (strstr(item, "[error]")) {
-            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.4f, 0.4f, 1.0f));
-            pop_color = true;
+        switch(currentLog->type) {
+            case LOGTYPE_ERROR: {
+                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.4f, 0.4f, 1.0f));
+            } break;
+            case LOGTYPE_COMMAND: {
+                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.8f, 0.6f, 1.0f));
+            } break;
         }
-        else if (strncmp(item, "# ", 2) == 0) {
-            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.8f, 0.6f, 1.0f));
-            pop_color = true;
-        }
-        ImGui::TextUnformatted(item);
-        if (pop_color) {
+
+        ImGui::TextUnformatted(currentLog->log);
+        
+        if (currentLog->type != LOGTYPE_NORMAL) {
             ImGui::PopStyleColor();
         }
     }
+
+    ImGui::NextColumn();
+
+    for (int i = 0; i < console->items.Size; i++) {
+        ConsoleLog* currentLog = &console->items[i];
+        if (!console->filter.PassFilter(currentLog->log)) {
+            continue;
+        }
+        
+        switch(currentLog->type) {
+            case LOGTYPE_ERROR: {
+                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.4f, 0.4f, 1.0f));
+            } break;
+            case LOGTYPE_COMMAND: {
+                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.8f, 0.6f, 1.0f));
+            } break;
+        }
+        
+        ImGui::Text("%d", currentLog->count);
+        
+        if (currentLog->type != LOGTYPE_NORMAL) {
+            ImGui::PopStyleColor();
+        }
+    }
+
+    ImGui::EndColumns();
+
     if (copy_to_clipboard) {
         ImGui::LogFinish();
     }
@@ -320,7 +360,7 @@ static void EditorDraw(EnvariConsole* console)
     ImGui::End();
 }
 
-static void EditorDraw(EnvariLUADebugger* debugger)
+static void EditorDraw(LUADebuggerWindow* debugger)
 {
     if(!debugger->open) { return; };
     ImGui::SetNextWindowSize(ImVec2(400,300), ImGuiCond_FirstUseEver);
@@ -331,7 +371,7 @@ static void EditorDraw(EnvariLUADebugger* debugger)
         return;
     }
 
-    DebugMenuAction menuAction = NONE;
+    DebugMenuAction menuAction = DebugMenuAction_None;
     if (ImGui::BeginMenuBar())
     {
         if (ImGui::BeginMenu("File"))
@@ -339,18 +379,27 @@ static void EditorDraw(EnvariLUADebugger* debugger)
             if (ImGui::MenuItem("WIP")) { }
             ImGui::EndMenu();
         }
-        if (ImGui::BeginMenu("Edit"))
+        
+        if (ImGui::BeginMenu("Go"))
         {
             if (ImGui::MenuItem("Go to function")) {
-                menuAction = LUA_DEBUG_GOTOFUNCTION;
+                menuAction = DebugMenuAction_GoToFunction;
             }
-            ImGui::SameLine();
             ImGui::EndMenu();
         }
+        
+        if(ImGui::BeginMenu("Debug")) {            
+            if (ImGui::MenuItem("Break on function")) {
+                menuAction = DebugMenuAction_BreakOnFunction;
+            }
+            ImGui::EndMenu();
+        }
+
         ImGui::EndMenuBar();
     }
 
-    if(menuAction == LUA_DEBUG_GOTOFUNCTION) { ImGui::OpenPopup("GoToFunction"); }
+    if(menuAction == DebugMenuAction_GoToFunction) { ImGui::OpenPopup("GoToFunction"); }
+    if(menuAction == DebugMenuAction_BreakOnFunction) { ImGui::OpenPopup("BreakOnFunction"); }
 
     if (ImGui::BeginPopup("GoToFunction"))
     {
@@ -363,10 +412,42 @@ static void EditorDraw(EnvariLUADebugger* debugger)
             int function = lua_getglobal(lua, debugger->inputBuffer);
             if(function > 0) {
                 lua_getinfo(lua, ">S", &debugInfo);
-                AddLog(&editorConsole, "Function found %s:%d", debugInfo.source, debugInfo.linedefined);
+                Log(&editorConsole, "Function found %s:%d", debugInfo.source, debugInfo.linedefined);
+
+                if(debugger->currentFile) {
+                    UnloadFileFromMemory(debugger->currentFile);
+                }
+
+                debugger->currentFile = (char*)LoadFileToMemory(debugInfo.source + 1, "rb", &debugger->currentFileSize);
             }
             else {
-                AddLog(&editorConsole, "Function not found %s", debugger->inputBuffer);
+                Log(&editorConsole, "Function not found %s", debugger->inputBuffer);
+            }
+
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::EndPopup();
+    }
+
+    if (ImGui::BeginPopup("BreakOnFunction"))
+    {
+        ImGui::Text("Break on function");
+        
+        if (ImGui::InputText("Input", debugger->inputBuffer, IM_ARRAYSIZE(debugger->inputBuffer), ImGuiInputTextFlags_EnterReturnsTrue, 0, 0)) {
+            char* s = debugger->inputBuffer;
+
+	        lua_Debug debugInfo;
+            int function = lua_getglobal(lua, debugger->inputBuffer);
+            if(function > 0) {
+                lua_getinfo(lua, ">S", &debugInfo);
+                Log(&editorConsole, "Function found %s:%d", debugInfo.source, debugInfo.linedefined);
+
+                // lua_sethook(lua, 0, 0, 0);
+                // lua_sethook(lua, function, LUA_MASKCALL, 0);
+            }
+            else {
+                Log(&editorConsole, "Function not found %s", debugger->inputBuffer);
             }
 
             ImGui::CloseCurrentPopup();
@@ -378,7 +459,7 @@ static void EditorDraw(EnvariLUADebugger* debugger)
     if(debugger->debugging) {
         if (ImGui::SmallButton("Stop")) {
             debugger->debugging = false;
-            AddLog(&editorConsole, "Debugging stopped");
+            Log(&editorConsole, "Debugging stopped");
         }
 
         ImGui::SameLine();
@@ -392,7 +473,7 @@ static void EditorDraw(EnvariLUADebugger* debugger)
     else {
         if (ImGui::SmallButton("Start")) {
             debugger->debugging = true;
-            AddLog(&editorConsole, "Debugging started");
+            Log(&editorConsole, "Debugging started");
 
             LoadLUALibrary(sol::lib::debug);
         }
@@ -408,7 +489,38 @@ static void EditorDraw(EnvariLUADebugger* debugger)
     ImGui::Separator();
 
     if(debugger->currentFile) {
-        ImGui::Text("%s", debugger->currentFile);
+        i32 line = 1;
+        i32 index = 0;
+
+        ImGui::BeginColumns("Text Editor", 2, ImGuiColumnsFlags_NoResize);
+        ImGui::SetColumnWidth(0, ImGui::GetWindowSize().x * 0.08f);
+        while(index <= debugger->currentFileSize) {
+            if(debugger->currentFile[index] == '\r') { ++index; }
+            if(debugger->currentFile[index] == '\n' || debugger->currentFile[index] == 0) {
+                ImGui::Text("%d         ", line);
+                // if(ImGui::IsItemClicked()) {
+	            //     LogCommand(&editorConsole, "%d", line);
+                // }
+                ++line;
+            }
+            ++index;
+        }
+
+        ImGui::NextColumn();
+
+        index = 0;
+        i32 lastIndex = 0;
+        while(index <= debugger->currentFileSize) {
+            if(debugger->currentFile[index] == '\r') { ++index; }
+            if(debugger->currentFile[index] == '\n' || debugger->currentFile[index] == 0) {
+                ImGui::TextUnformatted(debugger->currentFile + lastIndex, debugger->currentFile + index);
+                lastIndex = index + 1;
+                ++line;
+            }
+            ++index;
+        }
+
+        ImGui::EndColumns();
     }
     else {
         ImGui::Text("No file loaded");
@@ -417,10 +529,11 @@ static void EditorDraw(EnvariLUADebugger* debugger)
     ImGui::End();
 }
 
-static void EditorDraw(EnvariHelp* help)
+static void EditorDraw(HelWindow* help)
 {    
     if(!help->open) { return; };
-    ImGui::SetNextWindowSize(ImVec2(400,200), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSizeConstraints(ImVec2(300, 300), ImVec2(FLT_MAX, FLT_MAX));
+    ImGui::SetNextWindowSize(ImVec2(600,600), ImGuiCond_FirstUseEver);
     
     if (!ImGui::Begin("Help", &help->open, ImGuiWindowFlags_NoResize))
     {

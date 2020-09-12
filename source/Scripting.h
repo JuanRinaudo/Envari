@@ -6,8 +6,6 @@
 
 #include <string>
 
-static char* scriptDataPath;
-
 #if GAME_INTERNAL
 static char watchList[200];
 static std::filesystem::file_time_type watchListTimes[20];
@@ -15,13 +13,9 @@ static u32 watchListSize = 0;
 static u32 watchFiles = 0;
 #endif
 
-static void LoadScriptFile(char* name)
+static void LoadScriptFile(char* filePath)
 {
-
-    char completePath[100]; // #TODO (Juan): Max file path is 100 chars for now, should be calculated and not have a limit
-    strcpy(completePath, scriptDataPath);
-    strcat(completePath, name);
-    sol::load_result loadResult = lua.load_file(completePath);
+    sol::load_result loadResult = lua.load_file(filePath);
 
     if(loadResult.valid()) {
         sol::protected_function_result result = loadResult();
@@ -38,18 +32,36 @@ static void LoadScriptFile(char* name)
     }
 
     #if GAME_INTERNAL
-    watchListTimes[watchFiles] = std::filesystem::last_write_time(completePath);
+    watchListTimes[watchFiles] = std::filesystem::last_write_time(filePath);
     watchFiles++;
 
-    strcat(watchList, name);
+    strcat(watchList, filePath);
     strcat(watchList, "@");
-    watchListSize += (u32)strlen(name) + 1;
+    watchListSize += (u32)strlen(filePath) + 1;
     #endif
 }
 
-static void ScriptingPanic(sol::optional<std::string> message)
-{
-	AddLog(&editorConsole, message.value().c_str());
+inline void ScriptingPanic(sol::optional<std::string> maybe_msg) {
+    LogError(&editorConsole, "Lua is in a panic state and will now abort() the application");
+	if (maybe_msg) {
+	    LogError(&editorConsole, "%s", maybe_msg.value().c_str());
+	}
+	// When this function exits, Lua will exhibit default behavior and abort()
+}
+
+int ScriptingExceptionHandler(lua_State* L, sol::optional<const std::exception&> maybe_exception, sol::string_view description) {
+	LogError(&editorConsole, "An exception occurred in a function, here's what it says");
+	if (maybe_exception) {
+		const std::exception& exception = *maybe_exception;
+        std::string what = exception.what();
+	    LogError(&editorConsole, "(straight from the exception): %s", what.c_str());
+	}
+	else {
+	    LogError(&editorConsole, "(from the description parameter): %s %d", description.data(), description.size());
+	}
+
+	// #NOTE (Juan): Push string description to stack for function to recieve
+	return sol::stack::push(L, description);
 }
 
 static void LoadLUALibrary(sol::lib library)
@@ -86,9 +98,47 @@ static void LoadLUALibrary(sol::lib library)
             v4_usertype["a"] = sol::property([](v4 &v) { return v.w; }, [](v4 &v, f32 f) { v.w = f; });
             v4_usertype["e"] = sol::property([](v4 &v) { return &v.e; });
 
+            sol::usertype<m44> m44_usertype = lua.new_usertype<m44>("m44");
+            m44_usertype["_00"] = sol::property([](m44 &v) { return v._00; }, [](m44 &v, f32 f) { v._00 = f; });
+            m44_usertype["_10"] = sol::property([](m44 &v) { return v._10; }, [](m44 &v, f32 f) { v._10 = f; });
+            m44_usertype["_20"] = sol::property([](m44 &v) { return v._20; }, [](m44 &v, f32 f) { v._20 = f; });
+            m44_usertype["_30"] = sol::property([](m44 &v) { return v._30; }, [](m44 &v, f32 f) { v._30 = f; });
+            m44_usertype["_01"] = sol::property([](m44 &v) { return v._01; }, [](m44 &v, f32 f) { v._01 = f; });
+            m44_usertype["_11"] = sol::property([](m44 &v) { return v._11; }, [](m44 &v, f32 f) { v._11 = f; });
+            m44_usertype["_21"] = sol::property([](m44 &v) { return v._21; }, [](m44 &v, f32 f) { v._21 = f; });
+            m44_usertype["_31"] = sol::property([](m44 &v) { return v._31; }, [](m44 &v, f32 f) { v._31 = f; });
+            m44_usertype["_02"] = sol::property([](m44 &v) { return v._02; }, [](m44 &v, f32 f) { v._02 = f; });
+            m44_usertype["_12"] = sol::property([](m44 &v) { return v._12; }, [](m44 &v, f32 f) { v._12 = f; });
+            m44_usertype["_22"] = sol::property([](m44 &v) { return v._22; }, [](m44 &v, f32 f) { v._22 = f; });
+            m44_usertype["_32"] = sol::property([](m44 &v) { return v._32; }, [](m44 &v, f32 f) { v._32 = f; });
+            m44_usertype["_03"] = sol::property([](m44 &v) { return v._03; }, [](m44 &v, f32 f) { v._03 = f; });
+            m44_usertype["_13"] = sol::property([](m44 &v) { return v._13; }, [](m44 &v, f32 f) { v._13 = f; });
+            m44_usertype["_23"] = sol::property([](m44 &v) { return v._23; }, [](m44 &v, f32 f) { v._23 = f; });
+            m44_usertype["_33"] = sol::property([](m44 &v) { return v._33; }, [](m44 &v, f32 f) { v._33 = f; });
+            m44_usertype["e"] = sol::property([](m44 &m) { return &m.e; });
+
             sol::usertype<transform2D> transform2D_usertype = lua.new_usertype<transform2D>("transform2D");
             transform2D_usertype["position"] = &transform2D::position;
             transform2D_usertype["scale"] = &transform2D::scale;
+
+            // #NOTE (Juan): GameMath
+            lua["V2"] = V2;
+            lua["V3"] = V3;
+            lua["V4"] = V4;
+            lua["Rectangle2"] = Rectangle2;
+            
+            lua["M22"] = M22;
+            lua["IdM22"] = IdM22;
+            lua["M33"] = M33;
+            lua["IdM33"] = IdM33;
+            lua["M44"] = M44;
+            lua["IdM44"] = IdM44;
+
+            lua["LengthV2"] = sol::resolve<f32(v2)>(Length);
+            lua["NormalizeV2"] = sol::resolve<v2(v2)>(Normalize);
+            lua["LengthSqV2"] = sol::resolve<f32(v2)>(LengthSq);
+
+            lua["Transform2D"] = Transform2D;
     
             // #NOTE (Juan): Math custom functionality
             lua["math"]["sign"] = Sign;
@@ -102,11 +152,10 @@ static void LoadLUALibrary(sol::lib library)
     }
 }
 
-static void ScriptingInit(char* dataPath)
+static void ScriptingInit()
 {
-    scriptDataPath = dataPath;
-
-    lua = sol::state(sol::c_call<decltype(&ScriptingPanic), &ScriptingPanic>);
+    lua.set_panic(sol::c_call<decltype(&ScriptingPanic), &ScriptingPanic>);
+	lua.set_exception_handler(&ScriptingExceptionHandler);
 
     // #NOTE (Juan): Lua
     lua["LoadScriptFile"] = LoadScriptFile;
@@ -136,6 +185,8 @@ static void ScriptingInit(char* dataPath)
     lua["camera"]["ratio"] = gameState->camera.ratio;
     lua["camera"]["nearPlane"] = gameState->camera.nearPlane;
     lua["camera"]["farPlane"] = gameState->camera.farPlane;
+    lua["camera"]["view"] = gameState->camera.view;
+    lua["camera"]["projection"] = gameState->camera.projection;
     lua["ReloadCameraData"] = ReloadCameraData;
 
     lua["screen"] = lua.create_table();
@@ -150,7 +201,7 @@ static void ScriptingInit(char* dataPath)
     lua["time"]["deltaTime"] = gameState->time.deltaTime;
     lua["time"]["lastFrameGameTime"] = gameState->time.lastFrameGameTime;
     
-    lua["input"] = lua.create_table();    
+    lua["input"] = lua.create_table();
     lua["input"]["mousePosition"] = gameState->input.mousePosition;
     lua["input"]["mouseScreenPosition"] = gameState->input.mouseScreenPosition;
     lua["input"]["keyState"] = lua.create_table();
@@ -160,21 +211,6 @@ static void ScriptingInit(char* dataPath)
     lua["KEY_PRESSED"] = KEY_PRESSED;
     lua["KEY_DOWN"] = KEY_DOWN;
 
-    // #NOTE (Juan): GameMath
-    lua["V2"] = V2;
-    lua["V3"] = V3;
-    lua["V4"] = V4;
-    lua["Rectangle2"] = Rectangle2;
-    
-    lua["M22"] = M22;
-    lua["IdM22"] = IdM22;
-    lua["M33"] = M33;
-    lua["IdM33"] = IdM33;
-    lua["M44"] = M44;
-    lua["IdM44"] = IdM44;
-
-    lua["Transform2D"] = Transform2D;
-
     // #NOTE (Juan): Input
     lua["MouseOverRectangle"] = MouseOverRectangle;
     lua["ClickOnRectangle"] = ClickOnRectangle;
@@ -182,6 +218,9 @@ static void ScriptingInit(char* dataPath)
     // #NOTE (Juan): Render
     lua["PushRenderClear"] = PushRenderClear;
     lua["PushRenderColor"] = PushRenderColor;
+    lua["PushRenderLineWidth"] = PushRenderLineWidth;
+    lua["PushRenderLine"] = PushRenderLine;
+    lua["PushRenderLineStrip"] = PushRenderLineStrip;
     lua["PushRenderTriangle"] = PushRenderTriangle;
     lua["PushRenderRectangle"] = PushRenderRectangle;
     lua["PushRenderCircle"] = PushRenderCircle;
@@ -197,8 +236,7 @@ static void ScriptingInit(char* dataPath)
     lua["PushRenderOverrideVertices"] = PushRenderOverrideVertices;
     lua["PushRenderDisableOverrideVertices"] = PushRenderDisableOverrideVertices;
     lua["PushRenderOverrideIndices"] = PushRenderOverrideIndices;
-    lua["PushRenderDisableOverrideIndices"] = PushRenderDisableOverrideIndices;
- 
+    lua["PushRenderDisableOverrideIndices"] = PushRenderDisableOverrideIndices; 
 
     lua["ScreenToViewport"] = ScreenToViewport;
     // lua["ViewportToScreen"] = ViewportToScreen;
@@ -295,20 +333,19 @@ static void ScriptingInit(char* dataPath)
     lua["ImguiEnd"] = ImGui::End;
 
     // #NOTE (Juan): Console
-    lua["ConsoleAddLog"] = ConsoleAddLog;
+    lua["LogConsole"] = LogConsole;
+    lua["LogConsoleError"] = LogConsoleError;
+    lua["LogConsoleCommand"] = LogConsoleCommand;
 }
 
-static void ScriptingUpdate()
+static void ScriptingUpdateIO()
 {
     lua["time"]["gameTime"] = gameState->time.gameTime;
     lua["time"]["deltaTime"] = gameState->time.deltaTime;
     lua["time"]["lastFrameGameTime"] = gameState->time.lastFrameGameTime;
 
-    lua["input"]["mousePosition"]["x"] = gameState->input.mousePosition.x;
-    lua["input"]["mousePosition"]["y"] = gameState->input.mousePosition.y;
-
-    lua["input"]["mouseScreenPosition"]["x"] = gameState->input.mouseScreenPosition.x;
-    lua["input"]["mouseScreenPosition"]["y"] = gameState->input.mouseScreenPosition.y;
+    lua["input"]["mousePosition"] = gameState->input.mousePosition;
+    lua["input"]["mouseScreenPosition"] = gameState->input.mouseScreenPosition;
 
     for(i32 key = 0; key < KEY_COUNT; ++key) {
         lua["input"]["keyState"][key + 1] = gameState->input.keyState[key];
@@ -319,16 +356,20 @@ static void ScriptingUpdate()
     }
 }
 
-#if GAME_INTERNAL
-static void ReloadScriptIfChanged(char *name, i32 fileIndex) {
-    char completePath[100]; // #TODO (Juan): Max file path is 100 chars for now, should be calculated and not have a limit
-    strcpy(completePath, scriptDataPath);
-    strcat(completePath, name);
-    auto fileTime = std::filesystem::last_write_time(completePath);
-    if(fileTime != watchListTimes[fileIndex]) {
-        AddLog(&editorConsole, "Started to reload script %s", name);
+static void ScriptingUpdateScreen()
+{
+    lua["screen"]["width"] = gameState->screen.width;
+    lua["screen"]["height"] = gameState->screen.height;
+    lua["screen"]["refreshRate"] = gameState->screen.refreshRate;
+}
 
-        sol::load_result loadResult = lua.load_file(completePath);
+#if GAME_INTERNAL
+static void ReloadScriptIfChanged(char* filePath, i32 fileIndex) {
+    auto fileTime = std::filesystem::last_write_time(filePath);
+    if(fileTime != watchListTimes[fileIndex]) {
+        Log(&editorConsole, "Started to reload script %s", filePath);
+
+        sol::load_result loadResult = lua.load_file(filePath);
 
         if(loadResult.valid()) {
             sol::protected_function_result result = loadResult();
@@ -338,15 +379,15 @@ static void ReloadScriptIfChanged(char *name, i32 fileIndex) {
             else {
                 sol::error luaError = loadResult;
                 std::string errorReport = luaError.what();
-                AddLog(&editorConsole, "Scripting reload run error");
-                AddLog(&editorConsole, errorReport.c_str());
+                LogError(&editorConsole, "Scripting reload run error");
+                LogError(&editorConsole, errorReport.c_str());
             }
         }
         else {
             sol::error luaError = loadResult;
             std::string errorReport = luaError.what();
-            AddLog(&editorConsole, "Scripting reload file error");
-            AddLog(&editorConsole, errorReport.c_str());
+            LogError(&editorConsole, "Scripting reload file error");
+            LogError(&editorConsole, errorReport.c_str());
         }
 
         watchListTimes[fileIndex] = fileTime;

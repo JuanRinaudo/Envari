@@ -10,6 +10,8 @@
 #include "STB/stb_image.h"
 #define STB_DS_IMPLEMENTATION
 #include "STB/stb_ds.h"
+// #define STB_VORBIS_HEADER_ONLY
+// #include "STB/stb_vorbis.h"
 
 #if !defined(STB_TRUETYPE_IMPLEMENTATION)
 #define STB_TRUETYPE_IMPLEMENTATION
@@ -58,6 +60,7 @@ struct Input
 {
     v2 mousePosition;
     v2 mouseScreenPosition;
+    i32 mouseWheel;
     u8 mouseState[MOUSE_COUNT];
     u8 keyState[KEY_COUNT];
 };

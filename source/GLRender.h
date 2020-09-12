@@ -330,8 +330,8 @@ static i32 GL_CompileProgram(const char *vertexShaderSource, const char *fragmen
     if (!success)
     {
         glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
-        AddLog(&editorConsole, "[error] ERROR::VERTEX::COMPILATION_FAILED %s\n", vertexShaderSource);
-        AddLog(&editorConsole, infoLog);
+        LogError(&editorConsole, "ERROR::VERTEX::COMPILATION_FAILED %s\n", vertexShaderSource);
+        LogError(&editorConsole, infoLog);
     }
 
     u32 fragmentShader;
@@ -347,8 +347,8 @@ static i32 GL_CompileProgram(const char *vertexShaderSource, const char *fragmen
     if (!success)
     {
         glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
-        AddLog(&editorConsole, "[error] ERROR::FRAGMENT::COMPILATION_FAILED %s\n", fragmentShaderSource);
-        AddLog(&editorConsole, infoLog);
+        LogError(&editorConsole, "ERROR::FRAGMENT::COMPILATION_FAILED %s\n", fragmentShaderSource);
+        LogError(&editorConsole, infoLog);
     }
 
     i32 shaderProgram = glCreateProgram();
@@ -360,8 +360,8 @@ static i32 GL_CompileProgram(const char *vertexShaderSource, const char *fragmen
     glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
     if (!success) {
         glGetProgramInfoLog(shaderProgram, 512, NULL, infoLog);
-        AddLog(&editorConsole, "[error] ERROR::PROGRAM::LINK_FAILED\n");
-        AddLog(&editorConsole, infoLog);
+        LogError(&editorConsole, "ERROR::PROGRAM::LINK_FAILED\n");
+        LogError(&editorConsole, infoLog);
     }
 
     glDeleteShader(vertexShader);
@@ -403,7 +403,7 @@ static void GL_WatchChanges()
             SOURCE_TYPE fragmentSource = static_cast<SOURCE_TYPE>(data);
 
             if(vertexSource[0] != '\0' && fragmentSource[0] != '\0') {
-                AddLog(&editorConsole, "Started to reload program %d, vertex %s, fragment %s", watched.shaderProgram, watched.vertexFilename, watched.fragmentFilename);
+                Log(&editorConsole, "Started to reload program %d, vertex %s, fragment %s", watched.shaderProgram, watched.vertexFilename, watched.fragmentFilename);
                 glDetachShader(watched.shaderProgram, watched.vertexShader);
                 glDetachShader(watched.shaderProgram, watched.fragmentShader);
                 
@@ -420,8 +420,8 @@ static void GL_WatchChanges()
                 if (!success)
                 {
                     glGetShaderInfoLog(watched.vertexShader, 512, NULL, infoLog);
-                    AddLog(&editorConsole, "[error] ERROR::VERTEX::COMPILATION_FAILED %s\n", watched.vertexFilename);
-                    AddLog(&editorConsole, infoLog);
+                    LogError(&editorConsole, "ERROR::VERTEX::COMPILATION_FAILED %s\n", watched.vertexFilename);
+                    LogError(&editorConsole, infoLog);
                 }
 
                 watched.fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
@@ -433,8 +433,8 @@ static void GL_WatchChanges()
                 if (!success)
                 {
                     glGetShaderInfoLog(watched.vertexShader, 512, NULL, infoLog);
-                    AddLog(&editorConsole, "[error] ERROR::FRAGMENT::COMPILATION_FAILED %s\n", watched.fragmentFilename);
-                    AddLog(&editorConsole, infoLog);
+                    LogError(&editorConsole, "ERROR::FRAGMENT::COMPILATION_FAILED %s\n", watched.fragmentFilename);
+                    LogError(&editorConsole, infoLog);
                 }
 
                 glAttachShader(watched.shaderProgram, watched.vertexShader);
@@ -444,8 +444,8 @@ static void GL_WatchChanges()
                 glGetProgramiv(watched.shaderProgram, GL_LINK_STATUS, &success);
                 if (!success) {
                     glGetProgramInfoLog(watched.shaderProgram, 512, NULL, infoLog);
-                    AddLog(&editorConsole, "[error] ERROR::PROGRAM::COMPILATION_FAILED\n");
-                    AddLog(&editorConsole, infoLog);
+                    LogError(&editorConsole, "ERROR::PROGRAM::COMPILATION_FAILED\n");
+                    LogError(&editorConsole, infoLog);
                 }
 
                 glDeleteShader(watched.vertexShader);
@@ -604,13 +604,10 @@ static void GL_Render()
     view._23 = 1.0f;
     m44 projection = gameState->camera.projection;
 
-    CreateQuadPosUV(V2(0, 0), V2(1, 1), V2(0, 0), V2(1, 1));
-
     while(renderHeader->id > 0 && (void*)renderHeader < (void*)(renderTemporaryMemory.arena->base + renderTemporaryMemory.used)) {
         m44 model = IdM44();
 
         i32 size = 0;
-        // #TODO #PERFORMANCE (Juan): This could be improved by generating some geometries on init time (rectangles?)
         // #TODO (Juan): More render types can be added line, spline, etc
         switch(renderHeader->type) {
             case type_RenderClear: {
@@ -626,6 +623,13 @@ static void GL_Render()
                 renderState.renderColor = color->color;
 
                 size = sizeof(RenderColor);
+                break;
+            }
+            case type_RenderLineWidth: {
+                RenderLineWidth *line = (RenderLineWidth *)renderHeader;
+                glLineWidth(line->width);
+
+                size = sizeof(RenderLineWidth);
                 break;
             }
             case type_RenderTransparent: {
@@ -644,6 +648,37 @@ static void GL_Render()
                 size = sizeof(RenderTransparent);
                 break;
             }
+            case type_RenderLine: {
+                RenderLine *line = (RenderLine *)renderHeader;
+                
+                glUseProgram(coloredProgram);
+
+                SetupBaseUniforms(coloredProgram, renderState.renderColor, model, view, projection);
+
+                f32 lineVertices[] = {
+                    line->start.x, line->start.y, 0.0f,
+                    line->end.x, line->end.y, 0.0f
+                };
+
+                u32 indices[] = {
+                    0, 1
+                };
+
+                glBindVertexArray(customBuffer.vertexArray);
+                glBindBuffer(GL_ARRAY_BUFFER, customBuffer.vertexBuffer);
+                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, customBuffer.indexBuffer);
+
+                glBufferData(GL_ARRAY_BUFFER, sizeof(lineVertices), lineVertices, GL_STATIC_DRAW);
+                glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW); 
+
+                glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(f32), (void*)0);
+                glEnableVertexAttribArray(0);
+
+                glDrawArrays(GL_LINES, 0, 2);
+
+                size = sizeof(RenderLine);
+                break;
+            }
             case type_RenderTriangle: {
                 RenderTriangle *triangle = (RenderTriangle *)renderHeader;
                 
@@ -652,9 +687,9 @@ static void GL_Render()
                 SetupBaseUniforms(coloredProgram, renderState.renderColor, model, view, projection);
 
                 f32 triangleVertices[] = {
-                    triangle->position.x + triangle->point1.x, triangle->position.y + triangle->point1.y, 0.0f,
-                    triangle->position.x + triangle->point2.x, triangle->position.y + triangle->point2.y, 0.0f,
-                    triangle->position.x + triangle->point3.x, triangle->position.y + triangle->point3.y, 0.0f
+                    triangle->point1.x, triangle->point1.y, 0.0f,
+                    triangle->point2.x, triangle->point2.y, 0.0f,
+                    triangle->point3.x, triangle->point3.y, 0.0f
                 };
 
                 u32 indices[] = {
