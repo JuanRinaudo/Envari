@@ -1,7 +1,5 @@
-#if !defined(INTRINSICS_H)
+#ifndef INTRINSICS_H
 #define INTRINSICS_H
-
-#include "Defines.h"
 
 // TODO(Juan): Intrinsic?
 // TODO(Juan): Convert all of this to platform specific math function and remove math.h
@@ -121,31 +119,6 @@ static f32 Square(f32 Value)
 static f32 SquareRoot(f32 Value)
 {
     f32 Result = sqrtf(Value);
-
-    return(Result);
-}
-
-struct bit_scan_result
-{
-    b32 Found;
-    u32 Index;
-};
-
-static bit_scan_result FindLeastSignificantSetBit(u32 Value)
-{
-    bit_scan_result Result = {};
-
-#if COMPILER_MSVC
-    Result.Found = _BitScanForward((unsigned long *)&Result.Index, Value);
-#else
-    for(u32 Test = 0; Test < 32; ++Test) {
-        if(Value & (1 << Test)) {
-            Result.Index = Test;
-            Result.Found = true;
-            break;
-        }
-    }
-#endif
 
     return(Result);
 }

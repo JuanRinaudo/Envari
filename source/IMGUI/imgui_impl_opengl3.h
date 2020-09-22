@@ -68,5 +68,3 @@ IMGUI_IMPL_API void     ImGui_ImplOpenGL3_DestroyDeviceObjects();
         #define IMGUI_IMPL_OPENGL_LOADER_GL3W       // Default to GL3W
     #endif
 #endif
-
-#include "imgui_impl_opengl3.cpp"

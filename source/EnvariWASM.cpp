@@ -6,9 +6,7 @@
 
 #include "Defines.h"
 #include "GameMath.h"
-#include "Intrinsics.h"
 #include "Game.h"
-#include "GLRender.h"
 
 #include <GLFW/glfw3.h>
 

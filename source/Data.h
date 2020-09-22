@@ -1,7 +1,5 @@
-#if !defined(DATA_H)
+#ifndef DATA_H
 #define DATA_H
-
-#include <cstdlib>
 
 // #TODO (Juan): For now this works only with the ASCII and extended ASCII codes, add more support later
 

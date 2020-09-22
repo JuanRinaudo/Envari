@@ -1,15 +1,15 @@
-#if !defined(DEFINES_H)
+#ifndef DEFINES_H
 #define DEFINES_H
 
 #if __EMSCRIPTEN__
-    #if GAME_SLOW
+    #ifdef GAME_SLOW
         // TODO(Juan): Complete assert macro
         #define Assert(Expression) if(!(Expression)) { *(volatile int *)0 = 0; }
     #else
         #define Assert(Expression)
     #endif
 #else
-    #if GAME_SLOW
+    #ifdef GAME_SLOW
         // TODO(Juan): Complete assert macro
         #define Assert(Expression) if(!(Expression)) { *(int *)0 = 0; }
     #else
@@ -27,6 +27,21 @@
 #include <float.h>
 
 #define PI32 3.14159265359f
+
+#define KEY_COUNT 500
+#define MOUSE_COUNT 8
+
+#define DATA_MAX_TOKEN_COUNT 128
+
+#define CONSOLE_INPUT_BUFFER_COUNT 256
+
+#define KEY_UP 0
+#define KEY_RELEASED 1
+#define KEY_PRESSED 2
+#define KEY_DOWN 3
+
+#define SPECIAL_ASCII_CHAR_OFFSET 32
+#define FONT_CHAR_SIZE 96
 
 typedef int8_t i8;
 typedef int16_t i16;
@@ -58,18 +73,15 @@ typedef double f64;
         1 - Slow debug code
 */
 
-inline u32 SafeTruncateU64(u64 Value)
-{
-    // TODO(Juan): Defines for maximum values
-    Assert(Value <= 0xFFFFFFFF);
-    u32 Result = (u32)Value;
-    return(Result);
-}
-
 #define Kilobytes(Value) ((Value)*1024LL)
 #define Megabytes(Value) (Kilobytes(Value)*1024LL)
 #define Gigabytes(Value) (Megabytes(Value)*1024LL)
 #define Terabytes(Value) (Gigabytes(Value)*1024LL)
+
 #define ArrayCount(Array) (sizeof(Array) / sizeof((Array)[0]))
+
+#define IMAGE_ADAPTATIVE_FIT 0x1
+#define IMAGE_KEEP_RATIO_X 0x2
+#define IMAGE_KEEP_RATIO_Y 0x4
 
 #endif

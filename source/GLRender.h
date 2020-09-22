@@ -1,7 +1,5 @@
-#if !defined(GLRENDER_H)
+#ifndef GLRENDER_H
 #define GLRENDER_H
-
-#include "Defines.h"
 
 #ifdef GL_PROFILE_GLES3
 #include <GLES3/gl3.h>
@@ -15,62 +13,21 @@ const char* shaderPath = "shaders/glcore";
 
 #endif
 
-struct GLRenderBuffer {
-    u32 vertexArray;
-    u32 vertexBuffer;
-    u32 indexBuffer;
-};
-
 GLRenderBuffer quadBuffer;
 GLRenderBuffer overrideBuffer;
 GLRenderBuffer customBuffer;
 
+u32 DrawBuffers[1] = {GL_COLOR_ATTACHMENT0};
+
 u32 coloredProgram;
 u32 texturedProgram;
 
-struct GLTexture {
-    u32 textureID;
-    u32 width;
-    u32 height;
-    u32 channels;
-};
-struct GLTextureCache {
-    char* key;
-    GLTexture value;
-};
 GLTextureCache* textureCache = NULL;
 
-struct AtlasSprite {
-    char* key;
-    rectangle2 value;
-};
-
-struct TextureAtlas {
-    AtlasSprite* sprites;
-};
-
-struct GLTextureAtlasReference {
-    char* key;
-    TextureAtlas value;
-};
 GLTextureAtlasReference* atlasCache = NULL;
 
-#define SPECIAL_ASCII_CHAR_OFFSET 32
-#define FONT_CHAR_SIZE 96
-struct FontAtlas {
-    char* fontFilename;
-    u32 fontFilenameSize;
-    f32 fontSize;
-    u32 width;
-    u32 height;
-    stbtt_bakedchar charData[FONT_CHAR_SIZE];
-};
 FontAtlas currentFont;
 
-struct GLFontReference {
-    char* key;
-    FontAtlas value;
-};
 GLFontReference* fontCache = NULL;
 
 enum TextStyles {
@@ -99,20 +56,7 @@ GLVendor currentVendor = GL_VENDOR_UNKOWN;
 // GLuint* uGPUIDs = new GLuint[uNoOfGPUs];
 // wglGetGPUIDsAMD( uNoOfGPUs, uGPUIDs );
 
-#define FILE_BUFFER_SIZE 1<<20
-char fileBuffer[FILE_BUFFER_SIZE];
-
-#if GAME_INTERNAL
-struct WatchedProgram {
-    u32 vertexShader;
-    u32 fragmentShader;
-    u32 shaderProgram;
-    char vertexFilename[100];
-    char fragmentFilename[100];
-    std::filesystem::file_time_type vertexTime;
-    std::filesystem::file_time_type fragmentTime;
-};
-
+#ifdef GAME_INTERNAL
 static i32 watchedProgramsCount = 0;
 static WatchedProgram watchedPrograms[50];
 #endif
@@ -225,7 +169,7 @@ static FontAtlas GL_LoadFont(const char *filename, f32 fontSize, u32 width, u32 
         result.height = height;
 
         size_t data_size = 0;
-        void* data = ImFileLoadToMemory(filename, "rb", &data_size, 0);
+        void* data = LoadFileToMemory(filename, "rb", &data_size);
 
         u8* tempBitmap = PushArray(&temporalState->arena, width * height, u8);
         stbtt_BakeFontBitmap((u8 *)data, 0, fontSize, tempBitmap, width, height, 32, 96, result.charData); // no guarantee this fits!
@@ -249,7 +193,7 @@ static FontAtlas GL_LoadFont(const char *filename, f32 fontSize, u32 width, u32 
 }
 
 f32 quadVertices[20];
-static f32* CreateQuadPosUV(v2 posStart, v2 posEnd, v2 uvBegin, v2 uvEnd)
+f32* CreateQuadPosUV(v2 posStart, v2 posEnd, v2 uvBegin, v2 uvEnd)
 {
     quadVertices[0] = posStart.x;
     quadVertices[1] = posStart.y;
@@ -309,6 +253,27 @@ static void GL_Init()
     }
 }
 
+static void GL_InitFramebuffer(v2 bufferSize)
+{
+    glGenFramebuffers(1, &frameBuffer);
+    glGenTextures(1, &renderBuffer);
+    glGenRenderbuffers(1, &depthrenderbuffer);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer);
+
+    glBindTexture(GL_TEXTURE_2D, renderBuffer);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, (i32)bufferSize.x, (i32)bufferSize.y, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, renderBuffer, 0);
+
+    glBindRenderbuffer(GL_RENDERBUFFER, depthrenderbuffer);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, (i32)bufferSize.x, (i32)bufferSize.y);
+    glFramebufferRenderbuffer(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depthrenderbuffer);
+
+    glDrawBuffers(1, DrawBuffers);
+}
+
 static i32 GL_CompileProgram(const char *vertexShaderSource, const char *fragmentShaderSource)
 {
     // NOTE(Juan): Shaders
@@ -316,7 +281,7 @@ static i32 GL_CompileProgram(const char *vertexShaderSource, const char *fragmen
     vertexShader = glCreateShader(GL_VERTEX_SHADER);
     
     size_t data_size = 0;
-    void* data = ImFileLoadToMemory(vertexShaderSource, "rb", &data_size, 0);
+    void* data = LoadFileToMemory(vertexShaderSource, "rb", &data_size);
     SOURCE_TYPE vertexSource = static_cast<SOURCE_TYPE>(data);
     
     i32 size = (i32)data_size;
@@ -337,7 +302,7 @@ static i32 GL_CompileProgram(const char *vertexShaderSource, const char *fragmen
     u32 fragmentShader;
     fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
 
-    data = ImFileLoadToMemory(fragmentShaderSource, "rb", &data_size, 0);
+    data = LoadFileToMemory(fragmentShaderSource, "rb", &data_size);
     SOURCE_TYPE fragmentSource = static_cast<SOURCE_TYPE>(data);
 
     size = (i32)data_size;
@@ -367,7 +332,7 @@ static i32 GL_CompileProgram(const char *vertexShaderSource, const char *fragmen
     glDeleteShader(vertexShader);
     glDeleteShader(fragmentShader);
 
-    #if GAME_INTERNAL
+    #ifdef GAME_INTERNAL
     WatchedProgram watched;
     watched.vertexShader = vertexShader;
     watched.fragmentShader = fragmentShader;
@@ -386,7 +351,7 @@ static i32 GL_CompileProgram(const char *vertexShaderSource, const char *fragmen
 
 static void GL_WatchChanges()
 {
-    #if GAME_INTERNAL
+    #ifdef GAME_INTERNAL
     for(i32 i = 0; i < watchedProgramsCount; ++i) {
         WatchedProgram watched = watchedPrograms[i];
 
@@ -395,11 +360,11 @@ static void GL_WatchChanges()
 
         if(vertexTime != watched.vertexTime || fragmentTime != watched.fragmentTime) {
             size_t vertexSouceSize = 0;
-            void* data = ImFileLoadToMemory(watched.vertexFilename, "rb", &vertexSouceSize, 0);
+            void* data = LoadFileToMemory(watched.vertexFilename, "rb", &vertexSouceSize);
             SOURCE_TYPE vertexSource = static_cast<SOURCE_TYPE>(data);
 
             size_t fragmentSouceSize = 0;
-            data = ImFileLoadToMemory(watched.fragmentFilename, "rb", &fragmentSouceSize, 0);
+            data = LoadFileToMemory(watched.fragmentFilename, "rb", &fragmentSouceSize);
             SOURCE_TYPE fragmentSource = static_cast<SOURCE_TYPE>(data);
 
             if(vertexSource[0] != '\0' && fragmentSource[0] != '\0') {

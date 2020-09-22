@@ -1,50 +1,9 @@
-#if !defined(GAMEMATH_H)
+#ifndef GAMEMATH_H
 #define GAMEMATH_H
 
-#include "Defines.h"
 #include "Intrinsics.h"
 
-union v2
-{
-    struct
-    {
-        f32 x, y;
-    };
-    f32 e[2];
-};
-
-union v3
-{
-    struct
-    {
-        f32 x, y, z;
-    };
-    struct
-    {
-        f32 r, g, b;
-    };
-    struct
-    {
-        v2 xy;
-        f32 IgnoredZ_;
-    };
-    f32 e[3];
-};
-
-union v4
-{
-    struct
-    {
-        f32 x, y, z, w;
-    };
-    struct
-    {
-        f32 r, g, b, a;
-    };
-    f32 e[4];
-};
-
-static v2 V2(f32 x, f32 y)
+v2 V2(f32 x, f32 y)
 {
     v2 result;
 
@@ -54,7 +13,7 @@ static v2 V2(f32 x, f32 y)
     return(result);
 }
 
-static v3 V3(f32 x, f32 y, f32 z)
+v3 V3(f32 x, f32 y, f32 z)
 {
     v3 result;
 
@@ -65,7 +24,7 @@ static v3 V3(f32 x, f32 y, f32 z)
     return(result);
 }
 
-static v4 V4(f32 x, f32 y, f32 z, f32 w)
+v4 V4(f32 x, f32 y, f32 z, f32 w)
 {
     v4 result;
 
@@ -79,14 +38,14 @@ static v4 V4(f32 x, f32 y, f32 z, f32 w)
 
 // #NOTE(Juan): Scalar operations
 
-static f32 Lerp(f32 a, f32 b, f32 t)
+f32 Lerp(f32 a, f32 b, f32 t)
 {
     f32 result = (1.0f - t) * a + t * b;
 
     return(result);
 }
 
-static f32 Clamp(f32 value, f32 min, f32 max)
+f32 Clamp(f32 value, f32 min, f32 max)
 {
     f32 result = value;
 
@@ -99,14 +58,14 @@ static f32 Clamp(f32 value, f32 min, f32 max)
     return(result);
 }
 
-static f32 Clamp01(f32 value)
+f32 Clamp01(f32 value)
 {
     f32 result = Clamp(value, 0, 1);
 
     return(result);
 }
 
-static f32 SafeRatioN(f32 numerator, f32 divisor, f32 n)
+f32 SafeRatioN(f32 numerator, f32 divisor, f32 n)
 {
     f32 result = n;
 
@@ -117,14 +76,14 @@ static f32 SafeRatioN(f32 numerator, f32 divisor, f32 n)
     return(result);
 }
 
-static f32 SafeRatio0(f32 numerator, f32 divisor)
+f32 SafeRatio0(f32 numerator, f32 divisor)
 {
     f32 result = SafeRatioN(numerator, divisor, 0);
 
     return(result);
 }
 
-static f32 SafeRatio1(f32 numerator, f32 divisor)
+f32 SafeRatio1(f32 numerator, f32 divisor)
 {
     f32 result = SafeRatioN(numerator, divisor, 1);
 
@@ -133,7 +92,7 @@ static f32 SafeRatio1(f32 numerator, f32 divisor)
 
 // #NOTE(Juan): v2 operations
 
-static v2 operator * (f32 a, v2 b)
+v2 operator * (f32 a, v2 b)
 {
     v2 result;
 
@@ -143,21 +102,21 @@ static v2 operator * (f32 a, v2 b)
     return(result);
 }
 
-static v2 operator * (v2 b, f32 a)
+v2 operator * (v2 b, f32 a)
 {
     v2 result = a * b;
 
     return(result);
 }
 
-static v2 &operator *= (v2 &a, f32 b)
+v2 &operator *= (v2 &a, f32 b)
 {
     a = b * a;
 
     return(a);
 }
 
-static v2 operator - (v2 a)
+v2 operator - (v2 a)
 {
     v2 result;
 
@@ -167,7 +126,7 @@ static v2 operator - (v2 a)
     return(result);
 }
 
-static v2 operator + (v2 a, v2 b)
+v2 operator + (v2 a, v2 b)
 {
     v2 result;
 
@@ -177,14 +136,14 @@ static v2 operator + (v2 a, v2 b)
     return(result);
 }
 
-static v2 &operator += (v2 &a, v2 b)
+v2 &operator += (v2 &a, v2 b)
 {
     a = a + b;
 
     return(a);
 }
 
-static v2 operator - (v2 a, v2 b)
+v2 operator - (v2 a, v2 b)
 {
     v2 result;
 
@@ -194,49 +153,49 @@ static v2 operator - (v2 a, v2 b)
     return(result);
 }
 
-static v2 &operator -= (v2 &a, v2 b)
+v2 &operator -= (v2 &a, v2 b)
 {
     a = a - b;
 
     return(a);
 }
 
-static v2 Hadamard(v2 a, v2 b)
+v2 Hadamard(v2 a, v2 b)
 {
     v2 result = {a.x * b.x, a.y * b.y};
 
     return(result);
 }
 
-static v2 Perpendicular(v2 a) 
+v2 Perpendicular(v2 a) 
 {
     v2 result = V2(-a.y, a.x);
 
     return(result);
 }
 
-static f32 Dot(v2 a, v2 b)
+f32 Dot(v2 a, v2 b)
 {
     f32 result = a.x * b.x + a.y * b.y;
 
     return(result);
 }
 
-static f32 LengthSq(v2 a)
+f32 LengthSq(v2 a)
 {
     f32 result = Dot(a, a);
 
     return(result);
 }
 
-static f32 Length(v2 a)
+f32 Length(v2 a)
 {
     f32 result = SquareRoot(LengthSq(a));
 
     return(result);
 }
 
-static v2 Normalize(v2 a)
+v2 Normalize(v2 a)
 {
     f32 length = Length(a);
     v2 result = V2(a.x / length, a.y / length);
@@ -244,7 +203,7 @@ static v2 Normalize(v2 a)
     return(result);
 }
 
-static v2 Clamp01(v2 value)
+v2 Clamp01(v2 value)
 {
     v2 result;
 
@@ -254,7 +213,7 @@ static v2 Clamp01(v2 value)
     return(result);
 }
 
-static v2 Floor(v2 value) {
+v2 Floor(v2 value) {
     v2 result;
 
     result.x = Floor(value.x);
@@ -265,7 +224,7 @@ static v2 Floor(v2 value) {
 
 // #NOTE(Juan): v3 operations
 
-static v3 operator * (f32 a, v3 b)
+v3 operator * (f32 a, v3 b)
 {
     v3 result;
 
@@ -276,21 +235,21 @@ static v3 operator * (f32 a, v3 b)
     return(result);
 }
 
-static v3 operator * (v3 b, f32 a)
+v3 operator * (v3 b, f32 a)
 {
     v3 result = a * b;
 
     return(result);
 }
 
-static v3 &operator *= (v3 &a, f32 b)
+v3 &operator *= (v3 &a, f32 b)
 {
     a = b * a;
 
     return(a);
 }
 
-static v3 operator - (v3 a)
+v3 operator - (v3 a)
 {
     v3 result;
 
@@ -301,7 +260,7 @@ static v3 operator - (v3 a)
     return(result);
 }
 
-static v3 operator + (v3 a, v3 b)
+v3 operator + (v3 a, v3 b)
 {
     v3 result;
 
@@ -312,14 +271,14 @@ static v3 operator + (v3 a, v3 b)
     return(result);
 }
 
-static v3 &operator += (v3 &a, v3 b)
+v3 &operator += (v3 &a, v3 b)
 {
     a = a + b;
 
     return(a);
 }
 
-static v3 operator - (v3 a, v3 b)
+v3 operator - (v3 a, v3 b)
 {
     v3 result;
 
@@ -330,42 +289,42 @@ static v3 operator - (v3 a, v3 b)
     return(result);
 }
 
-static v3 &operator -= (v3 &a, v3 b)
+v3 &operator -= (v3 &a, v3 b)
 {
     a = a - b;
 
     return(a);
 }
 
-static v3 Hadamard(v3 a, v3 b)
+v3 Hadamard(v3 a, v3 b)
 {
     v3 result = {a.x * b.x, a.y * b.y, a.z * b.z};
 
     return(result);
 }
 
-static f32 Dot(v3 a, v3 b)
+f32 Dot(v3 a, v3 b)
 {
     f32 result = a.x * b.x + a.y * b.y + a.z * b.z;
 
     return(result);
 }
 
-static f32 LengthSq(v3 a)
+f32 LengthSq(v3 a)
 {
     f32 result = Dot(a, a);
 
     return(result);
 }
 
-static f32 Length(v3 a)
+f32 Length(v3 a)
 {
     f32 result = SquareRoot(LengthSq(a));
 
     return(result);
 }
 
-static v3 Normalize(v3 a)
+v3 Normalize(v3 a)
 {
     f32 length = Length(a);
     v3 result = V3(a.x / length, a.y / length, a.z / length);
@@ -373,7 +332,7 @@ static v3 Normalize(v3 a)
     return(result);
 }
 
-static v3 Clamp01(v3 value)
+v3 Clamp01(v3 value)
 {
     v3 result;
 
@@ -386,37 +345,31 @@ static v3 Clamp01(v3 value)
 
 // #NOTE(Juan): rectangle2
 
-struct rectangle2
-{
-    v2 min;
-    v2 max;
-};
-
-static v2 GetMinCorner(rectangle2 rectangle)
+v2 GetMinCorner(rectangle2 rectangle)
 {
     v2 result = rectangle.min;
     return(result);
 }
 
-static v2 GetMaxCorner(rectangle2 rectangle)
+v2 GetMaxCorner(rectangle2 rectangle)
 {
     v2 result = rectangle.max;    
     return(result);
 }
 
-static v2 GetSize(rectangle2 rectangle)
+v2 GetSize(rectangle2 rectangle)
 {
     v2 result = rectangle.max - rectangle.min;    
     return(result);
 }
 
-static v2 GetCenter(rectangle2 rectangle)
+v2 GetCenter(rectangle2 rectangle)
 {
     v2 result = 0.5f * (rectangle.min + rectangle.max);
     return(result);
 }
 
-static rectangle2 Rectangle2(f32 x, f32 y, f32 width, f32 height)
+rectangle2 Rectangle2(f32 x, f32 y, f32 width, f32 height)
 {
     rectangle2 result;
 
@@ -426,7 +379,7 @@ static rectangle2 Rectangle2(f32 x, f32 y, f32 width, f32 height)
     return result;
 }
 
-static rectangle2 RectMinDim(v2 min, v2 dim)
+rectangle2 RectMinDim(v2 min, v2 dim)
 {
     rectangle2 result;
 
@@ -436,7 +389,7 @@ static rectangle2 RectMinDim(v2 min, v2 dim)
     return(result);
 }
 
-static rectangle2 RectMinMax(v2 min, v2 max)
+rectangle2 RectMinMax(v2 min, v2 max)
 {
     rectangle2 result;
 
@@ -446,7 +399,7 @@ static rectangle2 RectMinMax(v2 min, v2 max)
     return(result);
 }
 
-static rectangle2 RectCenterHalfDim(v2 center, v2 halfDim)
+rectangle2 RectCenterHalfDim(v2 center, v2 halfDim)
 {
     rectangle2 result;
 
@@ -456,14 +409,14 @@ static rectangle2 RectCenterHalfDim(v2 center, v2 halfDim)
     return(result);
 }
 
-static rectangle2 RectCenterDim(v2 center, v2 dim)
+rectangle2 RectCenterDim(v2 center, v2 dim)
 {
     rectangle2 result = RectCenterHalfDim(center, dim * 0.5f);
 
     return(result);
 }
 
-static rectangle2 AddRadiusTo(rectangle2 rectangle, v2 radius)
+rectangle2 AddRadiusTo(rectangle2 rectangle, v2 radius)
 {
     rectangle2 result;
 
@@ -473,7 +426,7 @@ static rectangle2 AddRadiusTo(rectangle2 rectangle, v2 radius)
     return(result);
 }
 
-static rectangle2 Offset(rectangle2 rectangle, v2 offset)
+rectangle2 Offset(rectangle2 rectangle, v2 offset)
 {
     rectangle2 result;
 
@@ -483,7 +436,7 @@ static rectangle2 Offset(rectangle2 rectangle, v2 offset)
     return(result);
 }
 
-static b32 IsInRectangle(rectangle2 rectangle, v2 test)
+b32 IsInRectangle(rectangle2 rectangle, v2 test)
 {
     b32 result = (
         test.x >= rectangle.min.x && test.y >= rectangle.min.y &&
@@ -493,7 +446,7 @@ static b32 IsInRectangle(rectangle2 rectangle, v2 test)
     return(result);
 }
 
-static v2 GetBarycentric(rectangle2 a, v2 position)
+v2 GetBarycentric(rectangle2 a, v2 position)
 {
     v2 result;
 
@@ -505,31 +458,25 @@ static v2 GetBarycentric(rectangle2 a, v2 position)
 
 // #NOTE(Juan): rectangle3
 
-struct rectangle3
-{
-    v3 min;
-    v3 max;
-};
-
-static v3 GetMinCorner(rectangle3 rectangle)
+v3 GetMinCorner(rectangle3 rectangle)
 {
     v3 result = rectangle.min;
     return(result);
 }
 
-static v3 GetMaxCorner(rectangle3 rectangle)
+v3 GetMaxCorner(rectangle3 rectangle)
 {
     v3 result = rectangle.max;    
     return(result);
 }
 
-static v3 GetCenter(rectangle3 rectangle)
+v3 GetCenter(rectangle3 rectangle)
 {
     v3 result = 0.5f * (rectangle.min + rectangle.max);
     return(result);
 }
 
-static rectangle3 RectMinDim(v3 min, v3 dim)
+rectangle3 RectMinDim(v3 min, v3 dim)
 {
     rectangle3 result;
 
@@ -539,7 +486,7 @@ static rectangle3 RectMinDim(v3 min, v3 dim)
     return(result);
 }
 
-static rectangle3 RectMinMax(v3 min, v3 max)
+rectangle3 RectMinMax(v3 min, v3 max)
 {
     rectangle3 result;
 
@@ -549,7 +496,7 @@ static rectangle3 RectMinMax(v3 min, v3 max)
     return(result);
 }
 
-static rectangle3 RectCenterHalfDim(v3 center, v3 halfDim)
+rectangle3 RectCenterHalfDim(v3 center, v3 halfDim)
 {
     rectangle3 result;
 
@@ -559,14 +506,14 @@ static rectangle3 RectCenterHalfDim(v3 center, v3 halfDim)
     return(result);
 }
 
-static rectangle3 RectCenterDim(v3 center, v3 dim)
+rectangle3 RectCenterDim(v3 center, v3 dim)
 {
     rectangle3 result = RectCenterHalfDim(center, dim * 0.5f);
 
     return(result);
 }
 
-static rectangle3 AddRadiusTo(rectangle3 rectangle, v3 radius)
+rectangle3 AddRadiusTo(rectangle3 rectangle, v3 radius)
 {
     rectangle3 result;
 
@@ -576,7 +523,7 @@ static rectangle3 AddRadiusTo(rectangle3 rectangle, v3 radius)
     return(result);
 }
 
-static rectangle3 Offset(rectangle3 rectangle, v3 offset)
+rectangle3 Offset(rectangle3 rectangle, v3 offset)
 {
     rectangle3 result;
 
@@ -586,7 +533,7 @@ static rectangle3 Offset(rectangle3 rectangle, v3 offset)
     return(result);
 }
 
-static b32 IsInRectangle(rectangle3 rectangle, v3 test)
+b32 IsInRectangle(rectangle3 rectangle, v3 test)
 {
     b32 result = (
         test.x >= rectangle.min.x && test.y >= rectangle.min.y && test.z >= rectangle.min.z &&
@@ -596,7 +543,7 @@ static b32 IsInRectangle(rectangle3 rectangle, v3 test)
     return(result);
 }
 
-static v3 GetBarycentric(rectangle3 a, v3 position)
+v3 GetBarycentric(rectangle3 a, v3 position)
 {
     v3 result;
 
@@ -607,7 +554,7 @@ static v3 GetBarycentric(rectangle3 a, v3 position)
     return(result);
 }
 
-static rectangle2 ToRectanglexY(rectangle3 a)
+rectangle2 ToRectanglexY(rectangle3 a)
 {
     rectangle2 result;
 
@@ -617,7 +564,7 @@ static rectangle2 ToRectanglexY(rectangle3 a)
     return(result);
 }
 
-static b32 RectanglesIntersect(rectangle3 a, rectangle3 b)
+b32 RectanglesIntersect(rectangle3 a, rectangle3 b)
 {
     b32 result = !(b.max.x <= a.min.x || b.min.x >= a.max.x ||
         b.max.y <= a.min.y || b.min.y >= a.max.y || 
@@ -628,17 +575,7 @@ static b32 RectanglesIntersect(rectangle3 a, rectangle3 b)
 
 // #NOTE(Juan): matrix2x2
 
-union m22
-{
-    struct
-    {
-        f32 _00, _01,
-            _10, _11;
-    };
-    f32 e[4];
-};
-
-static m22 M22(
+m22 M22(
     f32 _00, f32 _01,
     f32 _10, f32 _11)
 {
@@ -652,7 +589,7 @@ static m22 M22(
     return result;
 }
 
-static m22 IdM22()
+m22 IdM22()
 {
     m22 result = {};
 
@@ -666,18 +603,7 @@ static m22 IdM22()
 
 // #NOTE(Juan): matrix3x3
 
-union m33
-{
-    struct
-    {
-        f32 _00, _01, _02,
-            _10, _11, _12,
-            _20, _21, _22;
-    };
-    f32 e[9];
-};
-
-static m33 M33(
+m33 M33(
     f32 _00, f32 _01, f32 _02,
     f32 _10, f32 _11, f32 _12,
     f32 _20, f32 _21, f32 _22)
@@ -697,7 +623,7 @@ static m33 M33(
     return result;
 }
 
-static m33 IdM33()
+m33 IdM33()
 {
     m33 result = {};
 
@@ -716,19 +642,7 @@ static m33 IdM33()
 
 // #NOTE(Juan): matrix4x4
 
-union m44
-{
-    struct
-    {
-        f32 _00, _01, _02, _03,
-            _10, _11, _12, _13,
-            _20, _21, _22, _23,
-            _30, _31, _32, _33;
-    };
-    f32 e[16];
-};
-
-static m44 M44(
+m44 M44(
     f32 _00, f32 _01, f32 _02, f32 _03,
     f32 _10, f32 _11, f32 _12, f32 _13,
     f32 _20, f32 _21, f32 _22, f32 _23,
@@ -756,7 +670,7 @@ static m44 M44(
     return result;
 }
 
-static m44 IdM44()
+m44 IdM44()
 {
     m44 result = {};
 
@@ -780,7 +694,7 @@ static m44 IdM44()
     return result;
 }
 
-static m44 TranslationM44(f32 x, f32 y, f32 z)
+m44 TranslationM44(f32 x, f32 y, f32 z)
 {
     m44 result = {};
 
@@ -804,17 +718,17 @@ static m44 TranslationM44(f32 x, f32 y, f32 z)
     return result;
 }
 
-static m44 TranslationM44(v2 vector)
+m44 TranslationM44(v2 vector)
 {
     return TranslationM44(vector.x, vector.y, 0);
 }
 
-static m44 TranslationM44(v3 vector)
+m44 TranslationM44(v3 vector)
 {
     return TranslationM44(vector.x, vector.y, vector.z);
 }
 
-static m44 ScaleM44(f32 x, f32 y, f32 z)
+m44 ScaleM44(f32 x, f32 y, f32 z)
 {
     m44 result = {};
 
@@ -838,17 +752,17 @@ static m44 ScaleM44(f32 x, f32 y, f32 z)
     return result;
 }
 
-static m44 ScaleM44(v2 vector)
+m44 ScaleM44(v2 vector)
 {
     return ScaleM44(vector.x, vector.y, 1);
 }
 
-static m44 ScaleM44(v3 vector)
+m44 ScaleM44(v3 vector)
 {
     return ScaleM44(vector.x, vector.y, vector.z);
 }
 
-static m44 operator * (m44 a, m44 b)
+m44 operator * (m44 a, m44 b)
 {
     m44 result;
 
@@ -867,14 +781,14 @@ static m44 operator * (m44 a, m44 b)
     return(result);
 }
 
-static m44 &operator *= (m44 &a, m44 b)
+m44 &operator *= (m44 &a, m44 b)
 {
     a = a * b;
 
     return(a);
 }
 
-static m44 OrtographicProjection(f32 left, f32 right, f32 top, f32 bottom, f32 nearPlane, f32 farPlane)
+m44 OrtographicProjection(f32 left, f32 right, f32 top, f32 bottom, f32 nearPlane, f32 farPlane)
 {
     return M44(
         2 / (right - left), 0, 0, -((right + left) / (right - left)),
@@ -884,13 +798,13 @@ static m44 OrtographicProjection(f32 left, f32 right, f32 top, f32 bottom, f32 n
     );
 }
 
-static m44 OrtographicProjection(f32 size, f32 aspect, f32 nearPlane, f32 farPlane)
+m44 OrtographicProjection(f32 size, f32 aspect, f32 nearPlane, f32 farPlane)
 {
     size *= 0.5f;
     return OrtographicProjection(-size * aspect, size * aspect, -size, size, nearPlane, farPlane);
 }
 
-static m44 PerspectiveProjection(f32 fovY, f32 aspect, f32 nearPlane, f32 farPlane)
+m44 PerspectiveProjection(f32 fovY, f32 aspect, f32 nearPlane, f32 farPlane)
 {
     return M44(
         1 / (aspect * Tan(fovY / 2)), 0, 0, 0,
@@ -902,13 +816,7 @@ static m44 PerspectiveProjection(f32 fovY, f32 aspect, f32 nearPlane, f32 farPla
 
 // #NOTE(Juan): transform2D
 
-struct transform2D
-{
-    v2 position;
-    v2 scale;
-};
-
-static transform2D Transform2D(v2 position, v2 scale)
+transform2D Transform2D(v2 position, v2 scale)
 {
     transform2D transform;
     transform.position = position;

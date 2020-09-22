@@ -21,7 +21,7 @@ static void LogString(ConsoleWindow* console, const char* log, ConsoleLogType ty
     }
 }
 
-static void Log_(ConsoleWindow* console, ConsoleLogType type, const char* fmt, ...)
+void Log_(ConsoleWindow* console, ConsoleLogType type, const char* fmt, ...)
 {
     char buffer[1024];
     va_list args;
@@ -48,6 +48,7 @@ static void EditorInit(ConsoleWindow* console)
     Log(console, "Envari Console Start");
 }
 
+#ifdef LUA_SCRIPTING_ENABLED
 static void EditorInit(LUADebuggerWindow* debugger)
 {
     debugger->open = true;
@@ -55,11 +56,10 @@ static void EditorInit(LUADebuggerWindow* debugger)
     if(TableHasKey(&initialConfig, WINDOWSCONFIG_INITLUASCRIPT)) {
         debugger->currentFile = (char*)LoadFileToMemory(TableGetString(&initialConfig, WINDOWSCONFIG_INITLUASCRIPT), "rb", &debugger->currentFileSize);
     }
-
-    LoadLUALibrary(sol::lib::debug);
 }
+#endif
 
-static void EditorInit(HelWindow* help)
+static void EditorInit(HelpWindow* help)
 {
     help->open = true;
 }
@@ -224,8 +224,10 @@ static void EditorDraw(ConsoleWindow* console)
         }
         if (ImGui::BeginMenu("Debug"))
         {
+#ifdef LUA_SCRIPTING_ENABLED
             if (ImGui::MenuItem("Debug LUA")) { EditorInit(&editorLUADebugger); }
             ImGui::EndMenu();
+#endif
         }
         if (ImGui::MenuItem("Help")) { EditorInit(&editorHelp); }
         ImGui::EndMenuBar();
@@ -277,6 +279,7 @@ static void EditorDraw(ConsoleWindow* console)
     }
 
     ImGui::BeginColumns("Logs", 2);
+    ImGui::PushTextWrapPos(ImGui::GetWindowSize().x * 0.92f);
     ImGui::SetColumnWidth(0, ImGui::GetWindowSize().x * 0.92f);
 
     for (int i = 0; i < console->items.Size; i++) {
@@ -301,6 +304,7 @@ static void EditorDraw(ConsoleWindow* console)
         }
     }
 
+    ImGui::PopTextWrapPos();
     ImGui::NextColumn();
 
     for (int i = 0; i < console->items.Size; i++) {
@@ -360,6 +364,7 @@ static void EditorDraw(ConsoleWindow* console)
     ImGui::End();
 }
 
+#ifdef LUA_SCRIPTING_ENABLED
 static void EditorDraw(LUADebuggerWindow* debugger)
 {
     if(!debugger->open) { return; };
@@ -474,7 +479,7 @@ static void EditorDraw(LUADebuggerWindow* debugger)
         if (ImGui::SmallButton("Start")) {
             debugger->debugging = true;
             Log(&editorConsole, "Debugging started");
-
+            
             LoadLUALibrary(sol::lib::debug);
         }
     }
@@ -528,8 +533,9 @@ static void EditorDraw(LUADebuggerWindow* debugger)
 
     ImGui::End();
 }
+#endif
 
-static void EditorDraw(HelWindow* help)
+static void EditorDraw(HelpWindow* help)
 {    
     if(!help->open) { return; };
     ImGui::SetNextWindowSizeConstraints(ImVec2(300, 300), ImVec2(FLT_MAX, FLT_MAX));
@@ -553,6 +559,8 @@ static void EditorDraw(HelWindow* help)
 static void EditorDrawAllOpen()
 {
     EditorDraw(&editorConsole);
+#ifdef LUA_SCRIPTING_ENABLED
     EditorDraw(&editorLUADebugger);
+#endif
     EditorDraw(&editorHelp);
 }

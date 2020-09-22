@@ -1,4 +1,4 @@
-#if !defined(FILEMAP_H)
+#ifndef FILEMAP_H
 #define FILEMAP_H
 
 const char* IMGUI_INI = "imgui.ini";
@@ -8,6 +8,10 @@ const char* DATA_WINDOWSCONFIG_ENVT = "data/windowsConfig.envt";
 const char* IMAGES_CURSOR_POINTERFLAT_PNG = "images/cursor_pointerFlat.png";
 const char* IMAGES_GRASS_PNG = "images/Grass.png";
 const char* SCRIPTS_INIT_LUA = "scripts/init.lua";
+const char* SCRIPTS_TEST_LUA = "scripts/test.lua";
+const char* SOUND_BATTLE_VIKING_HORN_CALL_CLOSE_01_WAV = "sound/battle_viking_horn_call_close_01.wav";
+const char* SOUND_BUBBLE_EFFECT_01_WAV = "sound/bubble_effect_01.wav";
+const char* SOUND_CARTOON_BOING_JUMP_01_WAV = "sound/cartoon_boing_jump_01.wav";
 const char* IMAGES_EMOTES_EMOTE_ALERT_PNG = "images/emotes/emote_alert.png";
 const char* IMAGES_EMOTES_EMOTE_ANGER_PNG = "images/emotes/emote_anger.png";
 const char* IMAGES_EMOTES_EMOTE_BARS_PNG = "images/emotes/emote_bars.png";

@@ -1,107 +1,25 @@
-#if !defined(GAME_H)
+#ifndef GAME_H
 #define GAME_H
-
-#include "IMGUI/imgui.h"
-#include "LUA/sol.hpp"
 
 #include "Defines.h"
 
-#define STB_IMAGE_IMPLEMENTATION
-#include "STB/stb_image.h"
-#define STB_DS_IMPLEMENTATION
-#include "STB/stb_ds.h"
-// #define STB_VORBIS_HEADER_ONLY
-// #include "STB/stb_vorbis.h"
+#include "IMGUI/imgui.h"
 
-#if !defined(STB_TRUETYPE_IMPLEMENTATION)
-#define STB_TRUETYPE_IMPLEMENTATION
+#include <cstdlib>
+#include <filesystem>
 #include "STB/stb_truetype.h"
-#endif
 
-#define KEY_UP 0
-#define KEY_RELEASED 1
-#define KEY_PRESSED 2
-#define KEY_DOWN 3
+#include "EditorStructs.h"
+#include "GameStructs.h"
 
-#include "Memory.h"
+#define SOL_ALL_SAFETIES_ON 1
 
-struct Screen {
-    int refreshRate;
-    int width;
-    int height;
-    int bufferWidth;
-    int bufferHeight;
-};
-
-struct Camera {
-    f32 size;
-    f32 ratio;
-    f32 nearPlane;
-    f32 farPlane;
-    m44 view;
-    m44 projection;
-};
-
-struct TimeData {
-    f32 lastFrameGameTime;
-    f32 gameTime;
-    f32 deltaTime;
-    i64 frames;
-};
-
-struct Memory {
-    void *permanentStorage;
-    u64 permanentStorageSize;
-    void *temporalStorage;
-    u64 temporalStorageSize;
-};
-
-struct Input
-{
-    v2 mousePosition;
-    v2 mouseScreenPosition;
-    i32 mouseWheel;
-    u8 mouseState[MOUSE_COUNT];
-    u8 keyState[KEY_COUNT];
-};
-
-struct Data {
-    Camera camera;
-    Screen screen;
-    TimeData time;
-    Memory memory;
-    Input input;
-};
-
-struct PermanentData {
-    b32 initialized;
-    MemoryArena arena;
-};
-
-struct TemporalData {
-    b32 initialized;
-    MemoryArena arena;
-};
-
-sol::state lua;
-
-enum DataType {
-    data_Int,
-    data_Float,
-    data_String,
-    data_V2,
-};
-
-struct DataTable {
-    char* key;
-    char* value;
-};
 DataTable* initialConfig = NULL;
 
 u32 frameBuffer;
 u32 renderBuffer;
 u32 depthrenderbuffer;
-u32 DrawBuffers[1] = {GL_COLOR_ATTACHMENT0};
+RenderState renderState;
 
 void *gameMemory;
 Data *gameState;
@@ -109,15 +27,91 @@ PermanentData *permanentState;
 TemporalData *temporalState;
 TemporaryMemory renderTemporaryMemory;
 
-// NOTE(Juan): Temp test data, should be deleated
+// NOTE(Juan): Temp test data, should be deleatedG
 b32 Running = false;
 b32 FullScreen = false;
 
-static u32 GameInit();
-static u32 GameLoop();
-static u32 GameEnd();
+#ifdef LUA_SCRIPTING_ENABLED
+#include "LUA/sol.hpp"
+sol::state lua;
+#endif
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "STB/stb_image.h"
+#define STB_DS_IMPLEMENTATION
+#include "STB/stb_ds.h"
+
+#include "IMGUI/imgui.h"
+
+#include "GameMath.h"
+
+#include "Memory.h"
+#include "File.h"
 #include "Editor.h"
-#include "Game.cpp"
+#include "Data.h"
+#include "Data.cpp"
+#include "Sound.h"
+#include "Render.h"
+#include "GLRender.h"
+#include "Input.h"
+#ifdef LUA_SCRIPTING_ENABLED
+#include "Scripting.h"
+#endif
+#include "Editor.cpp"
+
+static u32 GameInit()
+{
+    EditorInit(&editorConsole);
+
+#ifdef LUA_SCRIPTING_ENABLED
+    LoadScriptFile(TableGetString(&initialConfig, WINDOWSCONFIG_INITLUASCRIPT));
+
+    sol::protected_function Init(lua["Init"]);
+    if(Init.valid()) {
+        sol::protected_function_result result = Init();
+        if (!result.valid()) {
+            sol::error error = result;
+		    std::string what = error.what();
+            LogError(&editorConsole, "%s", what.c_str());
+        }
+    }
+    else {
+        LogError(&editorConsole, "Error on script 'Init', not valid");
+    }
+#endif
+    
+    return 0;
+}
+
+static u32 GameLoop()
+{
+    f32 fps = (f32)(1 / gameState->time.deltaTime);
+
+    EditorDrawAllOpen();
+    
+#ifdef LUA_SCRIPTING_ENABLED
+    sol::protected_function Update(lua["Update"]);
+    if(Update.valid()) {
+        sol::protected_function_result result = Update();
+        if (!result.valid()) {
+            sol::error error = result;
+		    std::string what = error.what();
+            LogError(&editorConsole, "%s", what.c_str());
+        }
+    }
+    else {
+        LogError(&editorConsole, "Error on script 'Update', not valid");
+    }
+#endif
+
+    // ImGui::ShowDemoWindow();
+
+    return 0;
+}
+
+static u32 GameEnd()
+{
+    return 0;
+}
 
 #endif

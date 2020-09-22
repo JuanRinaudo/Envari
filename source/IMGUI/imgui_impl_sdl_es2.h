@@ -23,8 +23,6 @@ IMGUI_API bool        ImGui_ImplSdlGLES2_ProcessEvent(SDL_Event* event);
 IMGUI_API void        ImGui_ImplSdlGLES2_InvalidateDeviceObjects();
 IMGUI_API bool        ImGui_ImplSdlGLES2_CreateDeviceObjects();
 
-#include "imgui_impl_sdl_es2.cpp"
-
 #endif // IMGUI_IMPL_SDL_ES2
 
 #endif // GL_PROFILE_GLES2

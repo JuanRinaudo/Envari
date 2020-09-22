@@ -1,19 +1,5 @@
-#if !defined(MEMORY_H)
+#ifndef MEMORY_H
 #define MEMORY_H
-
-struct MemoryArena {
-    memoryIndex size;
-    u8 *base;
-    memoryIndex used;
-
-    u32 tempCount;
-};
-
-struct TemporaryMemory
-{
-    MemoryArena *arena;
-    memoryIndex used;
-};
 
 #define ZeroStruct(instance) ZeroSize(sizeof(instance), &instance)
 inline void ZeroSize(memoryIndex size, void *pointer)

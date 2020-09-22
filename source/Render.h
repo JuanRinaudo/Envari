@@ -1,214 +1,8 @@
-#if !defined(RENDER_H)
+#ifndef RENDER_H
 #define RENDER_H
 
-#include "Game.h"
-#include "Defines.h"
-#include "GameMath.h"
-
-#define IMAGE_ADAPTATIVE_FIT 0x1
-#define IMAGE_KEEP_RATIO_X 0x2
-#define IMAGE_KEEP_RATIO_Y 0x4
-
-enum RenderType
-{
-    type_RenderClear,
-    type_RenderColor,
-    type_RenderLineWidth,
-    type_RenderTransparent,
-    type_RenderLine,
-    type_RenderLineStrip,
-    type_RenderTriangle,
-    type_RenderRectangle,
-    type_RenderCircle,
-    type_RenderTextureParameters,
-    type_RenderTexture,
-    type_RenderImage,
-    type_RenderImageUV,
-    type_RenderAtlasSprite,
-    type_RenderFont,
-    type_RenderChar,
-    type_RenderText,
-    type_RenderOverrideVertices,
-    type_RenderOverrideIndices,
-};
-
-struct RenderHeader
-{
-    i32 id;
-    RenderType type;
-    u32 renderFlags;
-};
-
-struct RenderClear
-{
-    RenderHeader header;
-    v4 color;
-};
-
-struct RenderColor
-{
-    RenderHeader header;
-    v4 color;
-};
-
-struct RenderLineWidth
-{
-    RenderHeader header;
-    float width;
-};
-
-struct RenderTransparent
-{
-    RenderHeader header;
-    bool enabled;
-    u32 modeRGB;
-    u32 modeAlpha;
-    u32 srcRGB;
-    u32 dstRGB;
-    u32 srcAlpha;
-    u32 dstAlpha;
-};
-
-struct RenderLine
-{
-    RenderHeader header;
-    v2 start;
-    v2 end;
-};
-
-struct RenderLineStrip
-{
-    RenderHeader header;
-    v2* points;
-};
-
-struct RenderTriangle
-{
-    RenderHeader header;
-    v2 point1;
-    v2 point2;
-    v2 point3;
-};
-
-struct RenderRectangle
-{
-    RenderHeader header;
-    v2 position;
-    v2 scale;
-};
-
-struct RenderCircle
-{
-    RenderHeader header;
-    v2 position;
-    f32 radius;
-    u32 segments;
-};
-
-struct RenderTextureParameters
-{
-    RenderHeader header;
-    u32 wrapS;
-    u32 wrapT;
-    u32 minFilter;
-    u32 magFilter;
-};
-
-struct RenderTexture
-{
-    RenderHeader header;
-    v2 position;
-    v2 scale;
-    u32 textureID;
-};
-
-struct RenderImage
-{
-    RenderHeader header;
-    v2 position;
-    v2 scale;
-    char* filename;
-    u32 filenameSize;
-};
-
-struct RenderImageUV
-{
-    RenderHeader header;
-    v2 position;
-    v2 scale;
-    rectangle2 uv;
-    char* filename;
-    u32 filenameSize;
-};
-
-struct RenderAtlasSprite
-{
-    RenderHeader header;
-    v2 position;
-    v2 scale;
-    char* filename;
-    u32 filenameSize;
-    char* atlasName;
-    u32 atlasNameSize;
-    char* spriteKey;
-    u32 spriteKeySize;
-};
-
-struct RenderFont
-{
-    RenderHeader header;
-    char* filename;
-    u32 filenameSize;
-    f32 fontSize;
-    u32 width;
-    u32 height;
-};
-
-struct RenderChar
-{
-    RenderHeader header;
-    v2 position;
-    v2 scale;
-    char singleChar;
-};
-
-struct RenderText
-{
-    RenderHeader header;
-    v2 position;
-    v2 scale;
-    char* string;
-    u32 stringSize;
-};
-
-struct RenderOverrideVertices
-{
-    RenderHeader header;
-    f32* vertices;
-    u32 size;
-};
-
-struct RenderOverrideIndices
-{
-    RenderHeader header;
-    u32* indices;
-    u32 size;
-};
-
-struct RenderState {
-    i32 lastRenderID;
-    v4 renderColor;
-    u32 wrapS;
-    u32 wrapT;
-    u32 minFilter;
-    u32 magFilter;
-    bool overridingVertices;
-    bool overridingIndices;
-};
-
-RenderState renderState;
-
-static void Begin2D(u32 frameBufferID, u32 width, u32 height)
+v2 ScreenToViewport(v2 screenPosition, f32 size, f32 ratio);
+void Begin2D(u32 frameBufferID, u32 width, u32 height)
 {
     renderState.lastRenderID = 0;
     renderState.renderColor = V4(1, 1, 1, 1);
@@ -240,25 +34,25 @@ static RenderHeader *RenderPushElement_(TemporaryMemory *memory, u32 size, Rende
     return(result);
 }
 
-static void PushRenderClear(f32 red = 0, f32 green = 0, f32 blue = 0, f32 alpha = 1)
+void PushRenderClear(f32 red = 0, f32 green = 0, f32 blue = 0, f32 alpha = 1)
 {
     RenderClear *clear = RenderPushElement(&renderTemporaryMemory, RenderClear);
     clear->color = V4(red, green, blue, alpha);
 }
 
-static void PushRenderColor(f32 red = 0, f32 green = 0, f32 blue = 0, f32 alpha = 1)
+void PushRenderColor(f32 red = 0, f32 green = 0, f32 blue = 0, f32 alpha = 1)
 {
     RenderColor *color = RenderPushElement(&renderTemporaryMemory, RenderColor);
     color->color = V4(red, green, blue, alpha);
 }
 
-static void PushRenderLineWidth(f32 width = 1)
+void PushRenderLineWidth(f32 width = 1)
 {
     RenderLineWidth *line = RenderPushElement(&renderTemporaryMemory, RenderLineWidth);
     line->width = width;
 }
 
-static void PushRenderTransparent(u32 modeRGB, u32 modeAlpha, u32 srcRGB, u32 dstRGB, u32 srcAlpha, u32 dstAlpha)
+void PushRenderTransparent(u32 modeRGB, u32 modeAlpha, u32 srcRGB, u32 dstRGB, u32 srcAlpha, u32 dstAlpha)
 {
     RenderTransparent *transparent = RenderPushElement(&renderTemporaryMemory, RenderTransparent);
     transparent->enabled = true;
@@ -270,7 +64,7 @@ static void PushRenderTransparent(u32 modeRGB, u32 modeAlpha, u32 srcRGB, u32 ds
     transparent->dstAlpha = dstAlpha;
 }
 
-static void PushRenderTransparentDisable()
+void PushRenderTransparentDisable()
 {
     RenderTransparent *transparent = RenderPushElement(&renderTemporaryMemory, RenderTransparent);
     transparent->enabled = false;
@@ -282,20 +76,20 @@ static void PushRenderTransparentDisable()
     transparent->dstAlpha = 0;
 }
 
-static void PushRenderLine(v2 start, v2 end)
+void PushRenderLine(v2 start, v2 end)
 {
     RenderLine *line = RenderPushElement(&renderTemporaryMemory, RenderLine);
     line->start = start;
     line->end = end;
 }
 
-static void PushRenderLineStrip(const v2* linePoints)
+void PushRenderLineStrip(const v2* linePoints)
 {
     RenderLineStrip *lineStrip = RenderPushElement(&renderTemporaryMemory, RenderLineStrip);
     
 }
 
-static void PushRenderTriangle(v2 point1, v2 point2, v2 point3)
+void PushRenderTriangle(v2 point1, v2 point2, v2 point3)
 {
     RenderTriangle *triangle = RenderPushElement(&renderTemporaryMemory, RenderTriangle);
     triangle->point1 = point1;
@@ -303,14 +97,14 @@ static void PushRenderTriangle(v2 point1, v2 point2, v2 point3)
     triangle->point3 = point3;
 }
 
-static void PushRenderRectangle(v2 position, v2 scale)
+void PushRenderRectangle(v2 position, v2 scale)
 {
     RenderRectangle *rectangle = RenderPushElement(&renderTemporaryMemory, RenderRectangle);
     rectangle->position = position;
     rectangle->scale = scale;
 }
 
-static void PushRenderCircle(v2 position, f32 radius, i32 segments)
+void PushRenderCircle(v2 position, f32 radius, i32 segments)
 {
     RenderCircle *circle = RenderPushElement(&renderTemporaryMemory, RenderCircle);
     circle->position = position;
@@ -318,7 +112,7 @@ static void PushRenderCircle(v2 position, f32 radius, i32 segments)
     circle->segments = segments;
 }
 
-static void PushRenderTextureParameters(u32 wrapS, u32 wrapT, u32 minFilter, u32 magFilter)
+void PushRenderTextureParameters(u32 wrapS, u32 wrapT, u32 minFilter, u32 magFilter)
 {
     RenderTextureParameters *textureParameters = RenderPushElement(&renderTemporaryMemory, RenderTextureParameters);
     textureParameters->wrapS = wrapS;
@@ -327,7 +121,7 @@ static void PushRenderTextureParameters(u32 wrapS, u32 wrapT, u32 minFilter, u32
     textureParameters->magFilter = magFilter;
 }
 
-static void PushRenderTexture(v2 position, v2 scale, u32 textureID)
+void PushRenderTexture(v2 position, v2 scale, u32 textureID)
 {
     RenderTexture *texture = RenderPushElement(&renderTemporaryMemory, RenderTexture);
     texture->position = position;
@@ -335,7 +129,7 @@ static void PushRenderTexture(v2 position, v2 scale, u32 textureID)
     texture->textureID = textureID;
 }
 
-static void PushRenderImage(v2 position, v2 scale, const char* filename, u32 renderFlags = 0)
+void PushRenderImage(v2 position, v2 scale, const char* filename, u32 renderFlags = 0)
 {
     RenderImage *image = RenderPushElement(&renderTemporaryMemory, RenderImage);
     image->header.renderFlags = renderFlags;
@@ -344,7 +138,7 @@ static void PushRenderImage(v2 position, v2 scale, const char* filename, u32 ren
     image->filename = PushString(&renderTemporaryMemory, filename, &image->filenameSize);
 }
 
-static void PushRenderImageUV(v2 position, v2 scale, rectangle2 uv, const char* filename)
+void PushRenderImageUV(v2 position, v2 scale, rectangle2 uv, const char* filename)
 {
     RenderImageUV *image = RenderPushElement(&renderTemporaryMemory, RenderImageUV);
     image->position = position;
@@ -353,7 +147,7 @@ static void PushRenderImageUV(v2 position, v2 scale, rectangle2 uv, const char* 
     image->filename = PushString(&renderTemporaryMemory, filename, &image->filenameSize);
 }
 
-static void PushRenderAtlasSprite(v2 position, v2 scale, const char* filename, const char* atlasName, const char* key)
+void PushRenderAtlasSprite(v2 position, v2 scale, const char* filename, const char* atlasName, const char* key)
 {
     RenderAtlasSprite *atlas = RenderPushElement(&renderTemporaryMemory, RenderAtlasSprite);
     atlas->position = position;
@@ -363,7 +157,7 @@ static void PushRenderAtlasSprite(v2 position, v2 scale, const char* filename, c
     atlas->spriteKey = PushString(&renderTemporaryMemory, key, &atlas->spriteKeySize);
 }
 
-static void PushRenderFont(const char* filename, f32 fontSize, u32 width, u32 height)
+void PushRenderFont(const char* filename, f32 fontSize, u32 width, u32 height)
 {
     RenderFont *font = RenderPushElement(&renderTemporaryMemory, RenderFont);
     font->filename = PushString(&renderTemporaryMemory, filename, &font->filenameSize);
@@ -372,7 +166,7 @@ static void PushRenderFont(const char* filename, f32 fontSize, u32 width, u32 he
     font->height = height;
 }
 
-static void PushRenderChar(v2 position, v2 scale, const char singleChar)
+void PushRenderChar(v2 position, v2 scale, const char singleChar)
 {
     RenderChar *renderChar = RenderPushElement(&renderTemporaryMemory, RenderChar);
     renderChar->position = position;
@@ -380,7 +174,7 @@ static void PushRenderChar(v2 position, v2 scale, const char singleChar)
     renderChar->singleChar = singleChar;
 }
 
-static void PushRenderText(v2 position, v2 scale, const char* string)
+void PushRenderText(v2 position, v2 scale, const char* string)
 {
     RenderText *text = RenderPushElement(&renderTemporaryMemory, RenderText);
     text->position = position;
@@ -388,7 +182,7 @@ static void PushRenderText(v2 position, v2 scale, const char* string)
     text->string = PushString(&renderTemporaryMemory, string, &text->stringSize);
 }
 
-static void PushRenderOverrideVertices(f32* vertices, u32 count)
+void PushRenderOverrideVertices(f32* vertices, u32 count)
 {
     RenderOverrideVertices *override = RenderPushElement(&renderTemporaryMemory, RenderOverrideVertices);
     if(vertices) {
@@ -404,7 +198,7 @@ static void PushRenderOverrideVertices(f32* vertices, u32 count)
     }
 }
 
-static void PushRenderOverrideIndices(u32* indices, u32 count)
+void PushRenderOverrideIndices(u32* indices, u32 count)
 {
     RenderOverrideIndices *override = RenderPushElement(&renderTemporaryMemory, RenderOverrideIndices);
     if(indices) {
@@ -420,13 +214,13 @@ static void PushRenderOverrideIndices(u32* indices, u32 count)
     }
 }
 
-static void End2D()
+void End2D()
 {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     EndTemporaryMemory(&renderTemporaryMemory);
 }
 
-static v2 ScreenToViewport(v2 screenPosition, f32 size, f32 ratio)
+v2 ScreenToViewport(v2 screenPosition, f32 size, f32 ratio)
 {
     v2 position = V2(0, 0);
 

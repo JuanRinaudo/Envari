@@ -1,4 +1,4 @@
-#if !defined(FILE_H)
+#ifndef FILE_H
 #define FILE_H
 
 #define FILE_MODE_READ "r"
@@ -15,7 +15,6 @@
 #define FILE_MODE_READWRITE_CREATE_BINARY "wb+"
 #define FILE_MODE_READAPPEND_BINARY "ab+"
 
-#include <filesystem>
 #include <stdio.h>
 
 static void* LoadFileToMemory(const char* filename, const char* mode, u32* fileSize)
@@ -45,23 +44,6 @@ static void UnloadFileFromMemory(char* fileBuffer)
 {
     UnloadFileFromMemory((void*)fileBuffer);
 }
-
-#define DATA_MAX_TOKEN_COUNT 128
-
-struct DataTokenizer {
-    bool active;
-    void* memory;
-    u32 memorySize;
-    char* dataString;
-    u32 dataIndex;
-    char currentChar;
-    char tokenBuffer[DATA_MAX_TOKEN_COUNT];
-    u32 tokenBufferIndex;
-    u32 currentLine;
-    i32 tokenLineCount;
-    bool onComment;
-    bool parsingString;
-};
 
 static void StartTokenizer(DataTokenizer* tokenizer, const char* filename)
 {

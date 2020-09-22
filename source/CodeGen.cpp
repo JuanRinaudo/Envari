@@ -109,9 +109,9 @@ static void StartMapFile(ofstream* stream, const char* folderPath, const char* f
     strcat(codegenPath, filename);
     
     stream->open(codegenPath, ios_base::out);
-    Write(stream, "#if !defined(");
+    Write(stream, "#ifndef ");
     Write(stream, define);
-    Write(stream, ")\n#define ");
+    Write(stream, "\n#define ");
     Write(stream, define);
     Write(stream, "\n\n");
 }
@@ -157,7 +157,7 @@ int main()
 
     char* filePath = PushString(&stringArena, __FILE__);
     // #NOTE (Juan): Get file end string cpp and cut it by setting a zero end in the start of it.
-    char* endString = strstr(filePath, "codegen.cpp");
+    char* endString = strstr(filePath, "CodeGen.cpp");
     endString[0] = 0;
     const char* folderName = "CodeGen\\";
     strncat(filePath, folderName, 8);

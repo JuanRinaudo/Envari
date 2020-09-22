@@ -1,4 +1,4 @@
-#if !defined(WINDOWSCONFIGMAP_H)
+#ifndef WINDOWSCONFIGMAP_H
 #define WINDOWSCONFIGMAP_H
 
 const char* WINDOWSCONFIG_INITLUASCRIPT = "initLuaScript";
