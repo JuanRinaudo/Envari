@@ -2,7 +2,9 @@
 #define GAME_INTERNAL
 #define LUA_SCRIPTING_ENABLED
 
-#include <windows.h>
+#undef UNICODE
+
+// #include <windows.h>
 #include <chrono>
 #include <thread>
 
@@ -52,19 +54,23 @@ i32 CALLBACK WinMain(
     LPSTR CommandLine,
     i32 ShowCode)
 {
+    size_t permanentStorageSize = Megabytes(32);
+    void* permanentStorage = malloc(permanentStorageSize);
 
-    gameMemory = malloc(Megabytes(128));
-
-    gameState = (Data *)gameMemory;
-    gameState->memory.permanentStorageSize = Megabytes(32);
-    gameState->memory.temporalStorageSize = Megabytes(96);
-    gameState->memory.permanentStorage = gameMemory;
-    gameState->memory.temporalStorage = (u8 *)gameMemory + gameState->memory.permanentStorageSize;
+    gameState = (Data *)permanentStorage;
+    gameState->memory.permanentStorageSize = permanentStorageSize;
+    gameState->memory.permanentStorage = permanentStorage;
+    gameState->memory.sceneStorageSize = Megabytes(32);
+    gameState->memory.sceneStorage = malloc(gameState->memory.sceneStorageSize);
+    gameState->memory.temporalStorageSize = Megabytes(64);
+    gameState->memory.temporalStorage = malloc(gameState->memory.temporalStorageSize);
 
     permanentState = (PermanentData *)gameState->memory.permanentStorage + sizeof(Data);
+    sceneState = (SceneData *)gameState->memory.sceneStorage;
     temporalState = (TemporalData *)gameState->memory.temporalStorage;
 
     InitializeArena(&permanentState->arena, (memoryIndex)(gameState->memory.permanentStorageSize - sizeof(PermanentData) - sizeof(Data)), (u8 *)gameState->memory.permanentStorage + sizeof(PermanentData) + sizeof(Data));
+    InitializeArena(&sceneState->arena, (memoryIndex)(gameState->memory.sceneStorageSize - sizeof(SceneData)), (u8 *)gameState->memory.sceneStorage + sizeof(SceneData));
     InitializeArena(&temporalState->arena, (memoryIndex)(gameState->memory.temporalStorageSize - sizeof(TemporalData)), (u8 *)gameState->memory.temporalStorage + sizeof(TemporalData));
 
     ParseDataTable(&initialConfig, DATA_WINDOWSCONFIG_ENVT);
@@ -204,7 +210,7 @@ i32 CALLBACK WinMain(
                         gameState->input.mouseScreenPosition.x = (f32)event.button.x;
                         gameState->input.mouseScreenPosition.y = (f32)event.button.y;
 
-                        gameState->input.mousePosition = ScreenToViewport(gameState->input.mouseScreenPosition, gameState->camera.size, gameState->camera.ratio);
+                        gameState->input.mousePosition = ScreenToViewport(gameState->input.mouseScreenPosition.x, gameState->input.mouseScreenPosition.y, gameState->camera.size, gameState->camera.ratio);
                     }
                     break;
                 }
@@ -260,11 +266,11 @@ i32 CALLBACK WinMain(
         gameState->camera.view = IdM44();
         gameState->camera.projection = OrtographicProjection(gameState->camera.size, gameState->camera.ratio, gameState->camera.nearPlane, gameState->camera.farPlane);
         Begin2D(0, (u32)gameState->screen.width, (u32)gameState->screen.height);
-        PushRenderOverrideVertices(0, 0);
-        PushRenderClear(0, 0, 0, 1);
-        PushRenderTextureParameters(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, GL_NEAREST, GL_NEAREST);
+        DrawOverrideVertices(0, 0);
+        DrawClear(0, 0, 0, 1);
+        DrawTextureParameters(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, GL_NEAREST, GL_NEAREST);
         f32 sizeX = gameState->camera.size * tempRatio;
-        PushRenderTexture(V2(-sizeX, gameState->camera.size) * 0.5f, V2(sizeX, -gameState->camera.size), renderBuffer);
+        DrawTexture(-sizeX * 0.5f, gameState->camera.size * 0.5f, sizeX, -gameState->camera.size, renderBuffer);
         GL_Render();
         End2D();
 

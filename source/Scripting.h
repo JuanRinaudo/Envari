@@ -47,7 +47,7 @@ void ScriptingPanic(sol::optional<std::string> maybe_msg) {
 	// When this function exits, Lua will exhibit default behavior and abort()
 }
 
-int ScriptingExceptionHandler(lua_State* L, sol::optional<const std::exception&> maybe_exception, sol::string_view description) {
+i32 ScriptingExceptionHandler(lua_State* L, sol::optional<const std::exception&> maybe_exception, sol::string_view description) {
 	LogError(&editorConsole, "An exception occurred in a function, here's what it says");
 	if (maybe_exception) {
 		const std::exception& exception = *maybe_exception;

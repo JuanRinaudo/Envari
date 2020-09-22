@@ -22,16 +22,16 @@ struct HelpWindow
 };
 
 enum DebugMenuAction {
-    DebugMenuAction_None,
-    DebugMenuAction_GoToFunction,
-    DebugMenuAction_BreakOnFunction,
+    DebugMenuAction_NONE,
+    DebugMenuAction_GO_TO_FUNCTION,
+    DebugMenuAction_BREAK_ON_FUNCTION,
 };
 
 enum ConsoleLogType
 {
-    LOGTYPE_NORMAL,
-    LOGTYPE_COMMAND,
-    LOGTYPE_ERROR,
+    ConsoleLogType_NORMAL,
+    ConsoleLogType_COMMAND,
+    ConsoleLogType_ERROR,
 };
 
 struct ConsoleLog
@@ -47,11 +47,27 @@ struct ConsoleWindow
     ImVector<ConsoleLog> items;
     ImVector<const char*> commands;
     ImVector<char*> history;
-    int historyPos;    // -1: new line, 0..History.Size-1 browsing history.
+    i32 historyPos;    // -1: new line, 0..History.Size-1 browsing history.
     ImGuiTextFilter filter;
     bool autoScroll;
     bool scrollToBottom;
     bool open;
+};
+
+enum TextureInspect
+{
+    TextureInspect_ALL,
+    TextureInspect_CACHE,
+};
+
+struct TextureDebuggerWindow
+{
+    bool open;
+
+    i32 textureID;
+    i32 textureWidth;
+    i32 textureHeight;
+    TextureInspect inspectMode;
 };
 
 #ifdef LUA_SCRIPTING_ENABLED

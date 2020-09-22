@@ -1,22 +1,6 @@
 #ifndef DEFINES_H
 #define DEFINES_H
 
-#if __EMSCRIPTEN__
-    #ifdef GAME_SLOW
-        // TODO(Juan): Complete assert macro
-        #define Assert(Expression) if(!(Expression)) { *(volatile int *)0 = 0; }
-    #else
-        #define Assert(Expression)
-    #endif
-#else
-    #ifdef GAME_SLOW
-        // TODO(Juan): Complete assert macro
-        #define Assert(Expression) if(!(Expression)) { *(int *)0 = 0; }
-    #else
-        #define Assert(Expression)
-    #endif
-#endif
-
 #define InvalidCodePath Assert(!"InvalidCodePath");
 #define InvalidDefaultCase default: {InvalidCodePath;} break;
 
@@ -61,6 +45,22 @@ typedef double f64;
 
 #define F32Max FLT_MAX
 #define F64Max DBL_MAX
+
+#if __EMSCRIPTEN__
+    #ifdef GAME_SLOW
+        // TODO(Juan): Complete assert macro
+        #define Assert(Expression) if(!(Expression)) { *(volatile i32 *)0 = 0; }
+    #else
+        #define Assert(Expression)
+    #endif
+#else
+    #ifdef GAME_SLOW
+        // TODO(Juan): Complete assert macro
+        #define Assert(Expression) if(!(Expression)) { *(i32 *)0 = 0; }
+    #else
+        #define Assert(Expression)
+    #endif
+#endif
 
 /*
     #NOTE (Juan):

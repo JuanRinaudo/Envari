@@ -1,12 +1,12 @@
 static void ClearLog(ConsoleWindow* console)
 {
-    for (int i = 0; i < console->items.Size; i++) {
+    for (i32 i = 0; i < console->items.Size; i++) {
         free(console->items[i].log);
     }
     console->items.clear();
 }
 
-static void LogString(ConsoleWindow* console, const char* log, ConsoleLogType type = LOGTYPE_NORMAL)
+static void LogString(ConsoleWindow* console, const char* log, ConsoleLogType type = ConsoleLogType_NORMAL)
 {
     ConsoleLog* lastLog = console->items.Size > 0 ? &console->items.back() : 0;
     if(lastLog && strcmp(log, lastLog->log) == 0) {
@@ -48,6 +48,14 @@ static void EditorInit(ConsoleWindow* console)
     Log(console, "Envari Console Start");
 }
 
+static void EditorInit(TextureDebuggerWindow* debugger)
+{
+    debugger->open = true;
+
+    debugger->textureID = 0;
+    debugger->inspectMode = TextureInspect_CACHE;
+}
+
 #ifdef LUA_SCRIPTING_ENABLED
 static void EditorInit(LUADebuggerWindow* debugger)
 {
@@ -64,7 +72,7 @@ static void EditorInit(HelpWindow* help)
     help->open = true;
 }
 
-static int TextEditCallback(ConsoleWindow* console, ImGuiInputTextCallbackData* data)
+static i32 TextEditCallback(ConsoleWindow* console, ImGuiInputTextCallbackData* data)
 {
     switch (data->EventFlag) {
         case ImGuiInputTextFlags_CallbackCompletion: {
@@ -81,7 +89,7 @@ static int TextEditCallback(ConsoleWindow* console, ImGuiInputTextCallbackData* 
 
             // Build a list of candidates
             ImVector<const char*> candidates;
-            for (int i = 0; i < console->commands.Size; i++) {
+            for (i32 i = 0; i < console->commands.Size; i++) {
                 if (Strnicmp(console->commands[i], word_start, (int)(word_end-word_start)) == 0) {
                     candidates.push_back(console->commands[i]);
                 }
@@ -93,17 +101,17 @@ static int TextEditCallback(ConsoleWindow* console, ImGuiInputTextCallbackData* 
             }
             else if (candidates.Size == 1) {
                 // Single match. Delete the beginning of the word and replace it entirely so we've got nice casing
-                data->DeleteChars((int)(word_start-data->Buf), (int)(word_end-word_start));
+                data->DeleteChars((i32)(word_start-data->Buf), (i32)(word_end-word_start));
                 data->InsertChars(data->CursorPos, candidates[0]);
                 data->InsertChars(data->CursorPos, " ");
             }
             else {
                 // Multiple matches. Complete as much as we can, so inputing "C" will complete to "CL" and display "CLEAR" and "CLASSIFY"
-                int match_len = (int)(word_end - word_start);
+                i32 match_len = (i32)(word_end - word_start);
                 while(true) {
-                    int c = 0;
+                    i32 c = 0;
                     bool all_candidates_matches = true;
-                    for (int i = 0; i < candidates.Size && all_candidates_matches; i++)
+                    for (i32 i = 0; i < candidates.Size && all_candidates_matches; i++)
                         if (i == 0)
                             c = toupper(candidates[i][match_len]);
                         else if (c == 0 || c != toupper(candidates[i][match_len]))
@@ -115,13 +123,13 @@ static int TextEditCallback(ConsoleWindow* console, ImGuiInputTextCallbackData* 
 
                 if (match_len > 0)
                 {
-                    data->DeleteChars((int)(word_start - data->Buf), (int)(word_end-word_start));
+                    data->DeleteChars((i32)(word_start - data->Buf), (i32)(word_end-word_start));
                     data->InsertChars(data->CursorPos, candidates[0], candidates[0] + match_len);
                 }
 
                 // List matches
                 Log(console, "Possible matches:\n");
-                for (int i = 0; i < candidates.Size; i++) {
+                for (i32 i = 0; i < candidates.Size; i++) {
                     Log(console, "- %s\n", candidates[i]);
                 }
             }
@@ -130,7 +138,7 @@ static int TextEditCallback(ConsoleWindow* console, ImGuiInputTextCallbackData* 
         }
         case ImGuiInputTextFlags_CallbackHistory: {
             // Example of HISTORY
-            const int prev_history_pos = console->historyPos;
+            const i32 prev_history_pos = console->historyPos;
             if (data->EventKey == ImGuiKey_UpArrow) {
                 if (console->historyPos == -1) {
                     console->historyPos = console->history.Size - 1;
@@ -158,7 +166,7 @@ static int TextEditCallback(ConsoleWindow* console, ImGuiInputTextCallbackData* 
     return 0;
 }
 
-static int TextEditCallbackStub(ImGuiInputTextCallbackData* data)
+static i32 TextEditCallbackStub(ImGuiInputTextCallbackData* data)
 {
     ConsoleWindow* console = (ConsoleWindow*)data->UserData;
     return TextEditCallback(console, data);
@@ -166,11 +174,11 @@ static int TextEditCallbackStub(ImGuiInputTextCallbackData* data)
 
 static void ExecCommand(ConsoleWindow* console, const char* command_line)
 {
-    LogString(console, command_line, LOGTYPE_COMMAND);
+    LogString(console, command_line, ConsoleLogType_COMMAND);
 
     // Insert into history. First find match and delete it so it can be pushed to the back. This isn't trying to be smart or optimal.
     console->historyPos = -1;
-    for (int i = console->history.Size-1; i >= 0; i--) {
+    for (i32 i = console->history.Size-1; i >= 0; i--) {
         if (Stricmp(console->history[i], command_line) == 0) {
             free(console->history[i]);
             console->history.erase(console->history.begin() + i);
@@ -185,13 +193,13 @@ static void ExecCommand(ConsoleWindow* console, const char* command_line)
     }
     else if (Stricmp(command_line, "HELP") == 0) {
         Log(console, "Commands:");
-        for (int i = 0; i < console->commands.Size; i++) {
+        for (i32 i = 0; i < console->commands.Size; i++) {
             Log(console, "- %s", console->commands[i]);
         }
     }
     else if (Stricmp(command_line, "HISTORY") == 0) {
-        int first = console->history.Size - 10;
-        for (int i = first > 0 ? first : 0; i < console->history.Size; i++) {
+        i32 first = console->history.Size - 10;
+        for (i32 i = first > 0 ? first : 0; i < console->history.Size; i++) {
             Log(console, "%3d: %s\n", i, console->history[i]);
         }
     }
@@ -223,7 +231,8 @@ static void EditorDraw(ConsoleWindow* console)
             ImGui::EndMenu();
         }
         if (ImGui::BeginMenu("Debug"))
-        {
+        {            
+            if (ImGui::MenuItem("Debug Textures")) { EditorInit(&editorTextureDebugger); }
 #ifdef LUA_SCRIPTING_ENABLED
             if (ImGui::MenuItem("Debug LUA")) { EditorInit(&editorLUADebugger); }
             ImGui::EndMenu();
@@ -282,24 +291,24 @@ static void EditorDraw(ConsoleWindow* console)
     ImGui::PushTextWrapPos(ImGui::GetWindowSize().x * 0.92f);
     ImGui::SetColumnWidth(0, ImGui::GetWindowSize().x * 0.92f);
 
-    for (int i = 0; i < console->items.Size; i++) {
+    for (i32 i = 0; i < console->items.Size; i++) {
         ConsoleLog* currentLog = &console->items[i];
         if (!console->filter.PassFilter(currentLog->log)) {
             continue;
         }
 
         switch(currentLog->type) {
-            case LOGTYPE_ERROR: {
+            case ConsoleLogType_ERROR: {
                 ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.4f, 0.4f, 1.0f));
             } break;
-            case LOGTYPE_COMMAND: {
+            case ConsoleLogType_COMMAND: {
                 ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.8f, 0.6f, 1.0f));
             } break;
         }
 
         ImGui::TextUnformatted(currentLog->log);
         
-        if (currentLog->type != LOGTYPE_NORMAL) {
+        if (currentLog->type != ConsoleLogType_NORMAL) {
             ImGui::PopStyleColor();
         }
     }
@@ -307,24 +316,24 @@ static void EditorDraw(ConsoleWindow* console)
     ImGui::PopTextWrapPos();
     ImGui::NextColumn();
 
-    for (int i = 0; i < console->items.Size; i++) {
+    for (i32 i = 0; i < console->items.Size; i++) {
         ConsoleLog* currentLog = &console->items[i];
         if (!console->filter.PassFilter(currentLog->log)) {
             continue;
         }
         
         switch(currentLog->type) {
-            case LOGTYPE_ERROR: {
+            case ConsoleLogType_ERROR: {
                 ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.4f, 0.4f, 1.0f));
             } break;
-            case LOGTYPE_COMMAND: {
+            case ConsoleLogType_COMMAND: {
                 ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.8f, 0.6f, 1.0f));
             } break;
         }
         
         ImGui::Text("%d", currentLog->count);
         
-        if (currentLog->type != LOGTYPE_NORMAL) {
+        if (currentLog->type != ConsoleLogType_NORMAL) {
             ImGui::PopStyleColor();
         }
     }
@@ -364,6 +373,67 @@ static void EditorDraw(ConsoleWindow* console)
     ImGui::End();
 }
 
+static void EditorDraw(TextureDebuggerWindow* debugger)
+{
+    if(!debugger->open) { return; };
+    ImGui::SetNextWindowSize(ImVec2(400,300), ImGuiCond_FirstUseEver);
+
+    if (!ImGui::Begin("Texture Debugger", &debugger->open))
+    {
+        ImGui::End();
+        return;
+    }
+
+    if (ImGui::SmallButton("Cache")) {
+        debugger->inspectMode = TextureInspect_CACHE;
+    }
+    ImGui::SameLine();
+    if (ImGui::SmallButton("All")) {
+        debugger->inspectMode = TextureInspect_ALL;
+    }
+
+    ImGui::Separator();
+
+    i32 textureID = 0;
+
+    if(debugger->inspectMode == TextureInspect_CACHE)
+    {    
+        i32 textureCacheSize = shlen(textureCache);
+        ImGui::Text("Texture Cache ID: %d / %d", debugger->textureID + 1, textureCacheSize);
+        
+        if (ImGui::SmallButton("Prev")) {
+            debugger->textureID--;
+        }
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Next")) {
+            debugger->textureID++;
+        }
+
+        if(debugger->textureID < 0) { debugger->textureID = textureCacheSize; }
+        if(debugger->textureID >= textureCacheSize) { debugger->textureID = 0; }
+
+        ImGui::Separator();
+
+        auto io = ImGui::GetIO();
+        GLTexture cachedTexture = textureCache[debugger->textureID].value;
+        debugger->textureWidth = cachedTexture.width;
+        debugger->textureHeight = cachedTexture.height;
+
+        textureID = cachedTexture.textureID;
+    }
+    else if(debugger->inspectMode == TextureInspect_ALL) {
+        ImGui::InputInt("Texture ID", &debugger->textureID, 1, 1);
+        ImGui::InputInt("Texture Width", &debugger->textureWidth, 1, 1);
+        ImGui::InputInt("Texture Height", &debugger->textureHeight, 1, 1);
+
+        textureID = debugger->textureID;
+    }
+
+    ImGui::Image((ImTextureID)textureID, ImVec2((f32)debugger->textureWidth, (f32)debugger->textureHeight));
+
+    ImGui::End();
+}
+
 #ifdef LUA_SCRIPTING_ENABLED
 static void EditorDraw(LUADebuggerWindow* debugger)
 {
@@ -376,7 +446,7 @@ static void EditorDraw(LUADebuggerWindow* debugger)
         return;
     }
 
-    DebugMenuAction menuAction = DebugMenuAction_None;
+    DebugMenuAction menuAction = DebugMenuAction_NONE;
     if (ImGui::BeginMenuBar())
     {
         if (ImGui::BeginMenu("File"))
@@ -388,14 +458,14 @@ static void EditorDraw(LUADebuggerWindow* debugger)
         if (ImGui::BeginMenu("Go"))
         {
             if (ImGui::MenuItem("Go to function")) {
-                menuAction = DebugMenuAction_GoToFunction;
+                menuAction = DebugMenuAction_GO_TO_FUNCTION;
             }
             ImGui::EndMenu();
         }
         
         if(ImGui::BeginMenu("Debug")) {            
             if (ImGui::MenuItem("Break on function")) {
-                menuAction = DebugMenuAction_BreakOnFunction;
+                menuAction = DebugMenuAction_BREAK_ON_FUNCTION;
             }
             ImGui::EndMenu();
         }
@@ -403,8 +473,8 @@ static void EditorDraw(LUADebuggerWindow* debugger)
         ImGui::EndMenuBar();
     }
 
-    if(menuAction == DebugMenuAction_GoToFunction) { ImGui::OpenPopup("GoToFunction"); }
-    if(menuAction == DebugMenuAction_BreakOnFunction) { ImGui::OpenPopup("BreakOnFunction"); }
+    if(menuAction == DebugMenuAction_GO_TO_FUNCTION) { ImGui::OpenPopup("GoToFunction"); }
+    if(menuAction == DebugMenuAction_BREAK_ON_FUNCTION) { ImGui::OpenPopup("BreakOnFunction"); }
 
     if (ImGui::BeginPopup("GoToFunction"))
     {
@@ -414,7 +484,7 @@ static void EditorDraw(LUADebuggerWindow* debugger)
             char* s = debugger->inputBuffer;
 
 	        lua_Debug debugInfo;
-            int function = lua_getglobal(lua, debugger->inputBuffer);
+            i32 function = lua_getglobal(lua, debugger->inputBuffer);
             if(function > 0) {
                 lua_getinfo(lua, ">S", &debugInfo);
                 Log(&editorConsole, "Function found %s:%d", debugInfo.source, debugInfo.linedefined);
@@ -443,7 +513,7 @@ static void EditorDraw(LUADebuggerWindow* debugger)
             char* s = debugger->inputBuffer;
 
 	        lua_Debug debugInfo;
-            int function = lua_getglobal(lua, debugger->inputBuffer);
+            i32 function = lua_getglobal(lua, debugger->inputBuffer);
             if(function > 0) {
                 lua_getinfo(lua, ">S", &debugInfo);
                 Log(&editorConsole, "Function found %s:%d", debugInfo.source, debugInfo.linedefined);
@@ -559,6 +629,7 @@ static void EditorDraw(HelpWindow* help)
 static void EditorDrawAllOpen()
 {
     EditorDraw(&editorConsole);
+    EditorDraw(&editorTextureDebugger);
 #ifdef LUA_SCRIPTING_ENABLED
     EditorDraw(&editorLUADebugger);
 #endif

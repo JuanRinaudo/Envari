@@ -173,7 +173,6 @@ enum RenderType
     type_RenderLineWidth,
     type_RenderTransparent,
     type_RenderLine,
-    type_RenderLineStrip,
     type_RenderTriangle,
     type_RenderRectangle,
     type_RenderCircle,
@@ -231,12 +230,6 @@ struct RenderLine
     RenderHeader header;
     v2 start;
     v2 end;
-};
-
-struct RenderLineStrip
-{
-    RenderHeader header;
-    v2* points;
 };
 
 struct RenderTriangle
@@ -365,11 +358,11 @@ struct RenderState {
 
 // #NOTE (Juan): Game
 struct Screen {
-    int refreshRate;
-    int width;
-    int height;
-    int bufferWidth;
-    int bufferHeight;
+    i32 refreshRate;
+    i32 width;
+    i32 height;
+    i32 bufferWidth;
+    i32 bufferHeight;
 };
 
 struct Camera {
@@ -389,10 +382,12 @@ struct Time {
 };
 
 struct Memory {
+    size_t permanentStorageSize;
     void *permanentStorage;
-    u64 permanentStorageSize;
+    size_t sceneStorageSize;
+    void *sceneStorage;
+    size_t temporalStorageSize;
     void *temporalStorage;
-    u64 temporalStorageSize;
 };
 
 struct Input
@@ -413,6 +408,11 @@ struct Data {
 };
 
 struct PermanentData {
+    b32 initialized;
+    MemoryArena arena;
+};
+
+struct SceneData {
     b32 initialized;
     MemoryArena arena;
 };

@@ -766,11 +766,11 @@ m44 operator * (m44 a, m44 b)
 {
     m44 result;
 
-    for(int x = 0; x < 4; ++x) {
-        for(int y = 0; y < 4; ++y) {
+    for(i32 x = 0; x < 4; ++x) {
+        for(i32 y = 0; y < 4; ++y) {
             f32 value = 0;
 
-            for(int i = 0; i < 4; ++i) {
+            for(i32 i = 0; i < 4; ++i) {
                 value += a.e[y * 4 + i] * b.e[4 * i + x];
             }  
 
@@ -816,11 +816,11 @@ m44 PerspectiveProjection(f32 fovY, f32 aspect, f32 nearPlane, f32 farPlane)
 
 // #NOTE(Juan): transform2D
 
-transform2D Transform2D(v2 position, v2 scale)
+transform2D Transform2D(f32 posX, f32 posY, f32 scaleX, f32 scaleY)
 {
     transform2D transform;
-    transform.position = position;
-    transform.scale = scale;
+    transform.position = V2(posX, posY);
+    transform.scale = V2(scaleX, scaleY);
     return transform;
 }
 

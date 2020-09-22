@@ -3,6 +3,8 @@
 
 #include <filesystem>
 
+#include "GL3W/glcorearb.h"
+
 #include "STB/stb_truetype.h" 
 
 #include "Defines.h"
@@ -18,9 +20,9 @@ extern sol::state lua;
 extern ConsoleWindow editorConsole;
 
 extern void Log_(ConsoleWindow* console, ConsoleLogType type, const char* fmt, ...);
-#define Log(console, fmt, ...) Log_(console, LOGTYPE_NORMAL, fmt, ##__VA_ARGS__)
-#define LogError(console, fmt, ...) Log_(console, LOGTYPE_ERROR, fmt, ##__VA_ARGS__)
-#define LogCommand(console, fmt, ...) Log_(console, LOGTYPE_COMMAND, fmt, ##__VA_ARGS__)
+#define Log(console, fmt, ...) Log_(console, ConsoleLogType_NORMAL, fmt, ##__VA_ARGS__)
+#define LogError(console, fmt, ...) Log_(console, ConsoleLogType_ERROR, fmt, ##__VA_ARGS__)
+#define LogCommand(console, fmt, ...) Log_(console, ConsoleLogType_COMMAND, fmt, ##__VA_ARGS__)
 
 // #NOTE(Juan): Console
 static void LogConsole(const char* log)
@@ -54,17 +56,6 @@ static char* IntToChar(i32 value)
     return castChar;
 }
 
-// #NOTE(Juan): Render
-static void PushRenderDisableOverrideVertices()
-{
-    // PushRenderOverrideVertices(0, 0);
-}
-
-static void PushRenderDisableOverrideIndices()
-{    
-    // PushRenderOverrideIndices(0, 0);
-}
-
 extern void LoadScriptFile(char* filePath);
 extern void LoadLUALibrary(sol::lib library);
 
@@ -77,28 +68,37 @@ extern m44 OrtographicProjection(f32 left, f32 right, f32 top, f32 bottom, f32 n
 extern m44 OrtographicProjection(f32 size, f32 aspect, f32 nearPlane, f32 farPlane);
 
 extern void Begin2D(u32 frameBufferID, u32 width, u32 height);
-extern void PushRenderClear(f32 red, f32 green, f32 blue, f32 alpha);
-extern void PushRenderColor(f32 red, f32 green, f32 blue, f32 alpha);
-extern void PushRenderLineWidth(f32 width);
-extern void PushRenderTransparent(u32 modeRGB, u32 modeAlpha, u32 srcRGB, u32 dstRGB, u32 srcAlpha, u32 dstAlpha);
-extern void PushRenderTransparentDisable();
-extern void PushRenderLine(v2 start, v2 end);
-extern void PushRenderLineStrip(const v2* linePoints);
-extern void PushRenderTriangle(v2 point1, v2 point2, v2 point3);
-extern void PushRenderRectangle(v2 position, v2 scale);
-extern void PushRenderCircle(v2 position, f32 radius, i32 segments);
-extern void PushRenderTextureParameters(u32 wrapS, u32 wrapT, u32 minFilter, u32 magFilter);
-extern void PushRenderTexture(v2 position, v2 scale, u32 textureID);
-extern void PushRenderImage(v2 position, v2 scale, const char* filename, u32 renderFlags);
-extern void PushRenderImageUV(v2 position, v2 scale, rectangle2 uv, const char* filename);
-extern void PushRenderAtlasSprite(v2 position, v2 scale, const char* filename, const char* atlasName, const char* key);
-extern void PushRenderFont(const char* filename, f32 fontSize, u32 width, u32 height);
-extern void PushRenderChar(v2 position, v2 scale, const char singleChar);
-extern void PushRenderText(v2 position, v2 scale, const char* string);
-extern void PushRenderOverrideVertices(f32* vertices, u32 count);
-extern void PushRenderOverrideIndices(u32* indices, u32 count);
+extern void DrawClear(f32 red, f32 green, f32 blue, f32 alpha);
+extern void DrawColor(f32 red, f32 green, f32 blue, f32 alpha);
+extern void DrawLineWidth(f32 width);
+extern void DrawTransparent(u32 modeRGB, u32 modeAlpha, u32 srcRGB, u32 dstRGB, u32 srcAlpha, u32 dstAlpha);
+extern void DrawTransparentDisable();
+extern void DrawLine(f32 startX, f32 startY, f32 endX, f32 endY);
+extern void DrawTriangle(f32 p1X, f32 p1Y, f32 p2X, f32 p2Y, f32 p3X, f32 p3Y);
+extern void DrawRectangle(f32 posX, f32 posY, f32 scaleX, f32 scaleY);
+extern void DrawCircle(f32 posX, f32 posY, f32 radius, i32 segments);
+extern void DrawTextureParameters(u32 wrapS, u32 wrapT, u32 minFilter, u32 magFilter);
+extern void DrawTexture(f32 posX, f32 posY, f32 scaleX, f32 scaleY, u32 textureID);
+extern void DrawImage(f32 posX, f32 posY, f32 scaleX, f32 scaleY, const char* filename, u32 renderFlags);
+extern void DrawImageUV(f32 posX, f32 posY, f32 scaleX, f32 scaleY, rectangle2 uv, const char* filename);
+extern void DrawAtlasSprite(f32 posX, f32 posY, f32 scaleX, f32 scaleY, const char* filename, const char* atlasName, const char* key);
+extern void DrawFont(const char* filename, f32 fontSize, u32 width, u32 height);
+extern void DrawChar(f32 posX, f32 posY, f32 scaleX, f32 scaleY, const char singleChar);
+extern void DrawString(f32 posX, f32 posY, f32 scaleX, f32 scaleY, const char* string);
+extern void DrawOverrideVertices(f32* vertices, u32 count);
+extern void DrawOverrideIndices(u32* indices, u32 count);
 extern void End2D();
-extern v2 ScreenToViewport(v2 screenPosition, f32 size, f32 ratio);
+extern v2 ScreenToViewport(f32 screenX, f32 screenY, f32 size, f32 ratio);
+
+static void DrawDisableOverrideVertices()
+{
+    DrawOverrideVertices(0, 0);
+}
+
+static void DrawDisableOverrideIndices()
+{    
+    DrawOverrideIndices(0, 0);
+}
 
 extern f32* CreateQuadPosUV(v2 posStart, v2 posEnd, v2 uvBegin, v2 uvEnd);
 
@@ -171,27 +171,26 @@ void ScriptingInitBindings()
     lua["ClickOverRectangle"] = ClickOverRectangle;
 
     // #NOTE (Juan): Render
-    lua["PushRenderClear"] = PushRenderClear;
-    lua["PushRenderColor"] = PushRenderColor;
-    lua["PushRenderLineWidth"] = PushRenderLineWidth;
-    lua["PushRenderLine"] = PushRenderLine;
-    lua["PushRenderLineStrip"] = PushRenderLineStrip;
-    lua["PushRenderTriangle"] = PushRenderTriangle;
-    lua["PushRenderRectangle"] = PushRenderRectangle;
-    lua["PushRenderCircle"] = PushRenderCircle;
-    lua["PushRenderTextureParameters"] = PushRenderTextureParameters;
-    lua["PushRenderImage"] = PushRenderImage;
-    lua["PushRenderImageUV"] = PushRenderImageUV;
-    lua["PushRenderAtlasSprite"] = PushRenderAtlasSprite;
-    lua["PushRenderTransparent"] = PushRenderTransparent;
-    lua["PushRenderTransparentDisable"] = PushRenderTransparentDisable;
-    lua["PushRenderFont"] = PushRenderFont;
-    lua["PushRenderChar"] = PushRenderChar;
-    lua["PushRenderText"] = PushRenderText;
-    lua["PushRenderOverrideVertices"] = PushRenderOverrideVertices;
-    lua["PushRenderDisableOverrideVertices"] = PushRenderDisableOverrideVertices;
-    lua["PushRenderOverrideIndices"] = PushRenderOverrideIndices;
-    lua["PushRenderDisableOverrideIndices"] = PushRenderDisableOverrideIndices; 
+    lua["DrawClear"] = DrawClear;
+    lua["DrawColor"] = DrawColor;
+    lua["DrawLineWidth"] = DrawLineWidth;
+    lua["DrawLine"] = DrawLine;
+    lua["DrawTriangle"] = DrawTriangle;
+    lua["DrawRectangle"] = DrawRectangle;
+    lua["DrawCircle"] = DrawCircle;
+    lua["DrawTextureParameters"] = DrawTextureParameters;
+    lua["DrawImage"] = DrawImage;
+    lua["DrawImageUV"] = DrawImageUV;
+    lua["DrawAtlasSprite"] = DrawAtlasSprite;
+    lua["DrawTransparent"] = DrawTransparent;
+    lua["DrawTransparentDisable"] = DrawTransparentDisable;
+    lua["DrawFont"] = DrawFont;
+    lua["DrawChar"] = DrawChar;
+    lua["DrawString"] = DrawString;
+    lua["DrawOverrideVertices"] = DrawOverrideVertices;
+    lua["DrawDisableOverrideVertices"] = DrawDisableOverrideVertices;
+    lua["DrawOverrideIndices"] = DrawOverrideIndices;
+    lua["DrawDisableOverrideIndices"] = DrawDisableOverrideIndices; 
 
     lua["ScreenToViewport"] = ScreenToViewport;
     
@@ -206,76 +205,76 @@ void ScriptingInitBindings()
     lua["CreateQuadPosUV"] = CreateQuadPosUV;
 
     // #NOTE (Juan): OpenGL
-    // lua.set("GL_ZERO", GL_ZERO);
-    // lua.set("GL_ONE", GL_ONE);
+    lua["GL_ZERO"] = GL_ZERO;
+    lua["GL_ONE"] = GL_ONE;
 
-    // lua.set("GL_FUNC_ADD", GL_FUNC_ADD);
-    // lua.set("GL_FUNC_SUBTRACT", GL_FUNC_SUBTRACT);
-    // lua.set("GL_FUNC_REVERSE_SUBTRACT", GL_FUNC_REVERSE_SUBTRACT);
-    // lua.set("GL_MIN", GL_MIN);
-    // lua.set("GL_MAX", GL_MAX);
+    lua["GL_FUNC_ADD"] = GL_FUNC_ADD;
+    lua["GL_FUNC_SUBTRACT"] = GL_FUNC_SUBTRACT;
+    lua["GL_FUNC_REVERSE_SUBTRACT"] = GL_FUNC_REVERSE_SUBTRACT;
+    lua["GL_MIN"] = GL_MIN;
+    lua["GL_MAX"] = GL_MAX;
 
-    // lua.set("GL_SRC_COLOR", GL_SRC_COLOR);
-    // lua.set("GL_ONE_MINUS_SRC_COLOR", GL_ONE_MINUS_SRC_COLOR);
-    // lua.set("GL_SRC_ALPHA", GL_SRC_ALPHA);
-    // lua.set("GL_ONE_MINUS_SRC_ALPHA", GL_ONE_MINUS_SRC_ALPHA);
-    // lua.set("GL_DST_ALPHA", GL_DST_ALPHA);
-    // lua.set("GL_ONE_MINUS_DST_ALPHA", GL_ONE_MINUS_DST_ALPHA);
-    // lua.set("GL_DST_COLOR", GL_DST_COLOR);
-    // lua.set("GL_ONE_MINUS_DST_COLOR", GL_ONE_MINUS_DST_COLOR);
+    lua["GL_SRC_COLOR"] = GL_SRC_COLOR;
+    lua["GL_ONE_MINUS_SRC_COLOR"] = GL_ONE_MINUS_SRC_COLOR;
+    lua["GL_SRC_ALPHA"] = GL_SRC_ALPHA;
+    lua["GL_ONE_MINUS_SRC_ALPHA"] = GL_ONE_MINUS_SRC_ALPHA;
+    lua["GL_DST_ALPHA"] = GL_DST_ALPHA;
+    lua["GL_ONE_MINUS_DST_ALPHA"] = GL_ONE_MINUS_DST_ALPHA;
+    lua["GL_DST_COLOR"] = GL_DST_COLOR;
+    lua["GL_ONE_MINUS_DST_COLOR"] = GL_ONE_MINUS_DST_COLOR;
 
-    // lua.set("GL_CONSTANT_COLOR", GL_CONSTANT_COLOR);
-    // lua.set("GL_ONE_MINUS_CONSTANT_COLOR", GL_ONE_MINUS_CONSTANT_COLOR);
-    // lua.set("GL_CONSTANT_ALPHA", GL_CONSTANT_ALPHA);
-    // lua.set("GL_ONE_MINUS_CONSTANT_ALPHA", GL_ONE_MINUS_CONSTANT_ALPHA);
-    // lua.set("GL_SRC_ALPHA_SATURATE", GL_SRC_ALPHA_SATURATE);
+    lua["GL_CONSTANT_COLOR"] = GL_CONSTANT_COLOR;
+    lua["GL_ONE_MINUS_CONSTANT_COLOR"] = GL_ONE_MINUS_CONSTANT_COLOR;
+    lua["GL_CONSTANT_ALPHA"] = GL_CONSTANT_ALPHA;
+    lua["GL_ONE_MINUS_CONSTANT_ALPHA"] = GL_ONE_MINUS_CONSTANT_ALPHA;
+    lua["GL_SRC_ALPHA_SATURATE"] = GL_SRC_ALPHA_SATURATE;
     
-    // lua.set("GL_SRC1_COLOR", GL_SRC1_COLOR);
-    // lua.set("GL_ONE_MINUS_SRC1_COLOR", GL_ONE_MINUS_SRC1_COLOR);
-    // lua.set("GL_SRC1_ALPHA", GL_SRC1_ALPHA);
-    // lua.set("GL_ONE_MINUS_SRC1_ALPHA", GL_ONE_MINUS_SRC1_ALPHA);
+    lua["GL_SRC1_COLOR"] = GL_SRC1_COLOR;
+    lua["GL_ONE_MINUS_SRC1_COLOR"] = GL_ONE_MINUS_SRC1_COLOR;
+    lua["GL_SRC1_ALPHA"] = GL_SRC1_ALPHA;
+    lua["GL_ONE_MINUS_SRC1_ALPHA"] = GL_ONE_MINUS_SRC1_ALPHA;
     
-    // lua.set("GL_TEXTURE_1D", GL_TEXTURE_1D);
-    // lua.set("GL_TEXTURE_1D_ARRAY", GL_TEXTURE_1D_ARRAY);
-    // lua.set("GL_TEXTURE_2D", GL_TEXTURE_2D);
-    // lua.set("GL_TEXTURE_2D_ARRAY", GL_TEXTURE_2D_ARRAY);
-    // lua.set("GL_TEXTURE_2D_MULTISAMPLE", GL_TEXTURE_2D_MULTISAMPLE);
-    // lua.set("GL_TEXTURE_2D_MULTISAMPLE_ARRAY", GL_TEXTURE_2D_MULTISAMPLE_ARRAY);
-    // lua.set("GL_TEXTURE_3D", GL_TEXTURE_3D);
-    // lua.set("GL_TEXTURE_CUBE_MAP", GL_TEXTURE_CUBE_MAP);
-    // lua.set("GL_TEXTURE_CUBE_MAP_ARRAY", GL_TEXTURE_CUBE_MAP_ARRAY);
-    // lua.set("GL_TEXTURE_RECTANGLE", GL_TEXTURE_RECTANGLE);
+    lua["GL_TEXTURE_1D"] = GL_TEXTURE_1D;
+    lua["GL_TEXTURE_1D_ARRAY"] = GL_TEXTURE_1D_ARRAY;
+    lua["GL_TEXTURE_2D"] = GL_TEXTURE_2D;
+    lua["GL_TEXTURE_2D_ARRAY"] = GL_TEXTURE_2D_ARRAY;
+    lua["GL_TEXTURE_2D_MULTISAMPLE"] = GL_TEXTURE_2D_MULTISAMPLE;
+    lua["GL_TEXTURE_2D_MULTISAMPLE_ARRAY"] = GL_TEXTURE_2D_MULTISAMPLE_ARRAY;
+    lua["GL_TEXTURE_3D"] = GL_TEXTURE_3D;
+    lua["GL_TEXTURE_CUBE_MAP"] = GL_TEXTURE_CUBE_MAP;
+    lua["GL_TEXTURE_CUBE_MAP_ARRAY"] = GL_TEXTURE_CUBE_MAP_ARRAY;
+    lua["GL_TEXTURE_RECTANGLE"] = GL_TEXTURE_RECTANGLE;
 
-    // lua.set("GL_TEXTURE_WRAP_S", GL_TEXTURE_WRAP_S);
-    // lua.set("GL_TEXTURE_WRAP_T", GL_TEXTURE_WRAP_T);
-    // lua.set("GL_TEXTURE_WRAP_R", GL_TEXTURE_WRAP_R);
-    // lua.set("GL_CLAMP_TO_EDGE", GL_CLAMP_TO_EDGE);
-    // lua.set("GL_CLAMP_TO_BORDER", GL_CLAMP_TO_BORDER);
-    // lua.set("GL_MIRRORED_REPEAT", GL_MIRRORED_REPEAT);
-    // lua.set("GL_REPEAT", GL_REPEAT);
-    // lua.set("GL_MIRROR_CLAMP_TO_EDGE", GL_MIRROR_CLAMP_TO_EDGE);
+    lua["GL_TEXTURE_WRAP_S"] = GL_TEXTURE_WRAP_S;
+    lua["GL_TEXTURE_WRAP_T"] = GL_TEXTURE_WRAP_T;
+    lua["GL_TEXTURE_WRAP_R"] = GL_TEXTURE_WRAP_R;
+    lua["GL_CLAMP_TO_EDGE"] = GL_CLAMP_TO_EDGE;
+    lua["GL_CLAMP_TO_BORDER"] = GL_CLAMP_TO_BORDER;
+    lua["GL_MIRRORED_REPEAT"] = GL_MIRRORED_REPEAT;
+    lua["GL_REPEAT"] = GL_REPEAT;
+    lua["GL_MIRROR_CLAMP_TO_EDGE"] = GL_MIRROR_CLAMP_TO_EDGE;
     
-    // lua.set("GL_TEXTURE_MIN_FILTER", GL_TEXTURE_MIN_FILTER);
-    // lua.set("GL_TEXTURE_MAG_FILTER", GL_TEXTURE_MAG_FILTER);
-    // lua.set("GL_NEAREST", GL_NEAREST);
-    // lua.set("GL_LINEAR", GL_LINEAR);
-    // lua.set("GL_NEAREST_MIPMAP_NEAREST", GL_NEAREST_MIPMAP_NEAREST);
-    // lua.set("GL_LINEAR_MIPMAP_NEAREST", GL_LINEAR_MIPMAP_NEAREST);
-    // lua.set("GL_NEAREST_MIPMAP_LINEAR", GL_NEAREST_MIPMAP_LINEAR);
-    // lua.set("GL_LINEAR_MIPMAP_LINEAR", GL_LINEAR_MIPMAP_LINEAR);
+    lua["GL_TEXTURE_MIN_FILTER"] = GL_TEXTURE_MIN_FILTER;
+    lua["GL_TEXTURE_MAG_FILTER"] = GL_TEXTURE_MAG_FILTER;
+    lua["GL_NEAREST"] = GL_NEAREST;
+    lua["GL_LINEAR"] = GL_LINEAR;
+    lua["GL_NEAREST_MIPMAP_NEAREST"] = GL_NEAREST_MIPMAP_NEAREST;
+    lua["GL_LINEAR_MIPMAP_NEAREST"] = GL_LINEAR_MIPMAP_NEAREST;
+    lua["GL_NEAREST_MIPMAP_LINEAR"] = GL_NEAREST_MIPMAP_LINEAR;
+    lua["GL_LINEAR_MIPMAP_LINEAR"] = GL_LINEAR_MIPMAP_LINEAR;
 
-    // lua.set("GL_DEPTH_STENCIL_TEXTURE_MODE", GL_DEPTH_STENCIL_TEXTURE_MODE);
-    // lua.set("GL_TEXTURE_BASE_LEVEL", GL_TEXTURE_BASE_LEVEL);
-    // lua.set("GL_TEXTURE_COMPARE_FUNC", GL_TEXTURE_COMPARE_FUNC);
-    // lua.set("GL_TEXTURE_COMPARE_MODE", GL_TEXTURE_COMPARE_MODE);
-    // lua.set("GL_TEXTURE_LOD_BIAS", GL_TEXTURE_LOD_BIAS);
-    // lua.set("GL_TEXTURE_MIN_LOD", GL_TEXTURE_MIN_LOD);
-    // lua.set("GL_TEXTURE_MAX_LOD", GL_TEXTURE_MAX_LOD);
-    // lua.set("GL_TEXTURE_MAX_LEVEL", GL_TEXTURE_MAX_LEVEL);
-    // lua.set("GL_TEXTURE_SWIZZLE_R", GL_TEXTURE_SWIZZLE_R);
-    // lua.set("GL_TEXTURE_SWIZZLE_G", GL_TEXTURE_SWIZZLE_G);
-    // lua.set("GL_TEXTURE_SWIZZLE_B", GL_TEXTURE_SWIZZLE_B);
-    // lua.set("GL_TEXTURE_SWIZZLE_A", GL_TEXTURE_SWIZZLE_A);
+    lua["GL_DEPTH_STENCIL_TEXTURE_MODE"] = GL_DEPTH_STENCIL_TEXTURE_MODE;
+    lua["GL_TEXTURE_BASE_LEVEL"] = GL_TEXTURE_BASE_LEVEL;
+    lua["GL_TEXTURE_COMPARE_FUNC"] = GL_TEXTURE_COMPARE_FUNC;
+    lua["GL_TEXTURE_COMPARE_MODE"] = GL_TEXTURE_COMPARE_MODE;
+    lua["GL_TEXTURE_LOD_BIAS"] = GL_TEXTURE_LOD_BIAS;
+    lua["GL_TEXTURE_MIN_LOD"] = GL_TEXTURE_MIN_LOD;
+    lua["GL_TEXTURE_MAX_LOD"] = GL_TEXTURE_MAX_LOD;
+    lua["GL_TEXTURE_MAX_LEVEL"] = GL_TEXTURE_MAX_LEVEL;
+    lua["GL_TEXTURE_SWIZZLE_R"] = GL_TEXTURE_SWIZZLE_R;
+    lua["GL_TEXTURE_SWIZZLE_G"] = GL_TEXTURE_SWIZZLE_G;
+    lua["GL_TEXTURE_SWIZZLE_B"] = GL_TEXTURE_SWIZZLE_B;
+    lua["GL_TEXTURE_SWIZZLE_A"] = GL_TEXTURE_SWIZZLE_A;
 
     // #NOTE (Juan): Sound
     lua["SoundLoad"] = SoundLoad;
@@ -311,7 +310,7 @@ extern m44 M44(
     f32 _30, f32 _31, f32 _32, f32 _33);
 extern m44 IdM44();
 
-extern transform2D Transform2D(v2 position, v2 scale);
+extern transform2D Transform2D(f32 posX, f32 posY, f32 scaleX, f32 scaleY);
 
 extern f32 Length(v2 a);
 
@@ -361,24 +360,24 @@ void ScriptingMathBindings()
     transform2D_usertype["scale"] = &transform2D::scale;
 
     // #NOTE (Juan): GameMath
-    lua.set_function("V2", V2);
-    lua.set_function("V3", V3);
-    lua.set_function("V4", V4);
+    lua["V2"] = V2;
+    lua["V3"] = V3;
+    lua["V4"] = V4;
 
-    lua.set_function("Rectangle2", Rectangle2);
+    lua["Rectangle2"] = Rectangle2;
     
-    lua.set_function("M22", M22);
-    lua.set_function("IdM22", IdM22);
-    lua.set_function("M33", M33);
-    lua.set_function("IdM33", IdM33);
-    lua.set_function("M44", M44);
-    lua.set_function("IdM44", IdM44);
+    lua["M22"] = M22;
+    lua["IdM22"] = IdM22;
+    lua["M33"] = M33;
+    lua["IdM33"] = IdM33;
+    lua["M44"] = M44;
+    lua["IdM44"] = IdM44;
 
-    lua.set_function("Transform2D", Transform2D);
+    lua["Transform2D"] = Transform2D;
 
-    // lua.set_function("LengthV2", sol::resolve<f32(v2)>(Length));
-    // lua.set_function("NormalizeV2", sol::resolve<v2(v2)>(Normalize));
-    // lua.set_function("LengthSqV2", sol::resolve<f32(v2)>(LengthSq));
+    // lua["LengthV2"] = sol::resolve<f32(v2)>(Length);
+    // lua["NormalizeV2"] = sol::resolve<v2(v2)>(Normalize);
+    // lua["LengthSqV2"] = sol::resolve<f32(v2)>(LengthSq);
 
     // #NOTE (Juan): Math custom functionality
     // lua["math"]["sign"] = Sign;

@@ -21,9 +21,9 @@ u32 renderBuffer;
 u32 depthrenderbuffer;
 RenderState renderState;
 
-void *gameMemory;
 Data *gameState;
 PermanentData *permanentState;
+SceneData *sceneState;
 TemporalData *temporalState;
 TemporaryMemory renderTemporaryMemory;
 

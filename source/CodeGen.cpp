@@ -137,7 +137,7 @@ static EntryType GetEntryType(filesystem::directory_entry* entry, DataEntry* def
     }
 }
 
-int main()
+i32 main()
 {
     i32 stringMemorySize = Megabytes(64);
     i32 dataMemorySize = Megabytes(64);
@@ -153,7 +153,7 @@ int main()
     char workingDirectory[512];
     _getcwd(workingDirectory, 512);
 
-    int workingDirectorySize = strlen(workingDirectory);
+    i32 workingDirectorySize = strlen(workingDirectory);
 
     char* filePath = PushString(&stringArena, __FILE__);
     // #NOTE (Juan): Get file end string cpp and cut it by setting a zero end in the start of it.
@@ -215,7 +215,7 @@ int main()
         entryQueue.pop();
     }
 
-    for(int i = 0; i < dataCount; ++i) {
+    for(i32 i = 0; i < dataCount; ++i) {
         DataEntry *definition = rootDefinitions + i;
         cout << "Found: " << definition->fullPath <<
             " | Filename: " << definition->name <<
