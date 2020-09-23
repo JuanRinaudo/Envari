@@ -163,10 +163,8 @@ i32 CALLBACK WinMain(
     coloredProgram = GL_CompileProgram("shaders/glcore/colored.vert", "shaders/glcore/colored.frag");
     texturedProgram = GL_CompileProgram("shaders/glcore/textured.vert", "shaders/glcore/textured.frag");
 
-    // #NOTE (Juan): Framebuffer
-    glGenFramebuffers(1, &frameBuffer);
-    glGenTextures(1, &renderBuffer);
-    glGenRenderbuffers(1, &depthrenderbuffer);
+    // #NOTE (Juan): Create framebuffer
+    GL_InitFramebuffer(bufferSize.x, bufferSize.y);
 
     glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer);
 

@@ -249,28 +249,29 @@ static FontAtlas GL_LoadFont(const char *filename, f32 fontSize, u32 width, u32 
 }
 
 f32 quadVertices[20];
-static f32* CreateQuadPosUV(v2 posStart, v2 posEnd, v2 uvBegin, v2 uvEnd)
+f32* CreateQuadPosUV(f32 posStartX, f32 posStartY, f32 posEndX, f32 posEndY,
+    f32 uvStartX, f32 uvStartY, f32 uvEndX, f32 uvEndY)
 {
-    quadVertices[0] = posStart.x;
-    quadVertices[1] = posStart.y;
+    quadVertices[0] = posStartX;
+    quadVertices[1] = posStartY;
     quadVertices[2] = 0.0f;
-    quadVertices[3] = uvBegin.x;
-    quadVertices[4] = uvBegin.y;
-    quadVertices[5] = posEnd.x;
-    quadVertices[6] = posStart.y;
+    quadVertices[3] = uvStartX;
+    quadVertices[4] = uvStartY;
+    quadVertices[5] = posEndX;
+    quadVertices[6] = posStartY;
     quadVertices[7] = 0.0f;
-    quadVertices[8] = uvEnd.x;
-    quadVertices[9] = uvBegin.y;
-    quadVertices[10] = posStart.x;
-    quadVertices[11] = posEnd.y;
+    quadVertices[8] = uvEndX;
+    quadVertices[9] = uvStartY;
+    quadVertices[10] = posStartX;
+    quadVertices[11] = posEndY;
     quadVertices[12] = 0.0f;
-    quadVertices[13] = uvBegin.x;
-    quadVertices[14] = uvEnd.y;
-    quadVertices[15] = posEnd.x;
-    quadVertices[16] = posEnd.y;
+    quadVertices[13] = uvStartX;
+    quadVertices[14] = uvEndY;
+    quadVertices[15] = posEndX;
+    quadVertices[16] = posEndY;
     quadVertices[17] = 0.0f;
-    quadVertices[18] = uvEnd.x;
-    quadVertices[19] = uvEnd.y;
+    quadVertices[18] = uvEndX;
+    quadVertices[19] = uvEndY;
     return quadVertices;
 }
 
@@ -289,7 +290,7 @@ static void GL_Init()
     glGenBuffers(1, &overrideBuffer.vertexBuffer);
     glGenBuffers(1, &overrideBuffer.indexBuffer);
 
-    f32* vertices = CreateQuadPosUV(V2(0, 0), V2(1, 1), V2(0, 0), V2(1, 1));
+    f32* vertices = CreateQuadPosUV(0, 0, 1, 1, 0, 0, 1, 1);
     glBindVertexArray(quadBuffer.vertexArray);
     glBindBuffer(GL_ARRAY_BUFFER, quadBuffer.vertexBuffer);
     glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), quadVertices, GL_STATIC_DRAW);
@@ -307,6 +308,27 @@ static void GL_Init()
     else if(GL_CheckVendor(GL_STRING_VENDOR_ATI)) {
         currentVendor = GL_VENDOR_ATI;
     }
+}
+
+static void GL_InitFramebuffer(f32 bufferWidth, f32 bufferHeight)
+{
+    glGenFramebuffers(1, &frameBuffer);
+    glGenTextures(1, &renderBuffer);
+    glGenRenderbuffers(1, &depthrenderbuffer);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer);
+
+    glBindTexture(GL_TEXTURE_2D, renderBuffer);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, (i32)bufferWidth, (i32)bufferHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, renderBuffer, 0);
+
+    glBindRenderbuffer(GL_RENDERBUFFER, depthrenderbuffer);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, (i32)bufferWidth, (i32)bufferHeight);
+    glFramebufferRenderbuffer(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depthrenderbuffer);
+
+    glDrawBuffers(1, DrawBuffers);
 }
 
 static i32 GL_CompileProgram(const char *vertexShaderSource, const char *fragmentShaderSource)
@@ -572,7 +594,7 @@ static void SetupTextureParameters(u32 textureTarget)
     glTexParameteri(textureTarget, GL_TEXTURE_MAG_FILTER, renderState.magFilter);
 }
 
-static void BindBuffer(GLRenderBuffer buffer)
+static void BindBuffer()
 {
     if(renderState.overridingVertices || renderState.overridingIndices) {
         glBindVertexArray(overrideBuffer.vertexArray);
@@ -769,7 +791,7 @@ static void GL_Render()
                 glBindTexture(GL_TEXTURE_2D, texture->textureID);
                 SetupTextureParameters(GL_TEXTURE_2D);
 
-                BindBuffer(quadBuffer);
+                BindBuffer();
 
                 glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)0);
                 glEnableVertexAttribArray(0);
@@ -822,7 +844,7 @@ static void GL_Render()
                 model *= TranslationM44(image->position);
                 SetupBaseUniforms(texturedProgram, renderState.renderColor, model, view, projection);
 
-                BindBuffer(quadBuffer);
+                BindBuffer();
 
                 glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)0);
                 glEnableVertexAttribArray(0);
@@ -850,7 +872,7 @@ static void GL_Render()
                 model *= TranslationM44(imageUV->position);
                 SetupBaseUniforms(coloredProgram, renderState.renderColor, model, view, projection);
 
-                BindBuffer(quadBuffer);
+                BindBuffer();
 
                 glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)0);
                 glEnableVertexAttribArray(0);
@@ -882,10 +904,8 @@ static void GL_Render()
                 model *= TranslationM44(atlas->position);
                 SetupBaseUniforms(coloredProgram, renderState.renderColor, model, view, projection);
 
-                v2 spriteUVStart = V2(uvRect.min.x / texture.width, uvRect.min.y / texture.height);
-                v2 spriteUVEnd = V2(uvRect.max.x / texture.width, uvRect.max.y / texture.height);
-
-                CreateQuadPosUV(V2(0, 0), V2(1, 1), spriteUVStart, spriteUVEnd);
+                CreateQuadPosUV(0, 0, 1, 1,
+                    uvRect.min.x / texture.width, uvRect.min.y / texture.height, uvRect.max.x / texture.width, uvRect.max.y / texture.height);
 
                 glBindVertexArray(customBuffer.vertexArray);
 
@@ -942,11 +962,20 @@ static void GL_Render()
 
                 renderChar->position.x += (f32)charData->xoff / (f32)currentFont.width;
 
-                model *= ScaleM44(renderChar->scale);
+                // model *= ScaleM44(renderChar->scale);
+                model *= ScaleM44(V2(currentFont.fontSize, currentFont.fontSize));
                 model *= TranslationM44(renderChar->position);
                 SetupBaseUniforms(coloredProgram, renderState.renderColor, model, view, projection);
 
-                BindBuffer(quadBuffer);
+                CreateQuadPosUV(0, 0, 1, 1, charRect.min.x, charRect.min.y, charRect.max.x, charRect.max.y);
+
+                glBindVertexArray(customBuffer.vertexArray);
+
+                glBindBuffer(GL_ARRAY_BUFFER, customBuffer.vertexBuffer);
+                glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), quadVertices, GL_STATIC_DRAW);
+
+                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, customBuffer.indexBuffer);
+                glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(quadIndices), quadIndices, GL_STATIC_DRAW); 
 
                 glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)0);
                 glEnableVertexAttribArray(0);
@@ -1000,7 +1029,7 @@ static void GL_Render()
 
                         offset.x += charData->xadvance / currentFont.width;
 
-                        BindBuffer(quadBuffer);
+                        BindBuffer();
 
                         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)0);
                         glEnableVertexAttribArray(0);
