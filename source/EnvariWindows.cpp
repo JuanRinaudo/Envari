@@ -1,58 +1,36 @@
+#define GAME_SLOW
+#define GAME_INTERNAL
+#define LUA_SCRIPTING_ENABLED
+
 #include <windows.h>
 #include <chrono>
 #include <thread>
 
-#define SOURCE_TYPE const char* const
+#include <string>
+
+#include "CodeGen/FileMap.h"
+#include "CodeGen/WindowsConfigMap.h"
+
+#define SOURCE_TYPE const char* const 
 
 #include "GL3W/gl3w.c"
-#include <GLFW/glfw3.h>
+#include <SDL.h>
 
-#define KEY_COUNT GLFW_KEY_LAST
-#define MOUSE_COUNT GLFW_MOUSE_BUTTON_LAST
+#include "IMGUI/imgui.cpp"
 
-#include "Defines.h"
-#include "GameMath.h"
-#include "Intrinsics.h"
 #include "Game.h"
-#include "GLRender.h"
 
-#include "IMGUI/imgui.h"
-#include "IMGUI/imgui_impl_glfw.h"
+#include "IMGUI/imgui_draw.cpp"
+#include "IMGUI/imgui_widgets.cpp"
+
+#include "IMGUI/imgui_impl_sdl.h"
 #include "IMGUI/imgui_impl_opengl3.h"
+#include "IMGUI/imgui_impl_sdl.cpp"
+#include "IMGUI/imgui_impl_opengl3.cpp"
 
-GLFWwindow* Window;
-
-static void WindowResizeCallback(GLFWwindow* targetWindow, i32 width, i32 height)
-{
-    gameState->screen.width = width;
-    gameState->screen.height = height;
-    
-	lua["screen"]["width"] = (gameState->screen).width;
-	lua["screen"]["height"] = (gameState->screen).height;
-	lua["screen"]["refreshRate"] = (gameState->screen).refreshRate;
-}
-
-static void KeyCallback(GLFWwindow* window, i32 key, i32 scancode, i32 action, i32 mods)
-{
-    if(action == GLFW_RELEASE || action == GLFW_PRESS) {
-        gameState->input.keyState[key] = action == GLFW_RELEASE ? KEY_RELEASED : KEY_PRESSED;
-    }
-}
-
-static void MousePositionCallback(GLFWwindow* window, double xpos, double ypos)
-{
-    gameState->input.mouseScreenPosition.x = (f32)xpos;
-    gameState->input.mouseScreenPosition.y = (f32)ypos;
-
-    gameState->input.mousePosition = ScreenToViewport(gameState->input.mouseScreenPosition, gameState->camera.size, gameState->camera.ratio);
-}
-    
-static void MouseButtonCallback(GLFWwindow* window, i32 key, i32 action, i32 mods)
-{    
-    if(action == GLFW_RELEASE || action == GLFW_PRESS) {
-        gameState->input.mouseState[key] = action == GLFW_RELEASE ? KEY_RELEASED : KEY_PRESSED;
-    }
-}
+SDL_Window* sdlWindow;
+SDL_DisplayMode displayMode;
+SDL_GLContext glContext;
 
 static void CheckInput() {
     for(i32 key = 0; key < KEY_COUNT; ++key) {
@@ -66,7 +44,7 @@ static void CheckInput() {
         if(mouseState == KEY_PRESSED) { gameState->input.mouseState[key] = KEY_DOWN; }
         else if(mouseState == KEY_RELEASED) { gameState->input.mouseState[key] = KEY_UP; }
     }
-} 
+}
 
 i32 CALLBACK WinMain(
     HINSTANCE Instance,
@@ -74,40 +52,44 @@ i32 CALLBACK WinMain(
     LPSTR CommandLine,
     i32 ShowCode)
 {
+    size_t permanentStorageSize = Megabytes(32);
+    void* permanentStorage = malloc(permanentStorageSize);
 
-    gameMemory = malloc(Megabytes(128));
-
-    gameState = (Data *)gameMemory;
-    gameState->memory.permanentStorageSize = Megabytes(32);
-    gameState->memory.temporalStorageSize = Megabytes(96);
-    gameState->memory.permanentStorage = gameMemory;
-    gameState->memory.temporalStorage = (u8 *)gameMemory + gameState->memory.permanentStorageSize;
+    gameState = (Data *)permanentStorage;
+    gameState->memory.permanentStorageSize = permanentStorageSize;
+    gameState->memory.permanentStorage = permanentStorage;
+    gameState->memory.sceneStorageSize = Megabytes(32);
+    gameState->memory.sceneStorage = malloc(gameState->memory.sceneStorageSize);
+    gameState->memory.temporalStorageSize = Megabytes(64);
+    gameState->memory.temporalStorage = malloc(gameState->memory.temporalStorageSize);
 
     permanentState = (PermanentData *)gameState->memory.permanentStorage + sizeof(Data);
+    sceneState = (SceneData *)gameState->memory.sceneStorage;
     temporalState = (TemporalData *)gameState->memory.temporalStorage;
 
     InitializeArena(&permanentState->arena, (memoryIndex)(gameState->memory.permanentStorageSize - sizeof(PermanentData) - sizeof(Data)), (u8 *)gameState->memory.permanentStorage + sizeof(PermanentData) + sizeof(Data));
+    InitializeArena(&sceneState->arena, (memoryIndex)(gameState->memory.sceneStorageSize - sizeof(SceneData)), (u8 *)gameState->memory.sceneStorage + sizeof(SceneData));
     InitializeArena(&temporalState->arena, (memoryIndex)(gameState->memory.temporalStorageSize - sizeof(TemporalData)), (u8 *)gameState->memory.temporalStorage + sizeof(TemporalData));
 
-    ParseDataTable(&initialConfig, "data/windowsConfig.envt");
+    ParseDataTable(&initialConfig, DATA_WINDOWSCONFIG_ENVT);
 
-    if (!glfwInit()) {
+    // #TODO (Juan): Check this SDL_INIT_EVERYTHING, check what really needs to be init
+    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         return -1;
     }
 
-    GLFWmonitor* mainMonitor = glfwGetPrimaryMonitor();
-    const GLFWvidmode* videoMode = glfwGetVideoMode( mainMonitor );
-    v2 windowSize = TableGetV2(&initialConfig, "windowSize");
+    SDL_GetCurrentDisplayMode(0, &displayMode);
+    v2 windowSize = TableGetV2(&initialConfig, WINDOWSCONFIG_WINDOWSIZE);
     if(windowSize.x <= 1 && windowSize.y <= 1) {
-        gameState->screen.width = FloorToInt(videoMode->width * windowSize.x);
-        gameState->screen.height = FloorToInt(videoMode->height * windowSize.y);
+        gameState->screen.width = FloorToInt(displayMode.w * windowSize.x);
+        gameState->screen.height = FloorToInt(displayMode.h * windowSize.y);
     }
     else {
         gameState->screen.width = FloorToInt(windowSize.x);
         gameState->screen.height = FloorToInt(windowSize.y);
     }
 
-    v2 bufferSize = TableGetV2(&initialConfig, "bufferSize");
+    v2 bufferSize = TableGetV2(&initialConfig, WINDOWSCONFIG_BUFFERSIZE);
     if(windowSize.x <= 1 && windowSize.y <= 1) {
         gameState->screen.bufferWidth = FloorToInt(gameState->screen.width * bufferSize.x);
         gameState->screen.bufferHeight = FloorToInt(gameState->screen.height * bufferSize.y);
@@ -117,83 +99,65 @@ i32 CALLBACK WinMain(
         gameState->screen.bufferHeight = FloorToInt(bufferSize.y);
     }
 
-    gameState->screen.refreshRate = videoMode->refreshRate;
+    gameState->screen.refreshRate = displayMode.refresh_rate;
 
-    char* windowTitle = TableGetString(&initialConfig, "windowTitle");
-    Window = glfwCreateWindow(gameState->screen.width, gameState->screen.height, windowTitle, NULL, NULL);
-    glfwSetWindowSizeCallback(Window, WindowResizeCallback);
+    char* windowTitle = TableGetString(&initialConfig, WINDOWSCONFIG_WINDOWTITLE);
+    sdlWindow = SDL_CreateWindow(windowTitle, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, gameState->screen.width, gameState->screen.height, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
 
-    if (!Window) {
-        glfwTerminate();
+    if (!sdlWindow) {
         return -1;
     }
 
-    glfwMakeContextCurrent(Window);
+    glContext = SDL_GL_CreateContext(sdlWindow);
 
 	if (gl3wInit()) {
 		return -1;
 	}
 
-    i32 fpsLimit = TableGetInt(&initialConfig, "fpsLimit");
+    i32 fpsLimit = TableGetInt(&initialConfig, WINDOWSCONFIG_FPSLIMIT);
     i32 fpsDelta = 1000 / fpsLimit;
-    i32 vsync = TableGetInt(&initialConfig, "vsync");
-    glfwSwapInterval(vsync);
+    i32 vsync = TableGetInt(&initialConfig, WINDOWSCONFIG_VSYNC);
+    SDL_GL_SetSwapInterval(vsync);
 
     const char* glsl_version = 0;
-
-    // Input
-    glfwSetKeyCallback(Window, KeyCallback);
-    glfwSetCursorPosCallback(Window, MousePositionCallback);
-    glfwSetMouseButtonCallback(Window, MouseButtonCallback);
     
-    // NOTE(Juan): Dear IMGUI
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
     ImGui::StyleColorsDark();
-    ImGui_ImplGlfw_InitForOpenGL(Window, true);
+    ImGui_ImplSDL2_InitForOpenGL(sdlWindow, glContext);
     ImGui_ImplOpenGL3_Init(glsl_version);
 
-    char *scriptsPath = "scripts/";
-    ScriptingInit(scriptsPath);
+#ifdef LUA_SCRIPTING_ENABLED
+    ScriptingInit();
+#endif
 
     GameInit();
 
     GL_Init();
-    coloredProgram = GL_CompileProgram("shaders/glcore/colored.vert", "shaders/glcore/colored.frag");
-    texturedProgram = GL_CompileProgram("shaders/glcore/textured.vert", "shaders/glcore/textured.frag");
+    coloredProgram = GL_CompileProgram(SHADERS_GLCORE_COLORED_VERT, SHADERS_GLCORE_COLORED_FRAG);
+    texturedProgram = GL_CompileProgram(SHADERS_GLCORE_TEXTURED_VERT, SHADERS_GLCORE_TEXTURED_FRAG);
 
     // #NOTE (Juan): Create framebuffer
-    GL_InitFramebuffer(bufferSize.x, bufferSize.y);
-
-    glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer);
-
-    glBindTexture(GL_TEXTURE_2D, renderBuffer);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, (i32)bufferSize.x, (i32)bufferSize.y, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, renderBuffer, 0);
-
-    glBindRenderbuffer(GL_RENDERBUFFER, depthrenderbuffer);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, (i32)bufferSize.x, (i32)bufferSize.y);
-    glFramebufferRenderbuffer(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depthrenderbuffer);
-
-    glDrawBuffers(1, DrawBuffers);
+    GL_InitFramebuffer(bufferSize);
 
     if(glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-        AddLog(&editorConsole, "ERROR::FRAMEBUFFER:: Framebuffer is not complete!");
+        Log(&editorConsole, "ERROR::FRAMEBUFFER:: Framebuffer is not complete!");
     }
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);  
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    SoundInit();
 
     Running = true;
-    auto start = std::chrono::steady_clock::now();
+    auto start = std::chrono::steady_clock::now(); // #NOTE (Juan): Start timer for fps limit
     while (Running)
     {
-        double gameTime = glfwGetTime();
+        f32 gameTime = SDL_GetTicks() / 1000.0f;
         gameState->time.gameTime = (f32)gameTime;
         gameState->time.deltaTime = (f32)(gameTime - gameState->time.lastFrameGameTime);
         gameState->time.frames++;
 
+        // #NOTE(Juan): Do a fps limit if enabled
         std::chrono::steady_clock::time_point end;
         if(fpsLimit > 0) {
             auto now = std::chrono::steady_clock::now();
@@ -206,71 +170,136 @@ i32 CALLBACK WinMain(
             }
         }
 
-        glfwPollEvents();
+        ImGuiIO imguiIO = ImGui::GetIO();
+        bool mouseEnabled = !imguiIO.WantCaptureMouse;
+        bool keyboardEnabled = !imguiIO.WantCaptureKeyboard;
+        
+        SDL_Event event;
+        while(SDL_PollEvent(&event)) {
+            ImGui_ImplSDL2_ProcessEvent(&event);
+            switch (event.type) {
+                case SDL_QUIT: {
+                    Running = false;
+                    break;
+                }
+                case SDL_WINDOWEVENT: // #NOTE (Juan): Window resize/orientation change
+                {
+                    if(event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)
+                    {
+                        gameState->screen.width = event.window.data1;
+                        gameState->screen.height = event.window.data2;
+                    }
+                    break;
+                }
+                case SDL_MOUSEBUTTONDOWN: {
+                    if(mouseEnabled) {
+                        gameState->input.mouseState[event.button.button] = KEY_PRESSED;
+                    }
+                    break;
+                }
+                case SDL_MOUSEBUTTONUP: {
+                    if(mouseEnabled) {
+                        gameState->input.mouseState[event.button.button] = KEY_RELEASED;
+                    }
+                    break;
+                }
+                case SDL_MOUSEMOTION: {
+                    if(mouseEnabled) {
+                        gameState->input.mouseScreenPosition.x = (f32)event.button.x;
+                        gameState->input.mouseScreenPosition.y = (f32)event.button.y;
+
+                        gameState->input.mousePosition = ScreenToViewport(gameState->input.mouseScreenPosition.x, gameState->input.mouseScreenPosition.y, gameState->camera.size, gameState->camera.ratio);
+                    }
+                    break;
+                }
+                case SDL_MOUSEWHEEL:
+                    if(mouseEnabled) {
+                        gameState->input.mouseWheel += event.wheel.y;
+                    }
+                    break;
+                case SDL_KEYDOWN: {
+                    if(keyboardEnabled) {
+                        gameState->input.keyState[event.key.keysym.scancode] = KEY_PRESSED;
+                    }
+                    break;
+                }
+                case SDL_KEYUP: {
+                    if(keyboardEnabled) {
+                        gameState->input.keyState[event.key.keysym.scancode] = KEY_RELEASED;
+                    }
+                    break;
+                }
+                default:
+                    break;
+            }
+        }
 
         gameState->time.lastFrameGameTime = gameState->time.gameTime;
 
-        Running = !glfwWindowShouldClose(Window);
-
         ImGui_ImplOpenGL3_NewFrame();
-        ImGui_ImplGlfw_NewFrame();
-
+        ImGui_ImplSDL2_NewFrame(sdlWindow);
         ImGui::NewFrame();
 
+#ifdef LUA_SCRIPTING_ENABLED
         ScriptingWatchChanges();
+#endif
 
-        GL_WatchChanges();
+        GL_WatchChanges();        
 
         Begin2D(frameBuffer, (u32)bufferSize.x, (u32)bufferSize.y);
 
-        ScriptingUpdate();
         GameLoop();
-
         GL_Render();
 
         End2D();
 
+        // #NOTE (Juan): Render framebuffer to actual screen buffer, save data and then restore it
         f32 tempSize = gameState->camera.size;
         f32 tempRatio = gameState->camera.ratio;
+        m44 tempView = gameState->camera.view;
         m44 tempProjection = gameState->camera.projection;
 
         gameState->camera.size = 1;
         gameState->camera.ratio = (f32)gameState->screen.width / (f32)gameState->screen.height;
+        gameState->camera.view = IdM44();
         gameState->camera.projection = OrtographicProjection(gameState->camera.size, gameState->camera.ratio, gameState->camera.nearPlane, gameState->camera.farPlane);
         Begin2D(0, (u32)gameState->screen.width, (u32)gameState->screen.height);
-        PushRenderOverrideVertices(0, 0);
-        PushRenderClear(0, 0, 0, 1);
-        PushRenderTextureParameters(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, GL_NEAREST, GL_NEAREST);
-        PushRenderTexture(V2(-gameState->camera.size, gameState->camera.size) * 0.5f, V2(gameState->camera.size, -gameState->camera.size), renderBuffer);
+        DrawOverrideVertices(0, 0);
+        DrawClear(0, 0, 0, 1);
+        DrawTextureParameters(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, GL_NEAREST, GL_NEAREST);
+        f32 sizeX = gameState->camera.size * tempRatio;
+        DrawTexture(-sizeX * 0.5f, gameState->camera.size * 0.5f, sizeX, -gameState->camera.size, renderBuffer);
         GL_Render();
         End2D();
 
         gameState->camera.size = tempSize;
         gameState->camera.ratio = tempRatio;
+        gameState->camera.view = tempView;
         gameState->camera.projection = tempProjection;
 
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+        
+        SDL_GL_SwapWindow(sdlWindow);
+
+        CheckInput();
 
         if(fpsLimit > 0) {
             std::this_thread::sleep_until(end);
         }
-        
-        glfwSwapBuffers(Window);
-
-        CheckInput();
     }
 
-    glfwTerminate();
-
     GLEnd();
+    
+    SDL_GL_DeleteContext(glContext);  
 
     ImGui_ImplOpenGL3_Shutdown();
-    ImGui_ImplGlfw_Shutdown();
+    ImGui_ImplSDL2_Shutdown();
     ImGui::DestroyContext();
 
     GameEnd();
 
-    return 0;
+    ma_device_uninit(&soundDevice);
 
+    return 0;
 }
