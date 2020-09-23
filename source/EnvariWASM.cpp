@@ -6,9 +6,7 @@
 
 #include "Defines.h"
 #include "GameMath.h"
-#include "Intrinsics.h"
 #include "Game.h"
-#include "GLRender.h"
 
 #include <GLFW/glfw3.h>
 
@@ -127,8 +125,7 @@ int main(int argc, char** argv)
     ImGui_ImplGlfw_InitForOpenGL(Window, true);
     ImGui_ImplOpenGL3_Init(glsl_version);
 
-    char *scriptsPath = (char *)"scripts/";
-    ScriptingInit(scriptsPath);
+    ScriptingInit();
     
     GameInit();
 

@@ -2,13 +2,19 @@
 
 cl>nul
 if "%errorlevel%" == "9009" (
-    call vsvars.bat x86
+    vsvars.bat x86
 ) || (
     echo CL found, starting build
 )
 
-set CommonCompilerFlags=-nologo -Gm- -GR- -EHa- -Oi /fp:fast -WX -W4 -wd4996 -wd4018 -wd4201 -wd4100 -wd4189 -wd4505 -wd4101 -wd4456 -DIMGUI_IMPL_OPENGL_LOADER_GL3W=1 -DGAME_SLOW=1 -DGAME_INTERNAL=1 -DGAME_WIN32=1 -DLUA_BUILD_AS_DLL=1 -Z7 -FC
-set CommonLinkerFlags=-incremental:no -opt:ref user32.lib gdi32.lib kernel32.lib shell32.lib winmm.lib opengl32.lib glfw3.lib glfw3dll.lib lua.lib
+set CommonCompilerFlags=-MD -EHsc -std:c++17 -nologo -Gm- -GR- -EHa- -Oi /fp:fast -WX -W4 -wd4996 -wd4018 -wd4201 -wd4100 -wd4189 -wd4505 -wd4101 -wd4456 -DIMGUI_IMPL_OPENGL_LOADER_GL3W=1 -DGAME_WIN32=1 -DLUA_BUILD_AS_DLL=1 -Z7 -FC
+set CommonLinkerFlags=-incremental:no -opt:ref user32.lib gdi32.lib kernel32.lib shell32.lib winmm.lib opengl32.lib SDL2.lib SDL2main.lib lua.lib
+
+pushd Envari
+pushd source
+for /f "delims=" %%i in ('"forfiles /m ScriptingBindings.cpp /c "cmd /c echo @ftime" "') do set ScriptingDate=%%i
+popd
+popd
 
 if not exist build mkdir build
 pushd build
@@ -16,19 +22,25 @@ if not exist windows mkdir windows
 pushd windows
 
 if not exist lua.dll copy ..\..\Envari\LUA\lib\x86\lua.dll lua.dll >NUL
-if not exist glfw3.dll copy ..\..\Envari\GLFW\x32\lib-vc2019\glfw3.dll glfw3.dll >NUL
+if not exist SDL2.dll copy ..\..\Envari\SDL2\lib\x86\SDL2.dll SDL2.dll >NUL
 
 del /F *.pdb >NUL 2>NUL
 
 @echo Start time %time%
-REM /d2cgsummary
-cl -MD %CommonCompilerFlags% ..\..\Envari\source\EnvariWindows.cpp -FmEnvari.map /EHsc /I ..\..\Envari\GLFW\include /I ..\..\Envari\LUA\include /std:c++17 /link /LIBPATH:"..\..\Envari\GLFW\x32\lib-vc2019" /LIBPATH:"..\..\Envari\LUA\lib\x86" %CommonLinkerFlags% /PDB:Envari_%random%.pdb
+REM -d2cgsummary
+REM -Bt REM Build Time
+REM -MP multiprocesor build
+REM %random% to get random number
+if not "%LastScriptingDate%"=="%ScriptingDate%" cl -c ..\..\Envari\source\ScriptingBindings.cpp -FmScriptingBindings.map %CommonCompilerFlags% -Bt -I ..\..\Envari\SDL2\include -I ..\..\Envari\LUA\include -DGAME_INTERNAL=1 -DLUA_SCRIPTING_ENABLED
+set LastScriptingDate=%ScriptingDate%
+
+cl ..\..\Envari\source\EnvariWindows.cpp ScriptingBindings.obj -FmEnvariWindows.map %CommonCompilerFlags% -Bt -I ..\..\Envari\SDL2\include -I ..\..\Envari\LUA\include -link %CommonLinkerFlags% -LIBPATH:"..\..\Envari\SDL2\lib\x86" -LIBPATH:"..\..\Envari\LUA\lib\x86" -PDB:EnvariWindows.pdb
 @echo End time %time%
 
 REM DLL SYSTEM WITH CODE RELOAD NOT WORKING RIGHT NOW
 REM Optimization Switches /O2
 REM echo WAITING FOR PDB > lock.tmp
-REM cl %CommonCompilerFlags% ..\..\Envari\Source\game.cpp -FmEnvari.map /LD /link /PDB:Envari_%random%.pdb /DLL -EXPORT:GameGetSoundSamples -EXPORT:GameUpdateAndRender
+REM cl %CommonCompilerFlags% ..\..\Envari\Source\game.cpp -FmEnvari.map -LD -link -PDB:Envari_%random%.pdb -DLL -EXPORT:GameGetSoundSamples -EXPORT:GameUpdateAndRender
 REM del lock.tmp
 
 popd

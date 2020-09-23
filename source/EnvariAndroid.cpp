@@ -5,7 +5,6 @@
 
 #include "Defines.h"
 #include "GameMath.h"
-#include "Intrinsics.h"
 #include "Game.h"
 
 #include <GLES3/gl3.h>
