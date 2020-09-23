@@ -179,6 +179,7 @@ void ScriptingInitBindings()
     lua["DrawRectangle"] = DrawRectangle;
     lua["DrawCircle"] = DrawCircle;
     lua["DrawTextureParameters"] = DrawTextureParameters;
+    lua["DrawTexture"] = DrawTexture;
     lua["DrawImage"] = DrawImage;
     lua["DrawImageUV"] = DrawImageUV;
     lua["DrawAtlasSprite"] = DrawAtlasSprite;

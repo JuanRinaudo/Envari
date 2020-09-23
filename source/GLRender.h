@@ -426,21 +426,17 @@ static void GL_WatchChanges()
     #endif
 }
 
-static stbtt_bakedchar *CalculateCharacterOffset(FontAtlas *Font, char Char, v2 *Offset, float LineHeight)
+static void CalculateCharacterOffset(FontAtlas *font, char singleChar, f32 *posX, f32 *posY)
 {
-    stbtt_bakedchar *bakedChar;
-    if(Char < SPECIAL_ASCII_CHAR_OFFSET) {
-        if(Char == 10) {
-            Offset->x = 0;
-            Offset->y += LineHeight;
+    if(singleChar < SPECIAL_ASCII_CHAR_OFFSET) {
+        switch(singleChar) {
+            case '\n': {
+                *posX = 0;
+                *posY = *posY + font->fontSize;
+                break;
+            }
         }
-        bakedChar = 0;
     }
-    else {
-        bakedChar = Font->charData + Char - SPECIAL_ASCII_CHAR_OFFSET;
-    }
-
-    return bakedChar;
 }
 
 // static void DrawStyledText(FontAtlas *font, const char* string, TextStyles* styleList, f32 x, f32 y, v4 color)
@@ -909,17 +905,8 @@ static void GL_Render()
                 size = sizeof(RenderFont) + font->filenameSize;
                 break;
             }
-            case type_RenderChar: {                
+            case type_RenderChar: {
                 RenderChar *renderChar = (RenderChar *)renderHeader;
-
-                v2 offset = V2(0, 0);
-                stbtt_bakedchar *charData = CalculateCharacterOffset(&currentFont, renderChar->singleChar, &offset, currentFont.fontSize);
-                
-                rectangle2 charRect = RectMinMax(V2(charData->x0, charData->y0), V2(charData->x1, charData->y1));
-                charRect.min.x /= currentFont.width;
-                charRect.min.y /= currentFont.height;
-                charRect.max.x /= currentFont.width;
-                charRect.max.y /= currentFont.height;
 
                 glUseProgram(texturedProgram);
 
@@ -927,24 +914,15 @@ static void GL_Render()
                 glBindTexture(GL_TEXTURE_2D, texture.textureID);
                 SetupTextureParameters(GL_TEXTURE_2D);
 
-                f32 charWidth = (charRect.max.x - charRect.min.x);
-                f32 charHeight = (charRect.max.y - charRect.min.y);
-                
-                f32 quadRatio = (f32)renderChar->scale.x / (f32)renderChar->scale.y;
-                f32 textureRatio = (f32)charWidth / (f32)charHeight;
-
-                f32 oldScaleX = renderChar->scale.x;
-                renderChar->scale.x *= textureRatio / quadRatio;
-                renderChar->position.x += (oldScaleX - renderChar->scale.x) * 0.5f;
-
-                renderChar->position.x += (f32)charData->xoff / (f32)currentFont.width;
-
-                // model *= ScaleM44(renderChar->scale);
-                model *= ScaleM44(V2(currentFont.fontSize, currentFont.fontSize));
+                model *= ScaleM44(renderChar->scale);
                 model *= TranslationM44(renderChar->position);
                 SetupBaseUniforms(coloredProgram, renderState.renderColor, model, view, projection);
 
-                CreateQuadPosUV(0, 0, 1, 1, charRect.min.x, charRect.min.y, charRect.max.x, charRect.max.y);
+                f32 posX = 0;
+                f32 posY = currentFont.fontSize;
+                stbtt_aligned_quad quad;
+                stbtt_GetBakedQuad(currentFont.charData, currentFont.width, currentFont.height, renderChar->singleChar - SPECIAL_ASCII_CHAR_OFFSET, &posX, &posY, &quad, 1);
+                CreateQuadPosUV(quad.x0, quad.y0, quad.x1, quad.y1, quad.s0, quad.t0, quad.s1, quad.t1);
 
                 glBindVertexArray(customBuffer.vertexArray);
 
@@ -977,44 +955,41 @@ static void GL_Render()
                 glBindTexture(GL_TEXTURE_2D, texture.textureID);
                 SetupTextureParameters(GL_TEXTURE_2D);
 
-                v2 offset = V2(0, 0);
-
                 v2 textSize = text->scale;
                 v2 textPosition = text->position;
                 v2 fontDividers = V2(currentFont.fontSize / currentFont.width, currentFont.fontSize / currentFont.height);
 
+                f32 posX = 0;
+                f32 posY = currentFont.fontSize;
+                stbtt_aligned_quad quad;
+
                 for(i32 i = 0; i < text->stringSize - 1; ++i) {
                     char currentChar = text->string[i];
-
-                    stbtt_bakedchar *charData = CalculateCharacterOffset(&currentFont, currentChar, &offset, text->scale.y * 2.0f);
                     
-                    if(charData != 0) {
-                        rectangle2 charRect = RectMinMax(V2(charData->x0, charData->y0), V2(charData->x1, charData->y1));
-                        charRect.min.x /= currentFont.width;
-                        charRect.min.y /= currentFont.height;
-                        charRect.max.x /= currentFont.width;
-                        charRect.max.y /= currentFont.height;
+                    glUseProgram(texturedProgram);
 
-                        f32 charWidth = (charRect.max.x - charRect.min.x);
-                        f32 charHeight = (charRect.max.y - charRect.min.y);
+                    GLTexture texture = GL_LoadTexture(currentFont.fontFilename);
+                    glBindTexture(GL_TEXTURE_2D, texture.textureID);
+                    SetupTextureParameters(GL_TEXTURE_2D);
 
-                        text->scale.x = textSize.x * (charWidth / fontDividers.x);
-                        text->scale.y = textSize.y * (charHeight / fontDividers.y);
+                    CalculateCharacterOffset(&currentFont, currentChar, &posX, &posY);
+                    stbtt_GetBakedQuad(currentFont.charData, currentFont.width, currentFont.height, currentChar - SPECIAL_ASCII_CHAR_OFFSET, &posX, &posY, &quad, 1);
+                    CreateQuadPosUV(quad.x0, quad.y0, quad.x1, quad.y1, quad.s0, quad.t0, quad.s1, quad.t1);
 
-                        text->position.x = textPosition.x + (f32)charData->xoff / currentFont.width + offset.x;
-                        text->position.y = textPosition.y + (f32)charData->yoff / currentFont.height + offset.y;
+                    glBindVertexArray(customBuffer.vertexArray);
 
-                        offset.x += charData->xadvance / currentFont.width;
+                    glBindBuffer(GL_ARRAY_BUFFER, customBuffer.vertexBuffer);
+                    glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), quadVertices, GL_STATIC_DRAW);
 
-                        BindBuffer(quadBuffer);
+                    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, customBuffer.indexBuffer);
+                    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(quadIndices), quadIndices, GL_STATIC_DRAW); 
 
-                        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)0);
-                        glEnableVertexAttribArray(0);
-                        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)(3 * sizeof(f32)));
-                        glEnableVertexAttribArray(1);
+                    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)0);
+                    glEnableVertexAttribArray(0);
+                    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)(3 * sizeof(f32)));
+                    glEnableVertexAttribArray(1);
 
-                        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-                    }
+                    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
                 }
                 
                 size = sizeof(RenderText) + text->stringSize;
