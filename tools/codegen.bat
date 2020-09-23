@@ -8,7 +8,7 @@ if "%errorlevel%" == "9009" (
 )
 
 set CommonCompilerFlags=-nologo -Gm- -GR- -EHa- -Oi /fp:fast -WX -W4 -wd4996 -wd4018 -wd4201 -wd4100 -wd4189 -wd4505 -wd4101 -wd4456 -Z7 -FC
-set CommonLinkerFlags=-incremental:no -opt:ref user32.lib gdi32.lib kernel32.lib shell32.lib winmm.lib lua.lib
+set CommonLinkerFlags=-incremental:no -opt:ref user32.lib gdi32.lib kernel32.lib shell32.lib winmm.lib lua54.lib
 
 if not exist build mkdir build
 pushd build
@@ -17,7 +17,7 @@ pushd codegen
 
 del /F *.pdb >NUL 2>NUL
 
-cl -MD %CommonCompilerFlags% ..\..\Envari\source\CodeGen.cpp -FmCodeGen.map /EHsc /I ..\..\Envari\LUA\include /std:c++17 /link /LIBPATH:"..\..\Envari\LUA\lib\x86" %CommonLinkerFlags% /PDB:CodeGen_%random%.pdb
+cl -MD %CommonCompilerFlags% ..\..\Envari\source\CodeGen.cpp -FmCodeGen.map -EHsc -Bt -std:c++17 -I ..\..\Envari\LUA\include -link -LIBPATH:"..\..\Envari\LUA\lib\x86" %CommonLinkerFlags% -PDB:CodeGen_%random%.pdb
 
 popd
 popd

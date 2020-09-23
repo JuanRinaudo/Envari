@@ -2,7 +2,6 @@
 #define GAME_INTERNAL
 #define LUA_SCRIPTING_ENABLED
 
-#include <windows.h>
 #include <chrono>
 #include <thread>
 
@@ -80,7 +79,7 @@ i32 CALLBACK WinMain(
 
     SDL_GetCurrentDisplayMode(0, &displayMode);
     v2 windowSize = TableGetV2(&initialConfig, WINDOWSCONFIG_WINDOWSIZE);
-    if(windowSize.x <= 1 && windowSize.y <= 1) {
+    if(windowSize.x <= 10 && windowSize.y <= 10) {
         gameState->screen.width = FloorToInt(displayMode.w * windowSize.x);
         gameState->screen.height = FloorToInt(displayMode.h * windowSize.y);
     }
@@ -90,7 +89,7 @@ i32 CALLBACK WinMain(
     }
 
     v2 bufferSize = TableGetV2(&initialConfig, WINDOWSCONFIG_BUFFERSIZE);
-    if(windowSize.x <= 1 && windowSize.y <= 1) {
+    if(windowSize.x <= 10 && windowSize.y <= 10) {
         gameState->screen.bufferWidth = FloorToInt(gameState->screen.width * bufferSize.x);
         gameState->screen.bufferHeight = FloorToInt(gameState->screen.height * bufferSize.y);
     }
