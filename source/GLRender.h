@@ -626,7 +626,7 @@ static void GL_Render()
     view._23 = 1.0f;
     m44 projection = gameState->camera.projection;
 
-    CreateQuadPosUV(V2(0, 0), V2(1, 1), V2(0, 0), V2(1, 1));
+    CreateQuadPosUV(0, 0, 1, 1, 0, 0, 1, 1);
 
     while(renderHeader->id > 0 && (void*)renderHeader < (void*)(renderTemporaryMemory.arena->base + renderTemporaryMemory.used)) {
         m44 model = IdM44();
