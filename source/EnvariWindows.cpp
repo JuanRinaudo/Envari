@@ -139,7 +139,7 @@ i32 CALLBACK WinMain(
     texturedProgram = GL_CompileProgram(SHADERS_GLCORE_TEXTURED_VERT, SHADERS_GLCORE_TEXTURED_FRAG);
 
     // #NOTE (Juan): Create framebuffer
-    GL_InitFramebuffer(bufferSize);
+    GL_InitFramebuffer(bufferSize.x, bufferSize.y);
 
     if(glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
         Log(&editorConsole, "ERROR::FRAMEBUFFER:: Framebuffer is not complete!");
