@@ -7,7 +7,7 @@ if "%errorlevel%" == "9009" (
     echo CL found, starting build
 )
 
-set CommonCompilerFlags=-MD -EHsc -std:c++17 -nologo -Gm- -GR- -EHa- -Oi /fp:fast -WX -W4 -wd4996 -wd4018 -wd4201 -wd4100 -wd4189 -wd4505 -wd4101 -wd4456 -DIMGUI_IMPL_OPENGL_LOADER_GL3W=1 -DGAME_WIN32=1 -DLUA_BUILD_AS_DLL=1 -Z7 -FC
+set CommonCompilerFlags=-MD -EHsc -std:c++17 -nologo -Gm- -GR- -EHa- -Oi /fp:fast -WX -W4 -wd4996 -wd4018 -wd4201 -wd4100 -wd4189 -wd4505 -wd4101 -wd4456 -DGAME_WIN32=1 -DLUA_BUILD_AS_DLL=1 -DGAME_INTERNAL -DGAME_SLOW -DLUA_SCRIPTING_ENABLED -Z7 -FC
 set CommonLinkerFlags=-incremental:no -opt:ref user32.lib gdi32.lib kernel32.lib shell32.lib winmm.lib opengl32.lib SDL2.lib SDL2main.lib lua54.lib
 
 pushd Envari
@@ -31,7 +31,7 @@ REM -d2cgsummary
 REM -Bt REM Build Time
 REM -MP multiprocesor build
 REM %random% to get random number
-if not "%LastScriptingDate%"=="%ScriptingDate%" cl -c ..\..\Envari\source\ScriptingBindings.cpp -FmScriptingBindings.map %CommonCompilerFlags% -Bt -I ..\..\Envari\SDL2\include -I ..\..\Envari\LUA\include -DGAME_INTERNAL=1 -DLUA_SCRIPTING_ENABLED
+if not "%LastScriptingDate%"=="%ScriptingDate%" cl -c ..\..\Envari\source\ScriptingBindings.cpp -FmScriptingBindings.map %CommonCompilerFlags% -Bt -I ..\..\Envari\SDL2\include -I ..\..\Envari\LUA\include
 set LastScriptingDate=%ScriptingDate%
 
 cl ..\..\Envari\source\EnvariWindows.cpp ScriptingBindings.obj -FmEnvariWindows.map %CommonCompilerFlags% -Bt -I ..\..\Envari\SDL2\include -I ..\..\Envari\LUA\include -link %CommonLinkerFlags% -LIBPATH:"..\..\Envari\SDL2\lib\x86" -LIBPATH:"..\..\Envari\LUA\lib\x86" -PDB:EnvariWindows.pdb

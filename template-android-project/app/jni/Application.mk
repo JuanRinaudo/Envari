@@ -2,7 +2,11 @@
 # Uncomment this if you're using STL in your project
 # You can find more information here:
 # https://developer.android.com/ndk/guides/cpp-support
-# APP_STL := c++_shared
+APP_STL := c++_static
+
+APP_CPPFLAGS := -std=c++17
+NDK_TOOLCHAIN_VERSION := 4.8
+APP_ALLOW_MISSING_DEPS := true
 
 APP_ABI := armeabi-v7a arm64-v8a
 

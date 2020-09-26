@@ -16,9 +16,6 @@
 
 DataTable* initialConfig = NULL;
 
-u32 frameBuffer;
-u32 renderBuffer;
-u32 depthrenderbuffer;
 RenderState renderState;
 
 Data *gameState;
@@ -64,7 +61,7 @@ static u32 GameInit()
     EditorInit(&editorConsole);
 
 #ifdef LUA_SCRIPTING_ENABLED
-    LoadScriptFile(TableGetString(&initialConfig, WINDOWSCONFIG_INITLUASCRIPT));
+    LoadScriptFile(TableGetString(&initialConfig, INITLUASCRIPT));
 
     sol::protected_function Init(lua["Init"]);
     if(Init.valid()) {

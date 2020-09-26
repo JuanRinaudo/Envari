@@ -233,7 +233,7 @@
 #include <type_traits>
 #include <string_view>
 
-#if defined(SOL_USING_CXX_LUA) && SOL_USING_CXX_LUA
+#if defined(SOL_USING_CXX_LUA)
 struct lua_State;
 #else
 extern "C" {
@@ -1927,7 +1927,7 @@ namespace sol {
 
 // beginning of sol/compatibility/version.hpp
 
-#if defined(SOL_USING_CXX_LUA) && SOL_USING_CXX_LUA
+#if defined(SOL_USING_CXX_LUA)
 	#include <lua.h>
 	#include <lualib.h>
 	#include <lauxlib.h>
@@ -1991,7 +1991,7 @@ namespace sol {
 
 #if !defined(SOL_NO_COMPAT) || !(SOL_NO_COMPAT)
 
-#if defined(SOL_USING_CXX_LUA) && SOL_USING_CXX_LUA
+#if defined(SOL_USING_CXX_LUA)
 #ifndef COMPAT53_LUA_CPP
 #define COMPAT53_LUA_CPP 1
 #endif // Build Lua Compat layer as C++

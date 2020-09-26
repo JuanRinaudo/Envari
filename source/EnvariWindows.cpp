@@ -1,7 +1,3 @@
-#define GAME_SLOW
-#define GAME_INTERNAL
-#define LUA_SCRIPTING_ENABLED
-
 #include <chrono>
 #include <thread>
 
@@ -10,9 +6,13 @@
 #include "CodeGen/FileMap.h"
 #include "CodeGen/WindowsConfigMap.h"
 
-#define SOURCE_TYPE const char* const 
+#define SOURCE_TYPE const char* const
 
 #include "GL3W/gl3w.c"
+#define IMGUI_IMPL_OPENGL_LOADER_GL3W
+
+#define INITLUASCRIPT WINDOWSCONFIG_INITLUASCRIPT
+
 #include <SDL.h>
 
 #include "IMGUI/imgui.cpp"
@@ -76,32 +76,42 @@ i32 CALLBACK WinMain(
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         return -1;
     }
+    
+    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 
     SDL_GetCurrentDisplayMode(0, &displayMode);
     v2 windowSize = TableGetV2(&initialConfig, WINDOWSCONFIG_WINDOWSIZE);
     if(windowSize.x <= 10 && windowSize.y <= 10) {
-        gameState->screen.width = FloorToInt(displayMode.w * windowSize.x);
-        gameState->screen.height = FloorToInt(displayMode.h * windowSize.y);
+        gameState->render.width = FloorToInt(displayMode.w * windowSize.x);
+        gameState->render.height = FloorToInt(displayMode.h * windowSize.y);
     }
     else {
-        gameState->screen.width = FloorToInt(windowSize.x);
-        gameState->screen.height = FloorToInt(windowSize.y);
+        gameState->render.width = FloorToInt(windowSize.x);
+        gameState->render.height = FloorToInt(windowSize.y);
     }
 
-    v2 bufferSize = TableGetV2(&initialConfig, WINDOWSCONFIG_BUFFERSIZE);
-    if(windowSize.x <= 10 && windowSize.y <= 10) {
-        gameState->screen.bufferWidth = FloorToInt(gameState->screen.width * bufferSize.x);
-        gameState->screen.bufferHeight = FloorToInt(gameState->screen.height * bufferSize.y);
+    gameState->render.framebufferEnabled = TableHasKey(&initialConfig, WINDOWSCONFIG_BUFFERSIZE);
+    if(gameState->render.framebufferEnabled) {
+        v2 bufferSize = TableGetV2(&initialConfig, WINDOWSCONFIG_BUFFERSIZE);
+        if(windowSize.x <= 10 && windowSize.y <= 10) {
+            gameState->render.bufferWidth = FloorToInt(gameState->render.width * bufferSize.x);
+            gameState->render.bufferHeight = FloorToInt(gameState->render.height * bufferSize.y);
+        }
+        else {
+            gameState->render.bufferWidth = FloorToInt(bufferSize.x);
+            gameState->render.bufferHeight = FloorToInt(bufferSize.y);
+        }
     }
     else {
-        gameState->screen.bufferWidth = FloorToInt(bufferSize.x);
-        gameState->screen.bufferHeight = FloorToInt(bufferSize.y);
+        gameState->render.bufferWidth = -1;
+        gameState->render.bufferHeight = -1;
     }
 
-    gameState->screen.refreshRate = displayMode.refresh_rate;
+    gameState->render.refreshRate = displayMode.refresh_rate;
 
     char* windowTitle = TableGetString(&initialConfig, WINDOWSCONFIG_WINDOWTITLE);
-    sdlWindow = SDL_CreateWindow(windowTitle, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, gameState->screen.width, gameState->screen.height, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
+    sdlWindow = SDL_CreateWindow(windowTitle, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, gameState->render.width, gameState->render.height, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
 
     if (!sdlWindow) {
         return -1;
@@ -138,18 +148,18 @@ i32 CALLBACK WinMain(
     texturedProgram = GL_CompileProgram(SHADERS_GLCORE_TEXTURED_VERT, SHADERS_GLCORE_TEXTURED_FRAG);
 
     // #NOTE (Juan): Create framebuffer
-    GL_InitFramebuffer(bufferSize.x, bufferSize.y);
-
-    if(glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-        Log(&editorConsole, "ERROR::FRAMEBUFFER:: Framebuffer is not complete!");
+    if(gameState->render.framebufferEnabled) {
+        GL_InitFramebuffer(gameState->render.bufferWidth, gameState->render.bufferHeight);
     }
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    else {
+        gameState->render.frameBuffer = 0;
+    }
 
     SoundInit();
 
-    Running = true;
+    gameState->game.running = true;
     auto start = std::chrono::steady_clock::now(); // #NOTE (Juan): Start timer for fps limit
-    while (Running)
+    while (gameState->game.running)
     {
         f32 gameTime = SDL_GetTicks() / 1000.0f;
         gameState->time.gameTime = (f32)gameTime;
@@ -178,15 +188,15 @@ i32 CALLBACK WinMain(
             ImGui_ImplSDL2_ProcessEvent(&event);
             switch (event.type) {
                 case SDL_QUIT: {
-                    Running = false;
+                    gameState->game.running = false;
                     break;
                 }
                 case SDL_WINDOWEVENT: // #NOTE (Juan): Window resize/orientation change
                 {
                     if(event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)
                     {
-                        gameState->screen.width = event.window.data1;
-                        gameState->screen.height = event.window.data2;
+                        gameState->render.width = event.window.data1;
+                        gameState->render.height = event.window.data2;
                     }
                     break;
                 }
@@ -245,36 +255,43 @@ i32 CALLBACK WinMain(
 
         GL_WatchChanges();        
 
-        Begin2D(frameBuffer, (u32)bufferSize.x, (u32)bufferSize.y);
+        if(gameState->render.framebufferEnabled) {
+            Begin2D(gameState->render.frameBuffer, (u32)gameState->render.bufferWidth, (u32)gameState->render.bufferHeight);
+        }
+        else {
+            Begin2D(0, (u32)gameState->render.width, (u32)gameState->render.height);
+        }
 
         GameLoop();
         GL_Render();
 
         End2D();
 
-        // #NOTE (Juan): Render framebuffer to actual screen buffer, save data and then restore it
-        f32 tempSize = gameState->camera.size;
-        f32 tempRatio = gameState->camera.ratio;
-        m44 tempView = gameState->camera.view;
-        m44 tempProjection = gameState->camera.projection;
+        if(gameState->render.framebufferEnabled) {
+            // #NOTE (Juan): Render framebuffer to actual screen buffer, save data and then restore it
+            f32 tempSize = gameState->camera.size;
+            f32 tempRatio = gameState->camera.ratio;
+            m44 tempView = gameState->camera.view;
+            m44 tempProjection = gameState->camera.projection;
 
-        gameState->camera.size = 1;
-        gameState->camera.ratio = (f32)gameState->screen.width / (f32)gameState->screen.height;
-        gameState->camera.view = IdM44();
-        gameState->camera.projection = OrtographicProjection(gameState->camera.size, gameState->camera.ratio, gameState->camera.nearPlane, gameState->camera.farPlane);
-        Begin2D(0, (u32)gameState->screen.width, (u32)gameState->screen.height);
-        DrawOverrideVertices(0, 0);
-        DrawClear(0, 0, 0, 1);
-        DrawTextureParameters(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, GL_NEAREST, GL_NEAREST);
-        f32 sizeX = gameState->camera.size * tempRatio;
-        DrawTexture(-sizeX * 0.5f, gameState->camera.size * 0.5f, sizeX, -gameState->camera.size, renderBuffer);
-        GL_Render();
-        End2D();
+            gameState->camera.size = 1;
+            gameState->camera.ratio = (f32)gameState->render.width / (f32)gameState->render.height;
+            gameState->camera.view = IdM44();
+            gameState->camera.projection = OrtographicProjection(gameState->camera.size, gameState->camera.ratio, gameState->camera.nearPlane, gameState->camera.farPlane);
+            Begin2D(0, (u32)gameState->render.width, (u32)gameState->render.height);
+            DrawOverrideVertices(0, 0);
+            DrawClear(0, 0, 0, 1);
+            DrawTextureParameters(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, GL_NEAREST, GL_NEAREST);
+            f32 sizeX = gameState->camera.size * tempRatio;
+            DrawTexture(-sizeX * 0.5f, gameState->camera.size * 0.5f, sizeX, -gameState->camera.size, gameState->render.renderBuffer);
+            GL_Render();
+            End2D();
 
-        gameState->camera.size = tempSize;
-        gameState->camera.ratio = tempRatio;
-        gameState->camera.view = tempView;
-        gameState->camera.projection = tempProjection;
+            gameState->camera.size = tempSize;
+            gameState->camera.ratio = tempRatio;
+            gameState->camera.view = tempView;
+            gameState->camera.projection = tempProjection;
+        }
 
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
@@ -288,7 +305,7 @@ i32 CALLBACK WinMain(
         }
     }
 
-    GLEnd();
+    GL_End();
     
     SDL_GL_DeleteContext(glContext);  
 

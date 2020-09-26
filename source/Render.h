@@ -11,6 +11,7 @@ void Begin2D(u32 frameBufferID, u32 width, u32 height)
     ZeroSize(sizeof(RenderHeader), clearFirstHeader);
     
 	glBindFramebuffer(GL_FRAMEBUFFER, frameBufferID);
+    
 	glViewport(0,0, width, height);
 }
 
@@ -217,12 +218,12 @@ v2 ScreenToViewport(f32 screenX, f32 screenY, f32 size, f32 ratio)
 {
     v2 position = V2(0, 0);
 
-    f32 scaleDifference = (f32)gameState->screen.height / (f32)gameState->screen.bufferHeight;
-    f32 scaledWidth = (f32)gameState->screen.bufferWidth * scaleDifference;
-    f32 offsetX = ((f32)gameState->screen.width - scaledWidth) * 0.5f;
+    f32 scaleDifference = (f32)gameState->render.height / (f32)gameState->render.bufferHeight;
+    f32 scaledWidth = (f32)gameState->render.bufferWidth * scaleDifference;
+    f32 offsetX = ((f32)gameState->render.width - scaledWidth) * 0.5f;
     
     position.x = (((screenX - offsetX) / scaledWidth) - 0.5f) * size * ratio;
-    position.y = ((screenY / gameState->screen.height) - 0.5f) * size;
+    position.y = ((screenY / gameState->render.height) - 0.5f) * size;
 
     return position;
 }

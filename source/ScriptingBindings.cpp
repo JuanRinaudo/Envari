@@ -1,6 +1,7 @@
 #ifndef SCRIPTINGWRAPPERS_H
 #define SCRIPTINGWRAPPERS_H
 
+#ifndef __EMSCRIPTEN__
 #include <filesystem>
 
 #include "GL3W/glcorearb.h"
@@ -24,37 +25,8 @@ extern void Log_(ConsoleWindow* console, ConsoleLogType type, const char* fmt, .
 #define LogError(console, fmt, ...) Log_(console, ConsoleLogType_ERROR, fmt, ##__VA_ARGS__)
 #define LogCommand(console, fmt, ...) Log_(console, ConsoleLogType_COMMAND, fmt, ##__VA_ARGS__)
 
-// #NOTE(Juan): Console
-static void LogConsole(const char* log)
-{
-	Log(&editorConsole, log);
-}
-
-static void LogConsoleError(const char* log)
-{
-	LogError(&editorConsole, log);
-}
-
-static void LogConsoleCommand(const char* log)
-{
-	LogCommand(&editorConsole, log);
-}
-
 // #NOTE(Juan): Engine
 extern Data *gameState;
-
-// #NOTE(Juan): Cast
-static i32 CharToInt(const char* singleChar)
-{
-    return (i32)singleChar[0];
-}
-
-char castChar[1];
-static char* IntToChar(i32 value)
-{
-    castChar[0] = (char)value;
-    return castChar;
-}
 
 extern void LoadScriptFile(char* filePath);
 extern void LoadLUALibrary(sol::lib library);
@@ -90,6 +62,69 @@ extern void DrawOverrideIndices(u32* indices, u32 count);
 extern void End2D();
 extern v2 ScreenToViewport(f32 screenX, f32 screenY, f32 size, f32 ratio);
 
+extern f32* CreateQuadPosUV(f32 posStartX, f32 posStartY, f32 posEndX, f32 posEndY, f32 uvStartX, f32 uvStartY, f32 uvEndX, f32 uvEndY);
+
+extern ma_decoder* SoundLoad(const char* soundKey);
+extern void SoundPlay(const char* filepath);
+
+extern v2 V2(f32 x, f32 y);
+extern v3 V3(f32 x, f32 y, f32 z);
+extern v4 V4(f32 x, f32 y, f32 z, f32 w);
+
+extern rectangle2 Rectangle2(f32 x, f32 y, f32 width, f32 height);
+
+extern m22 M22(
+    f32 _00, f32 _01,
+    f32 _10, f32 _11);
+extern m22 IdM22();
+
+extern m33 M33(
+    f32 _00, f32 _01, f32 _02,
+    f32 _10, f32 _11, f32 _12,
+    f32 _20, f32 _21, f32 _22);
+extern m33 IdM33();
+
+extern m44 M44(
+    f32 _00, f32 _01, f32 _02, f32 _03,
+    f32 _10, f32 _11, f32 _12, f32 _13,
+    f32 _20, f32 _21, f32 _22, f32 _23,
+    f32 _30, f32 _31, f32 _32, f32 _33);
+extern m44 IdM44();
+
+extern transform2D Transform2D(f32 posX, f32 posY, f32 scaleX, f32 scaleY);
+
+extern f32 Length(v2 a);
+#endif
+
+// #NOTE(Juan): Console
+static void LogConsole(const char* log)
+{
+	Log(&editorConsole, log);
+}
+
+static void LogConsoleError(const char* log)
+{
+	LogError(&editorConsole, log);
+}
+
+static void LogConsoleCommand(const char* log)
+{
+	LogCommand(&editorConsole, log);
+}
+
+// #NOTE(Juan): Cast
+static i32 CharToInt(const char* singleChar)
+{
+    return (i32)singleChar[0];
+}
+
+char castChar[1];
+static char* IntToChar(i32 value)
+{
+    castChar[0] = (char)value;
+    return castChar;
+}
+
 static void DrawDisableOverrideVertices()
 {
     DrawOverrideVertices(0, 0);
@@ -99,11 +134,6 @@ static void DrawDisableOverrideIndices()
 {    
     DrawOverrideIndices(0, 0);
 }
-
-extern f32* CreateQuadPosUV(f32 posStartX, f32 posStartY, f32 posEndX, f32 posEndY, f32 uvStartX, f32 uvStartY, f32 uvEndX, f32 uvEndY);
-
-extern ma_decoder* SoundLoad(const char* soundKey);
-extern void SoundPlay(const char* filepath);
 
 void ScriptingInitBindings()
 {
@@ -139,13 +169,13 @@ void ScriptingInitBindings()
     camera_usertype["projection"] = &Camera::projection;
     lua["camera"] = &gameState->camera;
 
-    sol::usertype<Screen> screen_usertype = lua.new_usertype<Screen>("screen");
-    screen_usertype["refreshRate"] = &Screen::refreshRate;
-    screen_usertype["width"] = &Screen::width;
-    screen_usertype["height"] = &Screen::height;
-    screen_usertype["bufferWidth"] = &Screen::bufferWidth;
-    screen_usertype["bufferHeight"] = &Screen::bufferHeight;
-    lua["screen"] = &gameState->screen;
+    sol::usertype<Render> screen_usertype = lua.new_usertype<Render>("screen");
+    screen_usertype["refreshRate"] = &Render::refreshRate;
+    screen_usertype["width"] = &Render::width;
+    screen_usertype["height"] = &Render::height;
+    screen_usertype["bufferWidth"] = &Render::bufferWidth;
+    screen_usertype["bufferHeight"] = &Render::bufferHeight;
+    lua["screen"] = &gameState->render;
 
     sol::usertype<Time> time_usertype = lua.new_usertype<Time>("time");
     time_usertype["gameTime"] = &Time::gameTime;
@@ -157,8 +187,8 @@ void ScriptingInitBindings()
     sol::usertype<Input> input_usertype = lua.new_usertype<Input>("input");
     input_usertype["mousePosition"] = &Input::mousePosition;
     input_usertype["mouseScreenPosition"] = &Input::mouseScreenPosition;
-    input_usertype["keyState"] = &Input::keyState;
-    input_usertype["mouseState"] = &Input::mouseState;
+    input_usertype["keyState"] = sol::property([](Input &input) { return &input.keyState; });
+    input_usertype["mouseState"] = sol::property([](Input &input) { return &input.mouseState; });
     lua["input"] = &gameState->input;
 
     lua["KEY_UP"] = KEY_UP;
@@ -230,30 +260,16 @@ void ScriptingInitBindings()
     lua["GL_ONE_MINUS_CONSTANT_ALPHA"] = GL_ONE_MINUS_CONSTANT_ALPHA;
     lua["GL_SRC_ALPHA_SATURATE"] = GL_SRC_ALPHA_SATURATE;
     
-    lua["GL_SRC1_COLOR"] = GL_SRC1_COLOR;
-    lua["GL_ONE_MINUS_SRC1_COLOR"] = GL_ONE_MINUS_SRC1_COLOR;
-    lua["GL_SRC1_ALPHA"] = GL_SRC1_ALPHA;
-    lua["GL_ONE_MINUS_SRC1_ALPHA"] = GL_ONE_MINUS_SRC1_ALPHA;
-    
-    lua["GL_TEXTURE_1D"] = GL_TEXTURE_1D;
-    lua["GL_TEXTURE_1D_ARRAY"] = GL_TEXTURE_1D_ARRAY;
     lua["GL_TEXTURE_2D"] = GL_TEXTURE_2D;
     lua["GL_TEXTURE_2D_ARRAY"] = GL_TEXTURE_2D_ARRAY;
-    lua["GL_TEXTURE_2D_MULTISAMPLE"] = GL_TEXTURE_2D_MULTISAMPLE;
-    lua["GL_TEXTURE_2D_MULTISAMPLE_ARRAY"] = GL_TEXTURE_2D_MULTISAMPLE_ARRAY;
     lua["GL_TEXTURE_3D"] = GL_TEXTURE_3D;
-    lua["GL_TEXTURE_CUBE_MAP"] = GL_TEXTURE_CUBE_MAP;
-    lua["GL_TEXTURE_CUBE_MAP_ARRAY"] = GL_TEXTURE_CUBE_MAP_ARRAY;
-    lua["GL_TEXTURE_RECTANGLE"] = GL_TEXTURE_RECTANGLE;
 
     lua["GL_TEXTURE_WRAP_S"] = GL_TEXTURE_WRAP_S;
     lua["GL_TEXTURE_WRAP_T"] = GL_TEXTURE_WRAP_T;
     lua["GL_TEXTURE_WRAP_R"] = GL_TEXTURE_WRAP_R;
-    lua["GL_CLAMP_TO_EDGE"] = GL_CLAMP_TO_EDGE;
-    lua["GL_CLAMP_TO_BORDER"] = GL_CLAMP_TO_BORDER;
+    lua["GL_CLAMP_TO_EDGE"] = GL_CLAMP_TO_EDGE;;
     lua["GL_MIRRORED_REPEAT"] = GL_MIRRORED_REPEAT;
     lua["GL_REPEAT"] = GL_REPEAT;
-    lua["GL_MIRROR_CLAMP_TO_EDGE"] = GL_MIRROR_CLAMP_TO_EDGE;
     
     lua["GL_TEXTURE_MIN_FILTER"] = GL_TEXTURE_MIN_FILTER;
     lua["GL_TEXTURE_MAG_FILTER"] = GL_TEXTURE_MAG_FILTER;
@@ -264,11 +280,9 @@ void ScriptingInitBindings()
     lua["GL_NEAREST_MIPMAP_LINEAR"] = GL_NEAREST_MIPMAP_LINEAR;
     lua["GL_LINEAR_MIPMAP_LINEAR"] = GL_LINEAR_MIPMAP_LINEAR;
 
-    lua["GL_DEPTH_STENCIL_TEXTURE_MODE"] = GL_DEPTH_STENCIL_TEXTURE_MODE;
     lua["GL_TEXTURE_BASE_LEVEL"] = GL_TEXTURE_BASE_LEVEL;
     lua["GL_TEXTURE_COMPARE_FUNC"] = GL_TEXTURE_COMPARE_FUNC;
     lua["GL_TEXTURE_COMPARE_MODE"] = GL_TEXTURE_COMPARE_MODE;
-    lua["GL_TEXTURE_LOD_BIAS"] = GL_TEXTURE_LOD_BIAS;
     lua["GL_TEXTURE_MIN_LOD"] = GL_TEXTURE_MIN_LOD;
     lua["GL_TEXTURE_MAX_LOD"] = GL_TEXTURE_MAX_LOD;
     lua["GL_TEXTURE_MAX_LEVEL"] = GL_TEXTURE_MAX_LEVEL;
@@ -276,6 +290,28 @@ void ScriptingInitBindings()
     lua["GL_TEXTURE_SWIZZLE_G"] = GL_TEXTURE_SWIZZLE_G;
     lua["GL_TEXTURE_SWIZZLE_B"] = GL_TEXTURE_SWIZZLE_B;
     lua["GL_TEXTURE_SWIZZLE_A"] = GL_TEXTURE_SWIZZLE_A;
+
+#ifndef GL_PROFILE_GLES3    
+    lua["GL_SRC1_COLOR"] = GL_SRC1_COLOR;
+    lua["GL_ONE_MINUS_SRC1_COLOR"] = GL_ONE_MINUS_SRC1_COLOR;
+    lua["GL_SRC1_ALPHA"] = GL_SRC1_ALPHA;
+    lua["GL_ONE_MINUS_SRC1_ALPHA"] = GL_ONE_MINUS_SRC1_ALPHA;
+
+    lua["GL_TEXTURE_1D"] = GL_TEXTURE_1D;
+    lua["GL_TEXTURE_1D_ARRAY"] = GL_TEXTURE_1D_ARRAY;
+
+    lua["GL_TEXTURE_2D_MULTISAMPLE"] = GL_TEXTURE_2D_MULTISAMPLE;
+    lua["GL_TEXTURE_2D_MULTISAMPLE_ARRAY"] = GL_TEXTURE_2D_MULTISAMPLE_ARRAY;
+    lua["GL_TEXTURE_CUBE_MAP"] = GL_TEXTURE_CUBE_MAP;
+    lua["GL_TEXTURE_CUBE_MAP_ARRAY"] = GL_TEXTURE_CUBE_MAP_ARRAY;
+    lua["GL_TEXTURE_RECTANGLE"] = GL_TEXTURE_RECTANGLE;
+
+    lua["GL_CLAMP_TO_BORDER"] = GL_CLAMP_TO_BORDER
+    lua["GL_MIRROR_CLAMP_TO_EDGE"] = GL_MIRROR_CLAMP_TO_EDGE;
+    
+    lua["GL_DEPTH_STENCIL_TEXTURE_MODE"] = GL_DEPTH_STENCIL_TEXTURE_MODE;
+    lua["GL_TEXTURE_LOD_BIAS"] = GL_TEXTURE_LOD_BIAS;
+#endif
 
     // #NOTE (Juan): Sound
     lua["SoundLoad"] = SoundLoad;
@@ -286,34 +322,6 @@ void ScriptingInitBindings()
     lua["LogConsoleError"] = LogConsoleError;
     lua["LogConsoleCommand"] = LogConsoleCommand;
 }
-
-extern v2 V2(f32 x, f32 y);
-extern v3 V3(f32 x, f32 y, f32 z);
-extern v4 V4(f32 x, f32 y, f32 z, f32 w);
-
-extern rectangle2 Rectangle2(f32 x, f32 y, f32 width, f32 height);
-
-extern m22 M22(
-    f32 _00, f32 _01,
-    f32 _10, f32 _11);
-extern m22 IdM22();
-
-extern m33 M33(
-    f32 _00, f32 _01, f32 _02,
-    f32 _10, f32 _11, f32 _12,
-    f32 _20, f32 _21, f32 _22);
-extern m33 IdM33();
-
-extern m44 M44(
-    f32 _00, f32 _01, f32 _02, f32 _03,
-    f32 _10, f32 _11, f32 _12, f32 _13,
-    f32 _20, f32 _21, f32 _22, f32 _23,
-    f32 _30, f32 _31, f32 _32, f32 _33);
-extern m44 IdM44();
-
-extern transform2D Transform2D(f32 posX, f32 posY, f32 scaleX, f32 scaleY);
-
-extern f32 Length(v2 a);
 
 void ScriptingMathBindings()
 {

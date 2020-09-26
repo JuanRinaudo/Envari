@@ -357,7 +357,16 @@ struct RenderState {
 };
 
 // #NOTE (Juan): Game
-struct Screen {
+struct Game {
+    bool running;
+
+};
+
+struct Render {
+    bool framebufferEnabled;
+    u32 frameBuffer;
+    u32 renderBuffer;
+    u32 depthrenderbuffer;
     i32 refreshRate;
     i32 width;
     i32 height;
@@ -400,8 +409,9 @@ struct Input
 };
 
 struct Data {
+    Game game;
     Camera camera;
-    Screen screen;
+    Render render;
     Time time;
     Memory memory;
     Input input;

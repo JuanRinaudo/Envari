@@ -14,7 +14,7 @@ static void LogString(ConsoleWindow* console, const char* log, ConsoleLogType ty
     }
     else {
         ConsoleLog newLog;
-        newLog.log = Strdup(log);
+        newLog.log = Strdup(log, &newLog.size);
         newLog.count = 1;
         newLog.type = type;
         console->items.push_back(newLog);
@@ -40,6 +40,9 @@ static void EditorInit(ConsoleWindow* console)
     console->commands.push_back("HELP");
     console->commands.push_back("HISTORY");
     console->commands.push_back("CLEAR");
+#ifdef LUA_SCRIPTING_ENABLED
+    console->commands.push_back("LUA");
+#endif
     console->autoScroll = true;
     console->scrollToBottom = false;
 
@@ -61,8 +64,8 @@ static void EditorInit(LUADebuggerWindow* debugger)
 {
     debugger->open = true;
 
-    if(TableHasKey(&initialConfig, WINDOWSCONFIG_INITLUASCRIPT)) {
-        debugger->currentFile = (char*)LoadFileToMemory(TableGetString(&initialConfig, WINDOWSCONFIG_INITLUASCRIPT), "rb", &debugger->currentFileSize);
+    if(TableHasKey(&initialConfig, INITLUASCRIPT)) {
+        debugger->currentFile = (char*)LoadFileToMemory(TableGetString(&initialConfig, INITLUASCRIPT), "rb", &debugger->currentFileSize);
     }
 }
 #endif
@@ -174,7 +177,16 @@ static i32 TextEditCallbackStub(ImGuiInputTextCallbackData* data)
 
 static void ExecCommand(ConsoleWindow* console, const char* command_line)
 {
-    LogString(console, command_line, ConsoleLogType_COMMAND);
+    // #NOTE(Juan): Separate the command from the arguments
+    char command[CONSOLE_INPUT_BUFFER_COUNT];
+    strcpy(command, command_line);
+    i32 argumentStart = 0;
+    while(command[argumentStart] > SPECIAL_ASCII_CHAR_OFFSET) {
+        argumentStart++;
+    }
+    command[argumentStart] = 0;
+
+    LogString(console, command, ConsoleLogType_COMMAND);
 
     // Insert into history. First find match and delete it so it can be pushed to the back. This isn't trying to be smart or optimal.
     console->historyPos = -1;
@@ -185,24 +197,30 @@ static void ExecCommand(ConsoleWindow* console, const char* command_line)
             break;
         }
     }
-    console->history.push_back(Strdup(command_line));
+    size_t commandLineSize = 0;
+    console->history.push_back(Strdup(command_line, &commandLineSize));
 
     // Process command
-    if (Stricmp(command_line, "CLEAR") == 0) {
+    if (Stricmp(command, "CLEAR") == 0) {
         ClearLog(console);
     }
-    else if (Stricmp(command_line, "HELP") == 0) {
+    else if (Stricmp(command, "HELP") == 0) {
         Log(console, "Commands:");
         for (i32 i = 0; i < console->commands.Size; i++) {
             Log(console, "- %s", console->commands[i]);
         }
     }
-    else if (Stricmp(command_line, "HISTORY") == 0) {
+    else if (Stricmp(command, "HISTORY") == 0) {
         i32 first = console->history.Size - 10;
         for (i32 i = first > 0 ? first : 0; i < console->history.Size; i++) {
             Log(console, "%3d: %s\n", i, console->history[i]);
         }
     }
+#ifdef LUA_SCRIPTING_ENABLED
+    else if (Stricmp(command, "LUA") == 0) {
+        lua.script(command_line + argumentStart);
+    }
+#endif
     else {
         Log(console, "Unknown command: '%s'\n", command_line);
     }
@@ -211,6 +229,7 @@ static void ExecCommand(ConsoleWindow* console, const char* command_line)
     console->scrollToBottom = true;
 }
 
+ConsoleLog *inspectedLog = 0;
 static void EditorDraw(ConsoleWindow* console)
 {
     if(!console->open) { return; };
@@ -247,6 +266,8 @@ static void EditorDraw(ConsoleWindow* console)
         if (ImGui::MenuItem("Close Console"))
             console->open = false;
         ImGui::EndPopup();
+
+        ImGui::OpenPopup("GoToFunction");
     }
 
     if (ImGui::SmallButton("Clear")) {
@@ -287,8 +308,10 @@ static void EditorDraw(ConsoleWindow* console)
         ImGui::LogToClipboard();
     }
 
+    // ImGui::PushTextWrapPos(ImGui::GetWindowSize().x * 0.92f);
+    // ImGui::PopTextWrapPos();
+
     ImGui::BeginColumns("Logs", 2);
-    ImGui::PushTextWrapPos(ImGui::GetWindowSize().x * 0.92f);
     ImGui::SetColumnWidth(0, ImGui::GetWindowSize().x * 0.92f);
 
     for (i32 i = 0; i < console->items.Size; i++) {
@@ -298,6 +321,9 @@ static void EditorDraw(ConsoleWindow* console)
         }
 
         switch(currentLog->type) {
+            case ConsoleLogType_NORMAL: {
+                
+            } break;
             case ConsoleLogType_ERROR: {
                 ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.4f, 0.4f, 1.0f));
             } break;
@@ -306,14 +332,30 @@ static void EditorDraw(ConsoleWindow* console)
             } break;
         }
 
-        ImGui::TextUnformatted(currentLog->log);
+        i32 lastIndex = 0;
+        i32 index = 0;
+        while(index < currentLog->size) {
+            if(currentLog->log[index] == '\n') {
+                if(lastIndex != 0) {
+                    ImGui::SameLine();
+                }
+                ImGui::TextUnformatted(currentLog->log + lastIndex, currentLog->log + index);
+                ImGui::SameLine();
+                ImGui::TextUnformatted(" ; ");
+                lastIndex = index + 1;
+            }
+            ++index;
+        }
+        if(lastIndex != 0) {
+            ImGui::SameLine();
+        }
+        ImGui::TextUnformatted(currentLog->log + lastIndex, currentLog->log + currentLog->size - 1);
         
         if (currentLog->type != ConsoleLogType_NORMAL) {
             ImGui::PopStyleColor();
         }
     }
 
-    ImGui::PopTextWrapPos();
     ImGui::NextColumn();
 
     for (i32 i = 0; i < console->items.Size; i++) {
@@ -323,6 +365,9 @@ static void EditorDraw(ConsoleWindow* console)
         }
         
         switch(currentLog->type) {
+            case ConsoleLogType_NORMAL: {
+                
+            } break;
             case ConsoleLogType_ERROR: {
                 ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.4f, 0.4f, 1.0f));
             } break;
@@ -332,10 +377,22 @@ static void EditorDraw(ConsoleWindow* console)
         }
         
         ImGui::Text("%d", currentLog->count);
+
+        if(ImGui::IsItemClicked()) {
+            ImGui::OpenPopup("LogDetails");
+            inspectedLog = currentLog;
+        }
         
         if (currentLog->type != ConsoleLogType_NORMAL) {
             ImGui::PopStyleColor();
         }
+    }
+
+    if (inspectedLog && ImGui::BeginPopup("LogDetails")) {
+        ImGui::TextUnformatted(inspectedLog->log);
+        ImGui::EndPopup();
+    } else {
+        inspectedLog = 0;
     }
 
     ImGui::EndColumns();
@@ -556,7 +613,7 @@ static void EditorDraw(LUADebuggerWindow* debugger)
 
     ImGui::Separator();
 
-    ImGui::Text("Memory: %d", lua.memory_used());
+    ImGui::Text("Memory: %d", (int)lua.memory_used());
     if (ImGui::SmallButton("Force GC")) {
         lua.collect_garbage();
     }

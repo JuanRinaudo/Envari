@@ -9,7 +9,7 @@ SDL_PATH := ../SDL
 LOCAL_C_INCLUDES := $(LOCAL_PATH)/$(SDL_PATH)/include
 
 # Add your application source files here...
-LOCAL_SRC_FILES := C:/Users/Juan/Desktop/Development/Envari/Envari/EnvariAndroid.cpp
+LOCAL_SRC_FILES := ../../../../Envari/source/EnvariAndroid.cpp
 
 LOCAL_SHARED_LIBRARIES := SDL2
 

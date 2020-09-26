@@ -39,7 +39,7 @@ static bool TokenIsFloat(const char* string)
 }
 
 // #NOTE (Juan): This does a linear scan of the current data to check the ammount of parameters, dataString must point to the start of the line
-static i32 GetDataLineParameters(char* dataString, i32 index) {
+static void GetDataLineParameters(char* dataString, i32 index) {
     char currentChar = dataString[index];
     bool parsingString = false;
     bool parsingKey = false;

@@ -168,7 +168,7 @@ static FontAtlas GL_LoadFont(const char *filename, f32 fontSize, u32 width, u32 
         result.width = width;
         result.height = height;
 
-        size_t data_size = 0;
+        u32 data_size = 0;
         void* data = LoadFileToMemory(filename, "rb", &data_size);
 
         u8* tempBitmap = PushArray(&temporalState->arena, width * height, u8);
@@ -254,25 +254,33 @@ static void GL_Init()
     }
 }
 
-static void GL_InitFramebuffer(f32 bufferWidth, f32 bufferHeight)
+static void GL_InitFramebuffer(i32 bufferWidth, i32 bufferHeight)
 {
-    glGenFramebuffers(1, &frameBuffer);
-    glGenTextures(1, &renderBuffer);
-    glGenRenderbuffers(1, &depthrenderbuffer);
+    glGenFramebuffers(1, &gameState->render.frameBuffer);
+    glGenTextures(1, &gameState->render.renderBuffer);
+    glGenRenderbuffers(1, &gameState->render.depthrenderbuffer);
 
-    glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER, gameState->render.frameBuffer);
 
-    glBindTexture(GL_TEXTURE_2D, renderBuffer);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, (i32)bufferWidth, (i32)bufferHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
+    glBindTexture(GL_TEXTURE_2D, gameState->render.renderBuffer);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, bufferWidth, bufferHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, renderBuffer, 0);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gameState->render.renderBuffer, 0);
 
-    glBindRenderbuffer(GL_RENDERBUFFER, depthrenderbuffer);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, (i32)bufferWidth, (i32)bufferHeight);
-    glFramebufferRenderbuffer(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depthrenderbuffer);
+    glBindRenderbuffer(GL_RENDERBUFFER, gameState->render.depthrenderbuffer);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, bufferWidth, bufferHeight);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, gameState->render.depthrenderbuffer);
 
     glDrawBuffers(1, DrawBuffers);
+
+    if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+        Log(&editorConsole, "ERROR::FRAMEBUFFER:: Framebuffer is not complete!");
+    }
+    if(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_UNSUPPORTED) {
+        Log(&editorConsole, "ERROR::FRAMEBUFFER:: Framebuffer is not supported!");
+    }
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 static i32 GL_CompileProgram(const char *vertexShaderSource, const char *fragmentShaderSource)
@@ -281,7 +289,7 @@ static i32 GL_CompileProgram(const char *vertexShaderSource, const char *fragmen
     u32 vertexShader;
     vertexShader = glCreateShader(GL_VERTEX_SHADER);
     
-    size_t data_size = 0;
+    u32 data_size = 0;
     void* data = LoadFileToMemory(vertexShaderSource, "rb", &data_size);
     SOURCE_TYPE vertexSource = static_cast<SOURCE_TYPE>(data);
     
@@ -534,7 +542,7 @@ static void SetupTextureParameters(u32 textureTarget)
     glTexParameteri(textureTarget, GL_TEXTURE_MAG_FILTER, renderState.magFilter);
 }
 
-static void BindBuffer(GLRenderBuffer buffer)
+static void BindBuffer()
 {
     if(renderState.overridingVertices || renderState.overridingIndices) {
         glBindVertexArray(overrideBuffer.vertexArray);
@@ -764,7 +772,7 @@ static void GL_Render()
                 glBindTexture(GL_TEXTURE_2D, texture->textureID);
                 SetupTextureParameters(GL_TEXTURE_2D);
 
-                BindBuffer(quadBuffer);
+                BindBuffer();
 
                 glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)0);
                 glEnableVertexAttribArray(0);
@@ -817,7 +825,7 @@ static void GL_Render()
                 model *= TranslationM44(image->position);
                 SetupBaseUniforms(texturedProgram, renderState.renderColor, model, view, projection);
 
-                BindBuffer(quadBuffer);
+                BindBuffer();
 
                 glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)0);
                 glEnableVertexAttribArray(0);
@@ -845,7 +853,7 @@ static void GL_Render()
                 model *= TranslationM44(imageUV->position);
                 SetupBaseUniforms(coloredProgram, renderState.renderColor, model, view, projection);
 
-                BindBuffer(quadBuffer);
+                BindBuffer();
 
                 glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)0);
                 glEnableVertexAttribArray(0);
@@ -916,7 +924,7 @@ static void GL_Render()
 
                 model *= ScaleM44(renderChar->scale);
                 model *= TranslationM44(renderChar->position);
-                SetupBaseUniforms(coloredProgram, renderState.renderColor, model, view, projection);
+                SetupBaseUniforms(texturedProgram, renderState.renderColor, model, view, projection);
 
                 f32 posX = 0;
                 f32 posY = currentFont.fontSize;
@@ -949,7 +957,7 @@ static void GL_Render()
 
                 model *= ScaleM44(text->scale);
                 model *= TranslationM44(text->position);
-                SetupBaseUniforms(coloredProgram, renderState.renderColor, model, view, projection);
+                SetupBaseUniforms(texturedProgram, renderState.renderColor, model, view, projection);
 
                 GLTexture texture = GL_LoadTexture(currentFont.fontFilename);
                 glBindTexture(GL_TEXTURE_2D, texture.textureID);
@@ -965,12 +973,6 @@ static void GL_Render()
 
                 for(i32 i = 0; i < text->stringSize - 1; ++i) {
                     char currentChar = text->string[i];
-                    
-                    glUseProgram(texturedProgram);
-
-                    GLTexture texture = GL_LoadTexture(currentFont.fontFilename);
-                    glBindTexture(GL_TEXTURE_2D, texture.textureID);
-                    SetupTextureParameters(GL_TEXTURE_2D);
 
                     CalculateCharacterOffset(&currentFont, currentChar, &posX, &posY);
                     stbtt_GetBakedQuad(currentFont.charData, currentFont.width, currentFont.height, currentChar - SPECIAL_ASCII_CHAR_OFFSET, &posX, &posY, &quad, 1);
@@ -1032,7 +1034,7 @@ static void GL_Render()
     }
 }
 
-static void GLEnd()
+static void GL_End()
 {
     glDeleteVertexArrays(1, &quadBuffer.vertexArray);
     glDeleteBuffers(1, &quadBuffer.vertexBuffer);

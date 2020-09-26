@@ -69,7 +69,8 @@ void LoadLUALibrary(sol::lib library)
     // #NOTE (Juan): Add library extensions
     switch(library) {
         case sol::lib::package: {
-            const char* workingDirectory = std::filesystem::current_path().string().c_str();
+            auto string = std::filesystem::current_path().string();
+            const char* workingDirectory = string.c_str();
             i32 workingDirectorySize = strlen(workingDirectory);
 
             char* packagePath = PushArray(&temporalState->arena, workingDirectorySize + 7, char);
@@ -85,6 +86,9 @@ void LoadLUALibrary(sol::lib library)
         }
         case sol::lib::math: {
             ScriptingMathBindings();
+            break;
+        }
+        default: {
             break;
         }
     }

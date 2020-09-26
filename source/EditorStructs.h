@@ -37,7 +37,8 @@ enum ConsoleLogType
 struct ConsoleLog
 {
     char* log;
-    i32 count;
+    size_t size;
+    u32 count;
     ConsoleLogType type;
 };
 

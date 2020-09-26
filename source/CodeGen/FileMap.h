@@ -4,6 +4,8 @@
 const char* IMGUI_INI = "imgui.ini";
 const char* ATLAS_MAIN_ATLAS = "atlas/main.atlas";
 const char* ATLAS_MAIN_PNG = "atlas/main.png";
+const char* DATA_ANDROIDCONFIG_ENVT = "data/androidConfig.envt";
+const char* DATA_WASMCONFIG_ENVT = "data/wasmConfig.envt";
 const char* DATA_WINDOWSCONFIG_ENVT = "data/windowsConfig.envt";
 const char* FONTS_BALOOTHAMBI_REGULAR_TTF = "fonts/BalooThambi-Regular.ttf";
 const char* FONTS_KENPIXEL_SQUARE_TTF = "fonts/KenPixel Square.ttf";
