@@ -101,8 +101,6 @@ static u32 GameLoop()
     }
 #endif
 
-    // ImGui::ShowDemoWindow();
-
     return 0;
 }
 
