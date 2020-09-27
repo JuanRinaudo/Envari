@@ -2,7 +2,7 @@
 #define MEMORY_H
 
 #define ZeroStruct(instance) ZeroSize(sizeof(instance), &instance)
-inline void ZeroSize(memoryIndex size, void *pointer)
+inline void ZeroSize(size_t size, void *pointer)
 {
     // TODO(Juan): Check this for performance
     u8 *byte = (u8 *)pointer;
@@ -15,7 +15,7 @@ inline void ZeroSize(memoryIndex size, void *pointer)
 #define PushStruct(arena, type) (type *)PushSize_(arena, sizeof(type))
 #define PushArray(arena, count, type) (type *)PushSize_(arena, ((count)*sizeof(type)))
 #define PushSize(arena, size) PushSize_(arena, size)
-static void* PushSize_(MemoryArena *arena, memoryIndex size)
+static void* PushSize_(MemoryArena *arena, size_t size)
 {
     Assert(arena->used + size < arena->size);
     void *result = arena->base + arena->used;
@@ -24,7 +24,7 @@ static void* PushSize_(MemoryArena *arena, memoryIndex size)
     return(result);
 }
 
-static void* PushSize_(TemporaryMemory *memory, memoryIndex size)
+static void* PushSize_(TemporaryMemory *memory, size_t size)
 {
     void *result = PushSize_(memory->arena, size);
     memory->used += size;
@@ -91,7 +91,7 @@ static char *PushString(TemporaryMemory *memory, const char *string, u32 *string
     return result;
 }
 
-static void InitializeArena(MemoryArena *arena, memoryIndex size, void *base)
+static void InitializeArena(MemoryArena *arena, size_t size, void *base)
 {
     arena->size = size;
     arena->base = (u8*)base;

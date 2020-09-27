@@ -15,7 +15,7 @@
 #define KEY_COUNT 500
 #define MOUSE_COUNT 8
 
-#define DATA_MAX_TOKEN_COUNT 128
+#define DATA_MAX_TOKEN_COUNT 256
 
 #define CONSOLE_INPUT_BUFFER_COUNT 256
 
@@ -32,8 +32,6 @@ typedef int16_t i16;
 typedef int32_t i32;
 typedef int64_t i64;
 typedef i32 b32;
-
-typedef size_t memoryIndex;
 
 typedef uint8_t u8;
 typedef uint16_t u16;

@@ -66,9 +66,9 @@ i32 CALLBACK WinMain(
     sceneState = (SceneData *)gameState->memory.sceneStorage;
     temporalState = (TemporalData *)gameState->memory.temporalStorage;
 
-    InitializeArena(&permanentState->arena, (memoryIndex)(gameState->memory.permanentStorageSize - sizeof(PermanentData) - sizeof(Data)), (u8 *)gameState->memory.permanentStorage + sizeof(PermanentData) + sizeof(Data));
-    InitializeArena(&sceneState->arena, (memoryIndex)(gameState->memory.sceneStorageSize - sizeof(SceneData)), (u8 *)gameState->memory.sceneStorage + sizeof(SceneData));
-    InitializeArena(&temporalState->arena, (memoryIndex)(gameState->memory.temporalStorageSize - sizeof(TemporalData)), (u8 *)gameState->memory.temporalStorage + sizeof(TemporalData));
+    InitializeArena(&permanentState->arena, (size_t)(gameState->memory.permanentStorageSize - sizeof(PermanentData) - sizeof(Data)), (u8 *)gameState->memory.permanentStorage + sizeof(PermanentData) + sizeof(Data));
+    InitializeArena(&sceneState->arena, (size_t)(gameState->memory.sceneStorageSize - sizeof(SceneData)), (u8 *)gameState->memory.sceneStorage + sizeof(SceneData));
+    InitializeArena(&temporalState->arena, (size_t)(gameState->memory.temporalStorageSize - sizeof(TemporalData)), (u8 *)gameState->memory.temporalStorage + sizeof(TemporalData));
 
     DeserializeDataTable(&initialConfig, DATA_WINDOWSCONFIG_ENVT);
 
@@ -91,7 +91,7 @@ i32 CALLBACK WinMain(
         gameState->render.height = FloorToInt(windowSize.y);
     }
 
-    gameState->render.framebufferEnabled = TableHasKey(&initialConfig, WINDOWSCONFIG_BUFFERSIZE);
+    gameState->render.framebufferEnabled = TableHasKey(initialConfig, WINDOWSCONFIG_BUFFERSIZE);
     if(gameState->render.framebufferEnabled) {
         v2 bufferSize = TableGetV2(&initialConfig, WINDOWSCONFIG_BUFFERSIZE);
         if(windowSize.x <= 10 && windowSize.y <= 10) {
@@ -142,6 +142,11 @@ i32 CALLBACK WinMain(
 #endif
 
     GameInit();
+    
+    SerializableTable* test = 0;
+    DeserializeTable(&permanentState->arena, &test, "saveData.save");
+    Log(&editorConsole, "%s", TableGetString(&test, "String"));
+    SerializeTable(&test, "saveData.save");
 
     GL_Init();
     coloredProgram = GL_CompileProgram(SHADERS_GLCORE_COLORED_VERT, SHADERS_GLCORE_COLORED_FRAG);

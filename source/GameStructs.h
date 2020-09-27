@@ -95,9 +95,9 @@ struct transform2D
 
 // #NOTE (Juan): Memory
 struct MemoryArena {
-    memoryIndex size;
+    size_t size;
     u8 *base;
-    memoryIndex used;
+    size_t used;
 
     u32 tempCount;
 };
@@ -105,7 +105,7 @@ struct MemoryArena {
 struct TemporaryMemory
 {
     MemoryArena *arena;
-    memoryIndex used;
+    size_t used;
 };
 
 // #NOTE (Juan): Render
@@ -442,6 +442,24 @@ enum DataType {
 struct DataTable {
     char* key;
     char* value;
+};
+
+// #NOTE (Juan): Changing this enum order will break save games
+enum SerializableType {
+    SerializableType_CHAR,
+    SerializableType_I32,
+    SerializableType_F32
+};
+
+struct SerializableValue {
+    void* value;
+    SerializableType type;
+    u32 count;
+};
+
+struct SerializableTable {
+    char* key;
+    SerializableValue* value;
 };
 
 #endif

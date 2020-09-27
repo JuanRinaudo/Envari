@@ -64,7 +64,7 @@ static void EditorInit(LUADebuggerWindow* debugger)
 {
     debugger->open = true;
 
-    if(TableHasKey(&initialConfig, INITLUASCRIPT)) {
+    if(TableHasKey(initialConfig, INITLUASCRIPT)) {
         debugger->currentFile = (char*)LoadFileToMemory(TableGetString(&initialConfig, INITLUASCRIPT), FILE_MODE_READ_BINARY, &debugger->currentFileSize);
     }
 }

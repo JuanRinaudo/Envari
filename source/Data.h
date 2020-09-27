@@ -58,7 +58,7 @@ static DataTokenizer StartTokenizer(const char* filepath)
     return tokenizer;
 }
 
-static char* NextToken(DataTokenizer* tokenizer, bool* isString = 0)
+static char* NextToken(DataTokenizer* tokenizer)
 {
     if(tokenizer->active) {
         tokenizer->tokenBufferIndex = 0;
@@ -72,7 +72,6 @@ static char* NextToken(DataTokenizer* tokenizer, bool* isString = 0)
 
             if (tokenizer->parsingString || (!tokenizer->onComment && tokenizer->currentChar > ' ')) {
                 if(tokenizer->currentChar == '"') {
-                    if(isString) { *isString = true; }
                     if(!tokenizer->parsingString) {
                         tokenizer->dataIndex++;
                         tokenizer->currentChar = tokenizer->dataString[tokenizer->dataIndex];
@@ -166,7 +165,8 @@ static void GetDataLineParameters(char* dataString, i32 index) {
     currentChar = dataString[index];
 }
 
-static bool TableHasKey(DataTable** table, const char* key)
+#define TableHasKey(table, key) TableHasKey_(&table, key)
+static bool TableHasKey_(DataTable** table, const char* key)
 {
     void* keyPointer = shgetp_null(*table, key);
     return keyPointer != 0;
@@ -181,7 +181,7 @@ static char* TableGetValue(DataTable** table, const char* key)
 static char* TableGetString(DataTable** table, const char* key)
 {
     char* tableString = shget(*table, key);
-    return tableString + 1;
+    return tableString;
 }
 
 static i32 TableGetInt(DataTable** table, const char* key)
@@ -235,8 +235,7 @@ static bool DeserializeDataTable(MemoryArena *arena, DataTable** table, const ch
     i32 valueIndex = -1;
     char* keyPointer = 0;
     while(tokenizer.active) {
-        bool isString = false;
-        char* token = NextToken(&tokenizer, &isString);
+        char* token = NextToken(&tokenizer);
 
         if(tokenizer.tokenLineCount == 0) {
             if(valueIndex > -1 && keyPointer == 0) {
@@ -250,18 +249,14 @@ static bool DeserializeDataTable(MemoryArena *arena, DataTable** table, const ch
             
             keyPointer = PushString(arena, tokenizer.tokenBuffer, tokenizer.tokenBufferIndex);
         }
-        else if(token != 0) {
-            char* tokenPointer = 0;
-            if(isString) { tokenPointer = PushChar(arena, '"'); }
-            
-            char* stringPointer = PushString(arena, tokenizer.tokenBuffer, tokenizer.tokenBufferIndex);
-            if(tokenPointer == 0) { tokenPointer = stringPointer; }
+        else if(token) {            
+            char* tokenPointer = PushString(arena, tokenizer.tokenBuffer, tokenizer.tokenBufferIndex);
 
             if(tokenizer.tokenLineCount == 1) {
                 shput(*table, keyPointer, tokenPointer);
                 keyPointer = 0;
             }
-            
+
             valueIndex++;
         }
     }
@@ -277,27 +272,212 @@ static bool DeserializeDataTable(DataTable** table, const char* filepath)
     return DeserializeDataTable(&permanentState->arena, table, filepath);
 }
 
-static void SerializeDataTable(DataTable** table, const char* filepath)
+// static void SerializeDataTable(DataTable** table, const char* filepath)
+// {
+//     FILE* file = fopen(filepath, FILE_MODE_WRITE_CREATE_BINARY);
+
+//     if(file) {
+//         i32 tableSize = shlen(*table);
+//         for(i32 index = 0; index < tableSize; ++index) {
+//             DataTable data = (*table)[index];
+//             fputs(data.key, file);
+//             fputs(": ", file);
+            
+//             i32 valueIndex = 0;
+//             char* value = data.value;
+//             while(value[0] != 0) {
+//                 if(valueIndex > 0) { fputc(' ', file); }
+
+//                 fputs(value, file);
+//                 if(value[0] == '"') { fputc('"', file); }
+//                 i32 size = strlen(value);
+//                 value += size + 1;
+//                 valueIndex++;
+//             }
+
+//             fputs(";\n", file);
+//         }
+//         fclose(file);
+//     }
+// }
+
+static bool TableHasKey_(SerializableTable** table, const char* key)
+{
+    void* keyPointer = shgetp_null(*table, key);
+    return keyPointer != 0;
+}
+
+static SerializableValue* TableGetValue(SerializableTable** table, const char* key)
+{
+    SerializableValue* tableValue = shget(*table, key);
+    return tableValue;
+}
+
+static void TableSetValueReference(MemoryArena *arena, SerializableTable** table, const char* key, void* value, SerializableType type, u32 count = 1)
+{
+    char* keyPointer = PushString(arena, key);
+    SerializableValue* tableValue = PushStruct(arena, SerializableValue);
+    tableValue->value = value;
+    tableValue->type = type;
+    tableValue->count = count;
+    shput(*table, keyPointer, tableValue);
+}
+
+#define TableSetValue(arena, table, key, value, type) TableSetValue_(arena, &table, key, (void*)value, sizeof(value), type)
+#define TableSetValues(arena, table, key, value, type, count) TableSetValue_(arena, &table, key, (void*)value, sizeof(value), type, count)
+static void TableSetValue_(MemoryArena *arena, SerializableTable** table, const char* key, void* value, size_t size, SerializableType type, u32 count = 1)
+{
+    char* keyPointer = PushString(arena, key);
+    SerializableValue* tableValue = PushStruct(arena, SerializableValue);
+    tableValue->value = PushSize(arena, size);
+    memcpy(tableValue->value, value, size);
+    tableValue->type = type;
+    tableValue->count = count;
+    shput(*table, keyPointer, tableValue);
+}
+
+#define TableSetString(arena, table, key, value) TableSetValue_(arena, &table, key, (void*)value, sizeof(value), SerializableType_CHAR)
+
+static i32 TableGetInt(SerializableTable** table, const char* key)
+{    
+    SerializableValue* tableValue = shget(*table, key);
+    return *((i32*)tableValue->value);
+}
+
+#define TableSetInt(arena, table, key, value) TableSetInt_(arena, &table, key, value)
+static void TableSetInt_(MemoryArena *arena, SerializableTable** table, const char* key, i32 value)
+{
+    char* keyPointer = PushString(arena, key);
+    SerializableValue* tableValue = PushStruct(arena, SerializableValue);
+    tableValue->value = PushSize(arena, sizeof(i32));
+    *((i32*)tableValue->value) = value;
+    tableValue->type = SerializableType_I32;
+    tableValue->count = 1;
+    shput(*table, keyPointer, tableValue);
+}
+
+static char* TableGetString(SerializableTable** table, const char* key)
+{
+    SerializableValue* tableValue = shget(*table, key);
+    return (char*)tableValue->value;
+}
+
+static u32 SerializableValueSize(SerializableType type)
+{
+    switch(type) {
+        case SerializableType_CHAR: {
+            return 1;
+        }
+        case SerializableType_I32: case SerializableType_F32: {
+            return 4;
+        }
+        default: {
+            InvalidCodePath;
+            break;
+        }
+    }
+    InvalidCodePath;
+    return 0;
+}
+
+static bool DeserializeTable(MemoryArena *arena, SerializableTable** table, const char* filepath)
+{
+    DataTokenizer tokenizer = StartTokenizer(filepath);
+    
+    char* keyPointer = 0;
+    while(tokenizer.active) {
+        char* token = NextToken(&tokenizer);
+        
+        if(token) {
+            char* keyPointer = PushString(arena, token);
+
+            token = NextToken(&tokenizer);
+            SerializableType type = (SerializableType)atoi(token);
+            
+            token = NextToken(&tokenizer);
+            i32 count = atoi(token);
+
+            void* valuePointer = 0;
+
+            i32 valueSize = SerializableValueSize(type);
+            i32 valueOffset = 0;
+            if(type != SerializableType_CHAR) {
+                valuePointer = PushSize(arena, valueSize * count);
+            }
+
+            for(i32 valueIndex = 0; valueIndex < count; ++valueIndex) {
+                switch(type) {
+                    case SerializableType_CHAR: {
+                        token = NextToken(&tokenizer);
+                        char* value = PushString(arena, token);
+                        if(valueIndex == 0) { valuePointer = (void*)value; }
+                        break;
+                    }
+                    case SerializableType_I32: {
+                        token = NextToken(&tokenizer);
+                        i32 value = atoi(token);
+                        *((i32*)valuePointer + valueOffset) = value;
+                        break;
+                    }
+                    default: {
+                        InvalidCodePath;
+                        break;
+                    }
+                }
+                valueOffset += valueSize;
+            }
+
+            Assert(valuePointer != 0);
+            TableSetValueReference(arena, table, keyPointer, valuePointer, type, count);
+        }
+    }
+
+    EndTokenizer(&tokenizer);
+
+    return true;
+}
+
+static void SerializeTable(SerializableTable** table, const char* filepath)
 {
     FILE* file = fopen(filepath, FILE_MODE_WRITE_CREATE_BINARY);
+
+    char stringBuffer[DATA_MAX_TOKEN_COUNT];
 
     if(file) {
         i32 tableSize = shlen(*table);
         for(i32 index = 0; index < tableSize; ++index) {
-            DataTable data = (*table)[index];
+            SerializableTable data = (*table)[index];
             fputs(data.key, file);
-            fputs(": ", file);
+            fputc(' ', file);
             
-            i32 valueIndex = 0;
-            char* value = data.value;
-            while(value[0] != 0) {
-                if(valueIndex > 0) { fputc(' ', file); }
+            itoa((i32)data.value->type, stringBuffer, 10);
+            fputs(stringBuffer, file);
+            fputc(' ', file);
 
-                fputs(value, file);
-                if(value[0] == '"') { fputc('"', file); }
-                i32 size = strlen(value);
-                value += size + 1;
-                valueIndex++;
+            i32 valueCount = data.value->count;
+            itoa(valueCount, stringBuffer, 10);
+            fputs(stringBuffer, file);
+            fputc(' ', file);
+            
+            for(i32 valueIndex = 0; valueIndex < valueCount; ++valueIndex) {
+                if(valueIndex > 0) { fputc(' ', file); }
+                switch(data.value->type) {
+                    case SerializableType_CHAR: {
+                        fputc('"', file);
+                        fputs((char*)data.value->value, file);
+                        fputc('"', file);
+                        break;
+                    }
+                    case SerializableType_I32: {
+                        itoa(*((i32*)data.value->value), stringBuffer, 10);
+                        fputs(stringBuffer, file);
+                        break;
+                    }
+                    default: {
+                        InvalidCodePath;
+                        break;
+                    }
+                }
             }
 
             fputs(";\n", file);
