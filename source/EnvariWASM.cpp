@@ -79,7 +79,7 @@ int main(int argc, char** argv)
     InitializeArena(&sceneState->arena, (memoryIndex)(gameState->memory.sceneStorageSize - sizeof(SceneData)), (u8 *)gameState->memory.sceneStorage + sizeof(SceneData));
     InitializeArena(&temporalState->arena, (memoryIndex)(gameState->memory.temporalStorageSize - sizeof(TemporalData)), (u8 *)gameState->memory.temporalStorage + sizeof(TemporalData));
 
-    ParseDataTable(&initialConfig, DATA_WASMCONFIG_ENVT);
+    DeserializeDataTable(&initialConfig, DATA_WASMCONFIG_ENVT);
 
     // #TODO (Juan): Check this SDL_INIT_EVERYTHING, check what really needs to be init
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {

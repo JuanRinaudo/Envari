@@ -38,6 +38,113 @@ static bool TokenIsFloat(const char* string)
     return true;
 }
 
+static void StartTokenizer(DataTokenizer* tokenizer, const char* filepath)
+{
+    tokenizer->active = true;
+    tokenizer->memory = LoadFileToMemory(filepath, FILE_MODE_READ_BINARY, &tokenizer->memorySize);
+    tokenizer->dataString = (char*)tokenizer->memory;
+    tokenizer->dataIndex = 0;
+    tokenizer->tokenBufferIndex = 0;
+    tokenizer->currentLine = 0;
+    tokenizer->tokenLineCount = -1;
+    tokenizer->onComment = false;
+    tokenizer->parsingString = false;
+}
+
+static DataTokenizer StartTokenizer(const char* filepath)
+{
+    DataTokenizer tokenizer;
+    StartTokenizer(&tokenizer, filepath);
+    return tokenizer;
+}
+
+static char* NextToken(DataTokenizer* tokenizer, bool* isString = 0)
+{
+    if(tokenizer->active) {
+        tokenizer->tokenBufferIndex = 0;
+
+        while (tokenizer->dataIndex < tokenizer->memorySize) {
+            tokenizer->currentChar = tokenizer->dataString[tokenizer->dataIndex];
+            
+            if(!tokenizer->parsingString && tokenizer->currentChar == '#') {
+                tokenizer->onComment = true;
+            }
+
+            if (tokenizer->parsingString || (!tokenizer->onComment && tokenizer->currentChar > ' ')) {
+                if(tokenizer->currentChar == '"') {
+                    if(isString) { *isString = true; }
+                    if(!tokenizer->parsingString) {
+                        tokenizer->dataIndex++;
+                        tokenizer->currentChar = tokenizer->dataString[tokenizer->dataIndex];
+                    }
+                    tokenizer->parsingString = !tokenizer->parsingString;
+                }
+                
+                if (!tokenizer->parsingString && tokenizer->currentChar == ';') {
+                    ++tokenizer->dataIndex;
+                    ++tokenizer->tokenLineCount;
+                    return tokenizer->tokenBuffer;
+                }
+                else {
+                    tokenizer->tokenBuffer[tokenizer->tokenBufferIndex] = tokenizer->currentChar;
+                    tokenizer->tokenBufferIndex++;
+                    
+                    if(tokenizer->tokenBufferIndex == DATA_MAX_TOKEN_COUNT) {
+                        // Log(&editorConsole, "Parsing error, max token count reached %d", DATA_MAX_TOKEN_COUNT);
+                        return 0;
+                    }
+
+                    if(!tokenizer->parsingString) {
+                        char nextChar = tokenizer->dataString[tokenizer->dataIndex + 1];
+                        if(nextChar == ';' || nextChar == ' ' || (tokenizer->tokenLineCount == -1 && nextChar == ':')) {
+                            if(tokenizer->tokenBuffer[tokenizer->tokenBufferIndex - 1] == '"') {
+                                tokenizer->tokenBuffer[tokenizer->tokenBufferIndex - 1] = '\0';
+                            }
+                            else {
+                                tokenizer->tokenBuffer[tokenizer->tokenBufferIndex] = '\0';
+                                tokenizer->tokenBufferIndex++;
+                            }
+                            ++tokenizer->dataIndex;
+                            ++tokenizer->dataIndex;
+                            ++tokenizer->tokenLineCount;
+                            return tokenizer->tokenBuffer;
+                        }
+                    }
+                }
+            }
+
+            if(tokenizer->currentChar == '\n' || tokenizer->currentChar == '\0') {
+                tokenizer->currentLine++;
+                tokenizer->tokenLineCount = -1;
+
+                if(tokenizer->onComment) {
+                    tokenizer->onComment = false;
+                }
+            }
+
+            ++tokenizer->dataIndex;
+
+            if(tokenizer->dataIndex == tokenizer->memorySize) {
+                tokenizer->active = false;
+            }
+        }
+    }
+
+    return 0;
+}
+
+static void EndTokenizer(DataTokenizer* tokenizer)
+{
+    tokenizer->active = false;
+    tokenizer->memory = 0;
+    tokenizer->memorySize = 0;
+    tokenizer->dataString = 0;
+    tokenizer->tokenBuffer[0] = '\0';
+    tokenizer->tokenBufferIndex = 0;
+    tokenizer->tokenLineCount = 0;
+    UnloadFileFromMemory(tokenizer->memory);
+}
+
 // #NOTE (Juan): This does a linear scan of the current data to check the ammount of parameters, dataString must point to the start of the line
 static void GetDataLineParameters(char* dataString, i32 index) {
     char currentChar = dataString[index];
@@ -65,10 +172,16 @@ static bool TableHasKey(DataTable** table, const char* key)
     return keyPointer != 0;
 }
 
+static char* TableGetValue(DataTable** table, const char* key)
+{
+    char* tableValue = shget(*table, key);
+    return tableValue;
+}
+
 static char* TableGetString(DataTable** table, const char* key)
 {
     char* tableString = shget(*table, key);
-    return tableString;
+    return tableString + 1;
 }
 
 static i32 TableGetInt(DataTable** table, const char* key)
@@ -115,39 +228,82 @@ static v3 TableGetV3(DataTable** table, const char* key)
     return V3(x, y, z);
 }
 
-static bool ParseDataTable(DataTable** table, const char* filename)
+static bool DeserializeDataTable(MemoryArena *arena, DataTable** table, const char* filepath)
 {
-    DataTokenizer tokenizer = StartTokenizer(filename);
+    DataTokenizer tokenizer = StartTokenizer(filepath);
 
+    i32 valueIndex = -1;
     char* keyPointer = 0;
     while(tokenizer.active) {
-        char* token = NextToken(&tokenizer);
+        bool isString = false;
+        char* token = NextToken(&tokenizer, &isString);
 
         if(tokenizer.tokenLineCount == 0) {
+            if(valueIndex > -1 && keyPointer == 0) {
+                PushChar(arena, '\0');
+            }
+            valueIndex = 0;
             if(keyPointer != 0) {
                 Log(&editorConsole, "Parsing error, parsing a key token when last token was a key, line: %d", tokenizer.currentLine);
                 return false;
             }
             
-            keyPointer = PushString(&permanentState->arena, tokenizer.tokenBuffer, tokenizer.tokenBufferIndex);
+            keyPointer = PushString(arena, tokenizer.tokenBuffer, tokenizer.tokenBufferIndex);
         }
         else if(token != 0) {
-            char* tokenPointer = PushString(&permanentState->arena, tokenizer.tokenBuffer, tokenizer.tokenBufferIndex);
-
-            if(tokenizer.currentChar == ';') {
-                PushChar(&permanentState->arena, '\0');
-            }
+            char* tokenPointer = 0;
+            if(isString) { tokenPointer = PushChar(arena, '"'); }
+            
+            char* stringPointer = PushString(arena, tokenizer.tokenBuffer, tokenizer.tokenBufferIndex);
+            if(tokenPointer == 0) { tokenPointer = stringPointer; }
 
             if(tokenizer.tokenLineCount == 1) {
                 shput(*table, keyPointer, tokenPointer);
                 keyPointer = 0;
             }
+            
+            valueIndex++;
         }
     }
+    PushChar(arena, '\0');
 
     EndTokenizer(&tokenizer);
 
     return true;
+}
+
+static bool DeserializeDataTable(DataTable** table, const char* filepath)
+{
+    return DeserializeDataTable(&permanentState->arena, table, filepath);
+}
+
+static void SerializeDataTable(DataTable** table, const char* filepath)
+{
+    FILE* file = fopen(filepath, FILE_MODE_WRITE_CREATE_BINARY);
+
+    if(file) {
+        i32 tableSize = shlen(*table);
+        for(i32 index = 0; index < tableSize; ++index) {
+            DataTable data = (*table)[index];
+            fputs(data.key, file);
+            fputs(": ", file);
+            
+            i32 valueIndex = 0;
+            char* value = data.value;
+            while(value[0] != 0) {
+                if(valueIndex > 0) { fputc(' ', file); }
+
+                fputs(value, file);
+                if(value[0] == '"') { fputc('"', file); }
+                i32 size = strlen(value);
+                value += size + 1;
+                valueIndex++;
+            }
+
+            fputs(";\n", file);
+        }
+        fclose(file);
+    }
 }
 
 #endif

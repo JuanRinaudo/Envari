@@ -118,20 +118,20 @@ static void WriteScriptingConstant(ofstream* stream, const char* key, const char
     Write(stream, "\";\n");
 }
 
-static void StartFile(ofstream* stream, const char* folderPath, const char* filename)
+static void StartFile(ofstream* stream, const char* folderPath, const char* filepath)
 {
-    char* codegenPath = PushArray(&stringArena, strlen(folderPath) + strlen(filename), char);
+    char* codegenPath = PushArray(&stringArena, strlen(folderPath) + strlen(filepath), char);
     strcpy(codegenPath, folderPath);
-    strcat(codegenPath, filename);
+    strcat(codegenPath, filepath);
 
     stream->open(codegenPath, ios_base::out);
 }
 
-static void StartMapFile(ofstream* stream, const char* folderPath, const char* filename, const char* define)
+static void StartMapFile(ofstream* stream, const char* folderPath, const char* filepath, const char* define)
 {
-    char* codegenPath = PushArray(&stringArena, strlen(folderPath) + strlen(filename), char);
+    char* codegenPath = PushArray(&stringArena, strlen(folderPath) + strlen(filepath), char);
     strcpy(codegenPath, folderPath);
-    strcat(codegenPath, filename);
+    strcat(codegenPath, filepath);
     
     stream->open(codegenPath, ios_base::out);
     Write(stream, "#ifndef ");
@@ -272,7 +272,7 @@ i32 main()
     for(i32 i = 0; i < dataCount; ++i) {
         DataEntry *definition = rootDefinitions + i;
         cout << "Found: " << definition->fullPath <<
-            " | Filename: " << definition->name <<
+            " | filepath: " << definition->name <<
             " | Path: " << definition->path <<
             " | Key: " << definition->mapKey <<
             " | Entry type: " << definition->type << '\n';

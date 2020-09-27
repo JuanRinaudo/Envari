@@ -141,8 +141,8 @@ struct GLTextureAtlasReference {
 };
 
 struct FontAtlas {
-    char* fontFilename;
-    u32 fontFilenameSize;
+    char* fontFilepath;
+    u32 fontFilepathSize;
     f32 fontSize;
     u32 width;
     u32 height;
@@ -159,8 +159,8 @@ struct WatchedProgram {
     u32 vertexShader;
     u32 fragmentShader;
     u32 shaderProgram;
-    char vertexFilename[100];
-    char fragmentFilename[100];
+    char vertexFilepath[100];
+    char fragmentFilepath[100];
     std::filesystem::file_time_type vertexTime;
     std::filesystem::file_time_type fragmentTime;
 };
@@ -277,8 +277,8 @@ struct RenderImage
     RenderHeader header;
     v2 position;
     v2 scale;
-    char* filename;
-    u32 filenameSize;
+    char* filepath;
+    u32 filepathSize;
 };
 
 struct RenderImageUV
@@ -287,8 +287,8 @@ struct RenderImageUV
     v2 position;
     v2 scale;
     rectangle2 uv;
-    char* filename;
-    u32 filenameSize;
+    char* filepath;
+    u32 filepathSize;
 };
 
 struct RenderAtlasSprite
@@ -296,8 +296,8 @@ struct RenderAtlasSprite
     RenderHeader header;
     v2 position;
     v2 scale;
-    char* filename;
-    u32 filenameSize;
+    char* filepath;
+    u32 filepathSize;
     char* atlasName;
     u32 atlasNameSize;
     char* spriteKey;
@@ -307,8 +307,8 @@ struct RenderAtlasSprite
 struct RenderFont
 {
     RenderHeader header;
-    char* filename;
-    u32 filenameSize;
+    char* filepath;
+    u32 filepathSize;
     f32 fontSize;
     u32 width;
     u32 height;

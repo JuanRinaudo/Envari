@@ -65,7 +65,7 @@ static void EditorInit(LUADebuggerWindow* debugger)
     debugger->open = true;
 
     if(TableHasKey(&initialConfig, INITLUASCRIPT)) {
-        debugger->currentFile = (char*)LoadFileToMemory(TableGetString(&initialConfig, INITLUASCRIPT), "rb", &debugger->currentFileSize);
+        debugger->currentFile = (char*)LoadFileToMemory(TableGetString(&initialConfig, INITLUASCRIPT), FILE_MODE_READ_BINARY, &debugger->currentFileSize);
     }
 }
 #endif
@@ -550,7 +550,7 @@ static void EditorDraw(LUADebuggerWindow* debugger)
                     UnloadFileFromMemory(debugger->currentFile);
                 }
 
-                debugger->currentFile = (char*)LoadFileToMemory(debugInfo.source + 1, "rb", &debugger->currentFileSize);
+                debugger->currentFile = (char*)LoadFileToMemory(debugInfo.source + 1, FILE_MODE_READ_BINARY, &debugger->currentFileSize);
             }
             else {
                 Log(&editorConsole, "Function not found %s", debugger->inputBuffer);

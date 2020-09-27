@@ -59,7 +59,7 @@ i32 CALLBACK WinMain(
     gameState->memory.permanentStorage = permanentStorage;
     gameState->memory.sceneStorageSize = Megabytes(32);
     gameState->memory.sceneStorage = malloc(gameState->memory.sceneStorageSize);
-    gameState->memory.temporalStorageSize = Megabytes(64);
+    gameState->memory.temporalStorageSize = Megabytes(32);
     gameState->memory.temporalStorage = malloc(gameState->memory.temporalStorageSize);
 
     permanentState = (PermanentData *)gameState->memory.permanentStorage + sizeof(Data);
@@ -70,7 +70,7 @@ i32 CALLBACK WinMain(
     InitializeArena(&sceneState->arena, (memoryIndex)(gameState->memory.sceneStorageSize - sizeof(SceneData)), (u8 *)gameState->memory.sceneStorage + sizeof(SceneData));
     InitializeArena(&temporalState->arena, (memoryIndex)(gameState->memory.temporalStorageSize - sizeof(TemporalData)), (u8 *)gameState->memory.temporalStorage + sizeof(TemporalData));
 
-    ParseDataTable(&initialConfig, DATA_WINDOWSCONFIG_ENVT);
+    DeserializeDataTable(&initialConfig, DATA_WINDOWSCONFIG_ENVT);
 
     // #TODO (Juan): Check this SDL_INIT_EVERYTHING, check what really needs to be init
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {

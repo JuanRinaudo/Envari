@@ -123,38 +123,38 @@ void DrawTexture(f32 posX, f32 posY, f32 scaleX, f32 scaleY, u32 textureID)
     texture->textureID = textureID;
 }
 
-void DrawImage(f32 posX, f32 posY, f32 scaleX, f32 scaleY, const char* filename, u32 renderFlags = 0)
+void DrawImage(f32 posX, f32 posY, f32 scaleX, f32 scaleY, const char* filepath, u32 renderFlags = 0)
 {
     RenderImage *image = RenderPushElement(&renderTemporaryMemory, RenderImage);
     image->header.renderFlags = renderFlags;
     image->position = V2(posX, posY);
     image->scale = V2(scaleX, scaleY);
-    image->filename = PushString(&renderTemporaryMemory, filename, &image->filenameSize);
+    image->filepath = PushString(&renderTemporaryMemory, filepath, &image->filepathSize);
 }
 
-void DrawImageUV(f32 posX, f32 posY, f32 scaleX, f32 scaleY, rectangle2 uv, const char* filename)
+void DrawImageUV(f32 posX, f32 posY, f32 scaleX, f32 scaleY, rectangle2 uv, const char* filepath)
 {
     RenderImageUV *image = RenderPushElement(&renderTemporaryMemory, RenderImageUV);
     image->position = V2(posX, posY);
     image->scale = V2(scaleX, scaleY);
     image->uv = uv;
-    image->filename = PushString(&renderTemporaryMemory, filename, &image->filenameSize);
+    image->filepath = PushString(&renderTemporaryMemory, filepath, &image->filepathSize);
 }
 
-void DrawAtlasSprite(f32 posX, f32 posY, f32 scaleX, f32 scaleY, const char* filename, const char* atlasName, const char* key)
+void DrawAtlasSprite(f32 posX, f32 posY, f32 scaleX, f32 scaleY, const char* filepath, const char* atlasName, const char* key)
 {
     RenderAtlasSprite *atlas = RenderPushElement(&renderTemporaryMemory, RenderAtlasSprite);
     atlas->position = V2(posX, posY);
     atlas->scale = V2(scaleX, scaleY);
-    atlas->filename = PushString(&renderTemporaryMemory, filename, &atlas->filenameSize);
+    atlas->filepath = PushString(&renderTemporaryMemory, filepath, &atlas->filepathSize);
     atlas->atlasName = PushString(&renderTemporaryMemory, atlasName, &atlas->atlasNameSize);
     atlas->spriteKey = PushString(&renderTemporaryMemory, key, &atlas->spriteKeySize);
 }
 
-void DrawFont(const char* filename, f32 fontSize, u32 width, u32 height)
+void DrawFont(const char* filepath, f32 fontSize, u32 width, u32 height)
 {
     RenderFont *font = RenderPushElement(&renderTemporaryMemory, RenderFont);
-    font->filename = PushString(&renderTemporaryMemory, filename, &font->filenameSize);
+    font->filepath = PushString(&renderTemporaryMemory, filepath, &font->filepathSize);
     font->fontSize = fontSize;
     font->width = width;
     font->height = height;

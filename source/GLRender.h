@@ -156,20 +156,20 @@ static TextureAtlas GL_LoadAtlas(const char *atlasKey)
     }
 }
 
-static FontAtlas GL_LoadFont(const char *filename, f32 fontSize, u32 width, u32 height)
+static FontAtlas GL_LoadFont(const char *filepath, f32 fontSize, u32 width, u32 height)
 {
-    i32 index = (i32)shgeti(fontCache, filename);
+    i32 index = (i32)shgeti(fontCache, filepath);
     if(index > -1) {
-        return shget(fontCache, filename); 
+        return shget(fontCache, filepath); 
     } else {
         FontAtlas result;
-        result.fontFilename = PushString(&permanentState->arena, filename, &result.fontFilenameSize);
+        result.fontFilepath = PushString(&permanentState->arena, filepath, &result.fontFilepathSize);
         result.fontSize = fontSize;
         result.width = width;
         result.height = height;
 
         u32 data_size = 0;
-        void* data = LoadFileToMemory(filename, "rb", &data_size);
+        void* data = LoadFileToMemory(filepath, FILE_MODE_READ_BINARY, &data_size);
 
         u8* tempBitmap = PushArray(&temporalState->arena, width * height, u8);
         stbtt_BakeFontBitmap((u8 *)data, 0, fontSize, tempBitmap, width, height, 32, 96, result.charData); // no guarantee this fits!
@@ -185,8 +185,8 @@ static FontAtlas GL_LoadFont(const char *filename, f32 fontSize, u32 width, u32 
         texture.width = width;
         texture.height = height;
         texture.channels = 4;
-        shput(textureCache, filename, texture);
-        shput(fontCache, filename, result);
+        shput(textureCache, filepath, texture);
+        shput(fontCache, filepath, result);
 
         return result;
     }
@@ -290,7 +290,7 @@ static i32 GL_CompileProgram(const char *vertexShaderSource, const char *fragmen
     vertexShader = glCreateShader(GL_VERTEX_SHADER);
     
     u32 data_size = 0;
-    void* data = LoadFileToMemory(vertexShaderSource, "rb", &data_size);
+    void* data = LoadFileToMemory(vertexShaderSource, FILE_MODE_READ_BINARY, &data_size);
     SOURCE_TYPE vertexSource = static_cast<SOURCE_TYPE>(data);
     
     i32 size = (i32)data_size;
@@ -311,7 +311,7 @@ static i32 GL_CompileProgram(const char *vertexShaderSource, const char *fragmen
     u32 fragmentShader;
     fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
 
-    data = LoadFileToMemory(fragmentShaderSource, "rb", &data_size);
+    data = LoadFileToMemory(fragmentShaderSource, FILE_MODE_READ_BINARY, &data_size);
     SOURCE_TYPE fragmentSource = static_cast<SOURCE_TYPE>(data);
 
     size = (i32)data_size;
@@ -346,8 +346,8 @@ static i32 GL_CompileProgram(const char *vertexShaderSource, const char *fragmen
     watched.vertexShader = vertexShader;
     watched.fragmentShader = fragmentShader;
     watched.shaderProgram = shaderProgram;
-    strcpy(watched.vertexFilename, vertexShaderSource);
-    strcpy(watched.fragmentFilename, fragmentShaderSource);
+    strcpy(watched.vertexFilepath, vertexShaderSource);
+    strcpy(watched.fragmentFilepath, fragmentShaderSource);
     watched.vertexTime = std::filesystem::last_write_time(vertexShaderSource);
     watched.fragmentTime = std::filesystem::last_write_time(fragmentShaderSource);
 
@@ -364,20 +364,20 @@ static void GL_WatchChanges()
     for(i32 i = 0; i < watchedProgramsCount; ++i) {
         WatchedProgram watched = watchedPrograms[i];
 
-        std::filesystem::file_time_type vertexTime = std::filesystem::last_write_time(watched.vertexFilename);
-        std::filesystem::file_time_type fragmentTime = std::filesystem::last_write_time(watched.fragmentFilename);
+        std::filesystem::file_time_type vertexTime = std::filesystem::last_write_time(watched.vertexFilepath);
+        std::filesystem::file_time_type fragmentTime = std::filesystem::last_write_time(watched.fragmentFilepath);
 
         if(vertexTime != watched.vertexTime || fragmentTime != watched.fragmentTime) {
             size_t vertexSouceSize = 0;
-            void* data = LoadFileToMemory(watched.vertexFilename, "rb", &vertexSouceSize);
+            void* data = LoadFileToMemory(watched.vertexFilepath, FILE_MODE_READ_BINARY, &vertexSouceSize);
             SOURCE_TYPE vertexSource = static_cast<SOURCE_TYPE>(data);
 
             size_t fragmentSouceSize = 0;
-            data = LoadFileToMemory(watched.fragmentFilename, "rb", &fragmentSouceSize);
+            data = LoadFileToMemory(watched.fragmentFilepath, FILE_MODE_READ_BINARY, &fragmentSouceSize);
             SOURCE_TYPE fragmentSource = static_cast<SOURCE_TYPE>(data);
 
             if(vertexSource[0] != '\0' && fragmentSource[0] != '\0') {
-                Log(&editorConsole, "Started to reload program %d, vertex %s, fragment %s", watched.shaderProgram, watched.vertexFilename, watched.fragmentFilename);
+                Log(&editorConsole, "Started to reload program %d, vertex %s, fragment %s", watched.shaderProgram, watched.vertexFilepath, watched.fragmentFilepath);
                 glDetachShader(watched.shaderProgram, watched.vertexShader);
                 glDetachShader(watched.shaderProgram, watched.fragmentShader);
                 
@@ -394,7 +394,7 @@ static void GL_WatchChanges()
                 if (!success)
                 {
                     glGetShaderInfoLog(watched.vertexShader, 512, NULL, infoLog);
-                    LogError(&editorConsole, "ERROR::VERTEX::COMPILATION_FAILED %s\n", watched.vertexFilename);
+                    LogError(&editorConsole, "ERROR::VERTEX::COMPILATION_FAILED %s\n", watched.vertexFilepath);
                     LogError(&editorConsole, infoLog);
                 }
 
@@ -407,7 +407,7 @@ static void GL_WatchChanges()
                 if (!success)
                 {
                     glGetShaderInfoLog(watched.vertexShader, 512, NULL, infoLog);
-                    LogError(&editorConsole, "ERROR::FRAGMENT::COMPILATION_FAILED %s\n", watched.fragmentFilename);
+                    LogError(&editorConsole, "ERROR::FRAGMENT::COMPILATION_FAILED %s\n", watched.fragmentFilepath);
                     LogError(&editorConsole, infoLog);
                 }
 
@@ -789,7 +789,7 @@ static void GL_Render()
 
                 glUseProgram(texturedProgram);
 
-                GLTexture texture = GL_LoadTexture(image->filename);
+                GLTexture texture = GL_LoadTexture(image->filepath);
                 glBindTexture(GL_TEXTURE_2D, texture.textureID);
                 SetupTextureParameters(GL_TEXTURE_2D);
 
@@ -834,7 +834,7 @@ static void GL_Render()
 
                 glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
                 
-                size = sizeof(RenderImage) + image->filenameSize;
+                size = sizeof(RenderImage) + image->filepathSize;
                 break;
             }
             case type_RenderImageUV: {
@@ -842,7 +842,7 @@ static void GL_Render()
 
                 glUseProgram(texturedProgram);
 
-                GLTexture texture = GL_LoadTexture(imageUV->filename);
+                GLTexture texture = GL_LoadTexture(imageUV->filepath);
                 glBindTexture(GL_TEXTURE_2D, texture.textureID);
                 SetupTextureParameters(GL_TEXTURE_2D);
 
@@ -862,7 +862,7 @@ static void GL_Render()
 
                 glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
                 
-                size = sizeof(RenderImageUV) + imageUV->filenameSize;
+                size = sizeof(RenderImageUV) + imageUV->filepathSize;
                 break;
             }
             case type_RenderAtlasSprite: {
@@ -873,7 +873,7 @@ static void GL_Render()
                 TextureAtlas textureAtlas = GL_LoadAtlas(atlas->atlasName);
                 rectangle2 uvRect = shget(textureAtlas.sprites, atlas->spriteKey);
 
-                GLTexture texture = GL_LoadTexture(atlas->filename);
+                GLTexture texture = GL_LoadTexture(atlas->filepath);
                 glBindTexture(GL_TEXTURE_2D, texture.textureID);
                 SetupTextureParameters(GL_TEXTURE_2D);
 
@@ -903,14 +903,14 @@ static void GL_Render()
 
                 glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
                 
-                size = sizeof(RenderAtlasSprite) + atlas->filenameSize + atlas->atlasNameSize + atlas->spriteKeySize;
+                size = sizeof(RenderAtlasSprite) + atlas->filepathSize + atlas->atlasNameSize + atlas->spriteKeySize;
                 break;
             }
             case type_RenderFont: {
                 RenderFont *font = (RenderFont *)renderHeader;
-                currentFont = GL_LoadFont(font->filename, font->fontSize, font->width, font->height);
+                currentFont = GL_LoadFont(font->filepath, font->fontSize, font->width, font->height);
 
-                size = sizeof(RenderFont) + font->filenameSize;
+                size = sizeof(RenderFont) + font->filepathSize;
                 break;
             }
             case type_RenderChar: {
@@ -918,7 +918,7 @@ static void GL_Render()
 
                 glUseProgram(texturedProgram);
 
-                GLTexture texture = GL_LoadTexture(currentFont.fontFilename);
+                GLTexture texture = GL_LoadTexture(currentFont.fontFilepath);
                 glBindTexture(GL_TEXTURE_2D, texture.textureID);
                 SetupTextureParameters(GL_TEXTURE_2D);
 
@@ -959,7 +959,7 @@ static void GL_Render()
                 model *= TranslationM44(text->position);
                 SetupBaseUniforms(texturedProgram, renderState.renderColor, model, view, projection);
 
-                GLTexture texture = GL_LoadTexture(currentFont.fontFilename);
+                GLTexture texture = GL_LoadTexture(currentFont.fontFilepath);
                 glBindTexture(GL_TEXTURE_2D, texture.textureID);
                 SetupTextureParameters(GL_TEXTURE_2D);
 
