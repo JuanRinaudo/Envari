@@ -18,9 +18,9 @@ ConsoleWindow editorConsole;
 static void EditorInit(ConsoleWindow* console);
 static void EditorDraw(ConsoleWindow* console);
 
-static HelpWindow editorHelp;
-static void EditorInit(HelpWindow* help);
-static void EditorDraw(HelpWindow* help);
+static RenderDebuggerWindow editorRenderDebugger;
+static void EditorInit(RenderDebuggerWindow* debugger);
+static void EditorDraw(RenderDebuggerWindow* debugger);
 
 static TextureDebuggerWindow editorTextureDebugger;
 static void EditorInit(TextureDebuggerWindow* debugger);
@@ -31,6 +31,10 @@ static LUADebuggerWindow editorLUADebugger;
 static void EditorInit(LUADebuggerWindow* debugger);
 static void EditorDraw(LUADebuggerWindow* debugger);
 #endif
+
+static HelpWindow editorHelp;
+static void EditorInit(HelpWindow* help);
+static void EditorDraw(HelpWindow* help);
 
 static i32 TextEditCallback(ConsoleWindow* console, ImGuiInputTextCallbackData* data);
 static i32 TextEditCallbackStub(ImGuiInputTextCallbackData* data);

@@ -13,22 +13,29 @@ const char* shaderPath = "shaders/glcore";
 
 #endif
 
-GLRenderBuffer quadBuffer;
-GLRenderBuffer overrideBuffer;
-GLRenderBuffer customBuffer;
+static GLRenderBuffer quadBuffer;
+static GLRenderBuffer overrideBuffer;
+static GLRenderBuffer customBuffer;
 
-u32 DrawBuffers[1] = {GL_COLOR_ATTACHMENT0};
+static u32 DrawBuffers[1] = {GL_COLOR_ATTACHMENT0};
 
-u32 coloredProgram;
-u32 texturedProgram;
+static u32 coloredProgram;
+static u32 fontProgram;
+static u32 texturedProgram;
 
-GLTextureCache* textureCache = NULL;
+static u32 colorLocation;
+static u32 modelLocation;
+static u32 viewLocation;
+static u32 projectionLocation;
+static u32 timeLocation;
 
-GLTextureAtlasReference* atlasCache = NULL;
+static GLTextureCache* textureCache = NULL;
 
-FontAtlas currentFont;
+static GLTextureAtlasReference* atlasCache = NULL;
 
-GLFontReference* fontCache = NULL;
+static FontAtlas currentFont;
+
+static GLFontReference* fontCache = NULL;
 
 enum TextStyles {
     style_Normal = 0,
@@ -44,7 +51,7 @@ enum GLVendor {
     GL_VENDOR_NVIDIA,
     GL_VENDOR_ATI
 };
-GLVendor currentVendor = GL_VENDOR_UNKOWN;
+static GLVendor currentVendor = GL_VENDOR_UNKOWN;
 
 #define GL_STRING_VENDOR_ATI "ATI Technologies Inc."
 #define GL_STRING_VENDOR_NVIDIA "NVIDIA Corporation"
@@ -283,14 +290,18 @@ static void GL_InitFramebuffer(i32 bufferWidth, i32 bufferHeight)
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-static i32 GL_CompileProgram(const char *vertexShaderSource, const char *fragmentShaderSource)
+i32 GL_CompileProgram(const char *vertexShaderPath, const char *fragmentShaderPath)
 {
     // NOTE(Juan): Shaders
     u32 vertexShader;
     vertexShader = glCreateShader(GL_VERTEX_SHADER);
     
     u32 data_size = 0;
-    void* data = LoadFileToMemory(vertexShaderSource, FILE_MODE_READ_BINARY, &data_size);
+    void* data = LoadFileToMemory(vertexShaderPath, FILE_MODE_READ_BINARY, &data_size);
+    if(data == 0) {
+        LogError(&editorConsole, "ERROR::VERTEX::FileLoad failed %s", vertexShaderPath);
+        return 0;
+    }
     SOURCE_TYPE vertexSource = static_cast<SOURCE_TYPE>(data);
     
     i32 size = (i32)data_size;
@@ -304,14 +315,18 @@ static i32 GL_CompileProgram(const char *vertexShaderSource, const char *fragmen
     if (!success)
     {
         glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
-        LogError(&editorConsole, "ERROR::VERTEX::COMPILATION_FAILED %s\n", vertexShaderSource);
+        LogError(&editorConsole, "ERROR::VERTEX::COMPILATION_FAILED %s", vertexShaderPath);
         LogError(&editorConsole, infoLog);
     }
 
     u32 fragmentShader;
     fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
 
-    data = LoadFileToMemory(fragmentShaderSource, FILE_MODE_READ_BINARY, &data_size);
+    data = LoadFileToMemory(fragmentShaderPath, FILE_MODE_READ_BINARY, &data_size);
+    if(data == 0) {
+        LogError(&editorConsole, "ERROR::FRAGMENT::FileLoad failed %s", fragmentShaderPath);
+        return 0;
+    }
     SOURCE_TYPE fragmentSource = static_cast<SOURCE_TYPE>(data);
 
     size = (i32)data_size;
@@ -321,7 +336,7 @@ static i32 GL_CompileProgram(const char *vertexShaderSource, const char *fragmen
     if (!success)
     {
         glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
-        LogError(&editorConsole, "ERROR::FRAGMENT::COMPILATION_FAILED %s\n", fragmentShaderSource);
+        LogError(&editorConsole, "ERROR::FRAGMENT::COMPILATION_FAILED %s", fragmentShaderPath);
         LogError(&editorConsole, infoLog);
     }
 
@@ -334,7 +349,7 @@ static i32 GL_CompileProgram(const char *vertexShaderSource, const char *fragmen
     glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
     if (!success) {
         glGetProgramInfoLog(shaderProgram, 512, NULL, infoLog);
-        LogError(&editorConsole, "ERROR::PROGRAM::LINK_FAILED\n");
+        LogError(&editorConsole, "ERROR::PROGRAM::LINK_FAILED");
         LogError(&editorConsole, infoLog);
     }
 
@@ -346,10 +361,10 @@ static i32 GL_CompileProgram(const char *vertexShaderSource, const char *fragmen
     watched.vertexShader = vertexShader;
     watched.fragmentShader = fragmentShader;
     watched.shaderProgram = shaderProgram;
-    strcpy(watched.vertexFilepath, vertexShaderSource);
-    strcpy(watched.fragmentFilepath, fragmentShaderSource);
-    watched.vertexTime = std::filesystem::last_write_time(vertexShaderSource);
-    watched.fragmentTime = std::filesystem::last_write_time(fragmentShaderSource);
+    strcpy(watched.vertexFilepath, vertexShaderPath);
+    strcpy(watched.fragmentFilepath, fragmentShaderPath);
+    watched.vertexTime = std::filesystem::last_write_time(vertexShaderPath);
+    watched.fragmentTime = std::filesystem::last_write_time(fragmentShaderPath);
 
     watchedPrograms[watchedProgramsCount] = watched;
     watchedProgramsCount++;
@@ -519,19 +534,25 @@ static void CalculateCharacterOffset(FontAtlas *font, char singleChar, f32 *posX
 //     }
 // }
 
-static void SetupBaseUniforms(u32 programID, v4 color, m44 model, m44 view, m44 projection)
-{    
-    i32 colorLocation = glGetUniformLocation(programID, "color");
-    glUniform4f(colorLocation, renderState.renderColor.r, renderState.renderColor.g, renderState.renderColor.b, renderState.renderColor.a);
+static void UseProgram(u32 programID)
+{
+    if(renderState.overrideProgram) { programID = renderState.overrideProgram; }
 
-    i32 modelLocation = glGetUniformLocation(programID, "model");
-    glUniformMatrix4fv(modelLocation, 1, false, model.e);
-    
-    i32 viewLocation = glGetUniformLocation(programID, "view");
-    glUniformMatrix4fv(viewLocation, 1, false, view.e);
+    if(programID != renderState.currentProgram) {
+        editorRenderDebugger.programChanges++;
 
-    i32 projectionLocation = glGetUniformLocation(programID, "projection");
-    glUniformMatrix4fv(projectionLocation, 1, false, projection.e);
+        glUseProgram(programID);
+
+        colorLocation = glGetUniformLocation(programID, "color");
+        modelLocation = glGetUniformLocation(programID, "model");
+        viewLocation = glGetUniformLocation(programID, "view");
+        projectionLocation = glGetUniformLocation(programID, "projection");
+
+        timeLocation = glGetUniformLocation(programID, "time");
+        glUniform1f(timeLocation, gameState->time.gameTime);
+
+        renderState.currentProgram = programID;
+    }
 }
 
 static void SetupTextureParameters(u32 textureTarget)
@@ -540,6 +561,17 @@ static void SetupTextureParameters(u32 textureTarget)
     glTexParameteri(textureTarget, GL_TEXTURE_WRAP_T, renderState.wrapT);
     glTexParameteri(textureTarget, GL_TEXTURE_MIN_FILTER, renderState.minFilter);
     glTexParameteri(textureTarget, GL_TEXTURE_MAG_FILTER, renderState.magFilter);
+}
+
+static void SetupModelUniforms(u32 programID, v4 color, m44 model, m44 view, m44 projection)
+{
+    if(renderState.overrideProgram) { programID = renderState.overrideProgram; }
+
+    glUniform4f(colorLocation, renderState.renderColor.r, renderState.renderColor.g, renderState.renderColor.b, renderState.renderColor.a);
+
+    glUniformMatrix4fv(modelLocation, 1, false, model.e);    
+    glUniformMatrix4fv(viewLocation, 1, false, view.e);
+    glUniformMatrix4fv(projectionLocation, 1, false, projection.e);
 }
 
 static void BindBuffer()
@@ -621,9 +653,9 @@ static void GL_Render()
             case type_RenderLine: {
                 RenderLine *line = (RenderLine *)renderHeader;
                 
-                glUseProgram(coloredProgram);
+                UseProgram(coloredProgram);
 
-                SetupBaseUniforms(coloredProgram, renderState.renderColor, model, view, projection);
+                SetupModelUniforms(coloredProgram, renderState.renderColor, model, view, projection);
 
                 f32 lineVertices[] = {
                     line->start.x, line->start.y, 0.0f,
@@ -652,9 +684,9 @@ static void GL_Render()
             case type_RenderTriangle: {
                 RenderTriangle *triangle = (RenderTriangle *)renderHeader;
                 
-                glUseProgram(coloredProgram);
+                UseProgram(coloredProgram);
 
-                SetupBaseUniforms(coloredProgram, renderState.renderColor, model, view, projection);
+                SetupModelUniforms(coloredProgram, renderState.renderColor, model, view, projection);
 
                 f32 triangleVertices[] = {
                     triangle->point1.x, triangle->point1.y, 0.0f,
@@ -684,11 +716,11 @@ static void GL_Render()
             case type_RenderRectangle: {
                 RenderRectangle *rectangle = (RenderRectangle *)renderHeader;
 
-                glUseProgram(coloredProgram);
+                UseProgram(coloredProgram);
 
                 model *= ScaleM44(rectangle->scale);
                 model *= TranslationM44(rectangle->position);
-                SetupBaseUniforms(coloredProgram, renderState.renderColor, model, view, projection);
+                SetupModelUniforms(coloredProgram, renderState.renderColor, model, view, projection);
 
                 glBindVertexArray(quadBuffer.vertexArray);
                 glBindBuffer(GL_ARRAY_BUFFER, quadBuffer.vertexBuffer);
@@ -705,9 +737,9 @@ static void GL_Render()
             case type_RenderCircle: {
                 RenderCircle *circle = (RenderCircle *)renderHeader;
 
-                glUseProgram(coloredProgram);
+                UseProgram(coloredProgram);
 
-                SetupBaseUniforms(coloredProgram, renderState.renderColor, model, view, projection);
+                SetupModelUniforms(coloredProgram, renderState.renderColor, model, view, projection);
 
                 f32 vertices[300] = {
                     circle->position.x, circle->position.y, 0.0f,
@@ -763,11 +795,11 @@ static void GL_Render()
             case type_RenderTexture: {
                 RenderTexture *texture = (RenderTexture *)renderHeader;
 
-                glUseProgram(texturedProgram);
+                UseProgram(texturedProgram);
 
                 model *= ScaleM44(texture->scale);
                 model *= TranslationM44(texture->position);
-                SetupBaseUniforms(texturedProgram, renderState.renderColor, model, view, projection);
+                SetupModelUniforms(texturedProgram, renderState.renderColor, model, view, projection);
 
                 glBindTexture(GL_TEXTURE_2D, texture->textureID);
                 SetupTextureParameters(GL_TEXTURE_2D);
@@ -787,7 +819,7 @@ static void GL_Render()
             case type_RenderImage: {
                 RenderImage *image = (RenderImage *)renderHeader;
 
-                glUseProgram(texturedProgram);
+                UseProgram(texturedProgram);
 
                 GLTexture texture = GL_LoadTexture(image->filepath);
                 glBindTexture(GL_TEXTURE_2D, texture.textureID);
@@ -823,7 +855,7 @@ static void GL_Render()
 
                 model *= ScaleM44(image->scale);
                 model *= TranslationM44(image->position);
-                SetupBaseUniforms(texturedProgram, renderState.renderColor, model, view, projection);
+                SetupModelUniforms(texturedProgram, renderState.renderColor, model, view, projection);
 
                 BindBuffer();
 
@@ -840,7 +872,7 @@ static void GL_Render()
             case type_RenderImageUV: {
                 RenderImageUV *imageUV = (RenderImageUV *)renderHeader;
 
-                glUseProgram(texturedProgram);
+                UseProgram(texturedProgram);
 
                 GLTexture texture = GL_LoadTexture(imageUV->filepath);
                 glBindTexture(GL_TEXTURE_2D, texture.textureID);
@@ -851,7 +883,7 @@ static void GL_Render()
 
                 model *= ScaleM44(imageUV->scale);
                 model *= TranslationM44(imageUV->position);
-                SetupBaseUniforms(coloredProgram, renderState.renderColor, model, view, projection);
+                SetupModelUniforms(coloredProgram, renderState.renderColor, model, view, projection);
 
                 BindBuffer();
 
@@ -868,7 +900,7 @@ static void GL_Render()
             case type_RenderAtlasSprite: {
                 RenderAtlasSprite *atlas = (RenderAtlasSprite *)renderHeader;
 
-                glUseProgram(texturedProgram);
+                UseProgram(texturedProgram);
 
                 TextureAtlas textureAtlas = GL_LoadAtlas(atlas->atlasName);
                 rectangle2 uvRect = shget(textureAtlas.sprites, atlas->spriteKey);
@@ -883,7 +915,7 @@ static void GL_Render()
 
                 model *= ScaleM44(atlas->scale);
                 model *= TranslationM44(atlas->position);
-                SetupBaseUniforms(coloredProgram, renderState.renderColor, model, view, projection);
+                SetupModelUniforms(coloredProgram, renderState.renderColor, model, view, projection);
 
                 CreateQuadPosUV(0, 0, 1, 1, 
                     uvRect.min.x / texture.width, uvRect.min.y / texture.height, uvRect.max.x / texture.width, uvRect.max.y / texture.height);
@@ -916,7 +948,7 @@ static void GL_Render()
             case type_RenderChar: {
                 RenderChar *renderChar = (RenderChar *)renderHeader;
 
-                glUseProgram(texturedProgram);
+                UseProgram(fontProgram);
 
                 GLTexture texture = GL_LoadTexture(currentFont.fontFilepath);
                 glBindTexture(GL_TEXTURE_2D, texture.textureID);
@@ -924,7 +956,7 @@ static void GL_Render()
 
                 model *= ScaleM44(renderChar->scale);
                 model *= TranslationM44(renderChar->position);
-                SetupBaseUniforms(texturedProgram, renderState.renderColor, model, view, projection);
+                SetupModelUniforms(texturedProgram, renderState.renderColor, model, view, projection);
 
                 f32 posX = 0;
                 f32 posY = currentFont.fontSize;
@@ -953,11 +985,11 @@ static void GL_Render()
             case type_RenderText: {
                 RenderText *text = (RenderText *)renderHeader;
 
-                glUseProgram(texturedProgram);
+                UseProgram(fontProgram);
 
                 model *= ScaleM44(text->scale);
                 model *= TranslationM44(text->position);
-                SetupBaseUniforms(texturedProgram, renderState.renderColor, model, view, projection);
+                SetupModelUniforms(texturedProgram, renderState.renderColor, model, view, projection);
 
                 GLTexture texture = GL_LoadTexture(currentFont.fontFilepath);
                 glBindTexture(GL_TEXTURE_2D, texture.textureID);
@@ -997,6 +1029,29 @@ static void GL_Render()
                 size = sizeof(RenderText) + text->stringSize;
                 break;
             }
+            case type_RenderSetUniform: {
+                RenderSetUniform *uniform = (RenderSetUniform *)renderHeader;
+
+                size = sizeof(RenderSetUniform);
+                if(uniform->type == UniformType_Float) {
+                    glUniform1f(uniform->location, *((f32*)(uniform + 1)));
+                }
+                else if(uniform->type == UniformType_Vector2) {
+                    v2 vector = *((v2*)(uniform + 1));
+                    glUniform2f(uniform->location, vector.x, vector.y);
+                }
+                
+                size += uniform->parametersSize;
+                break;
+            }
+            case type_RenderOverrideProgram: {
+                RenderOverrideProgram *program = (RenderOverrideProgram *)renderHeader;
+ 
+                renderState.overrideProgram = program->programID;
+
+                size = sizeof(RenderOverrideProgram);
+                break;
+            }
             case type_RenderOverrideVertices: {
                 RenderOverrideVertices *vertices = (RenderOverrideVertices *)renderHeader;
  
@@ -1029,7 +1084,8 @@ static void GL_Render()
             }
         }
 
-        Assert(size > 0)
+        Assert(size > 0);
+        editorRenderDebugger.drawCount++;
         renderHeader = (RenderHeader *)((u8 *)renderHeader + size);
     }
 }

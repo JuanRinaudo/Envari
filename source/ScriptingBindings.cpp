@@ -4,7 +4,7 @@
 #ifndef __EMSCRIPTEN__
 #include <filesystem>
 
-#include "GL3W/glcorearb.h"
+#include "GL3W/gl3w.h"
 
 #include "STB/stb_truetype.h" 
 
@@ -25,8 +25,18 @@ extern void Log_(ConsoleWindow* console, ConsoleLogType type, const char* fmt, .
 #define LogError(console, fmt, ...) Log_(console, ConsoleLogType_ERROR, fmt, ##__VA_ARGS__)
 #define LogCommand(console, fmt, ...) Log_(console, ConsoleLogType_COMMAND, fmt, ##__VA_ARGS__)
 
+#define PushStruct(arena, type) (type *)PushSize_(arena, sizeof(type))
+#define PushArray(arena, count, type) (type *)PushSize_(arena, ((count)*sizeof(type)))
+#define PushSize(arena, size) PushSize_(arena, size)
+extern void* PushSize_(MemoryArena *arena, size_t size);
+extern void* PushSize_(TemporaryMemory *memory, size_t size);
+
 // #NOTE(Juan): Engine
 extern Data *gameState;
+extern PermanentData *permanentState;
+extern SceneData *sceneState;
+extern TemporalData *temporalState;
+extern TemporaryMemory renderTemporaryMemory;
 
 extern void LoadScriptFile(char* filePath);
 extern void LoadLUALibrary(sol::lib library);
@@ -57,12 +67,15 @@ extern void DrawAtlasSprite(f32 posX, f32 posY, f32 scaleX, f32 scaleY, const ch
 extern void DrawFont(const char* filepath, f32 fontSize, u32 width, u32 height);
 extern void DrawChar(f32 posX, f32 posY, f32 scaleX, f32 scaleY, const char singleChar);
 extern void DrawString(f32 posX, f32 posY, f32 scaleX, f32 scaleY, const char* string);
+extern void DrawSetUniform(u32 locationID, UniformType type);
+extern void DrawOverrideProgram(u32 programID);
 extern void DrawOverrideVertices(f32* vertices, u32 count);
 extern void DrawOverrideIndices(u32* indices, u32 count);
 extern void End2D();
 extern v2 ScreenToViewport(f32 screenX, f32 screenY, f32 size, f32 ratio);
 
 extern f32* CreateQuadPosUV(f32 posStartX, f32 posStartY, f32 posEndX, f32 posEndY, f32 uvStartX, f32 uvStartY, f32 uvEndX, f32 uvEndY);
+extern i32 GL_CompileProgram(const char *vertexShaderSource, const char *fragmentShaderSource);
 
 extern ma_decoder* SoundLoad(const char* soundKey);
 extern void SoundPlay(const char* filepath);
@@ -135,6 +148,27 @@ static void DrawDisableOverrideIndices()
     DrawOverrideIndices(0, 0);
 }
 
+static void DrawDisableOverrideProgram()
+{    
+    DrawOverrideProgram(0);
+}
+
+#define GenereateRenderTemporaryPush(PREFIX, type) static type* RenderTemporaryPush##PREFIX##(type value) \
+{ \
+    u32 size = sizeof(type); \
+    if(renderTemporaryMemory.arena->used + size < renderTemporaryMemory.arena->size) { \
+        type *valuePointer = (type*)PushSize(&renderTemporaryMemory, size); \
+        *valuePointer = value; \
+        return valuePointer; \
+    } \
+    else { \
+        InvalidCodePath; \
+        return 0; \
+    } \
+}
+GenereateRenderTemporaryPush(Float, f32);
+GenereateRenderTemporaryPush(Vector2, v2);
+
 void ScriptingInitBindings()
 {
     // #NOTE (Juan): Lua
@@ -196,6 +230,10 @@ void ScriptingInitBindings()
     lua["KEY_PRESSED"] = KEY_PRESSED;
     lua["KEY_DOWN"] = KEY_DOWN;
 
+    // #NOTE (Juan): Temporal memory
+    lua["RenderTemporaryPushFloat"] = RenderTemporaryPushFloat;
+    lua["RenderTemporaryPushVector2"] = RenderTemporaryPushVector2;
+
     // #NOTE (Juan): Input
     lua["MouseOverRectangle"] = MouseOverRectangle;
     lua["ClickOverRectangle"] = ClickOverRectangle;
@@ -218,10 +256,13 @@ void ScriptingInitBindings()
     lua["DrawFont"] = DrawFont;
     lua["DrawChar"] = DrawChar;
     lua["DrawString"] = DrawString;
+    lua["DrawSetUniform"] = DrawSetUniform;
+    lua["DrawOverrideProgram"] = DrawOverrideProgram;
+    lua["DrawDisableOverrideProgram"] = DrawDisableOverrideProgram;
     lua["DrawOverrideVertices"] = DrawOverrideVertices;
     lua["DrawDisableOverrideVertices"] = DrawDisableOverrideVertices;
     lua["DrawOverrideIndices"] = DrawOverrideIndices;
-    lua["DrawDisableOverrideIndices"] = DrawDisableOverrideIndices; 
+    lua["DrawDisableOverrideIndices"] = DrawDisableOverrideIndices;
 
     lua["ScreenToViewport"] = ScreenToViewport;
     
@@ -234,6 +275,10 @@ void ScriptingInitBindings()
 
     // #NOTE (Juan): GLRender
     lua["CreateQuadPosUV"] = CreateQuadPosUV;
+    lua["CompileProgram"] = GL_CompileProgram;
+    lua["GetUniformLocation"] = glGetUniformLocation;
+    lua["UniformType_Float"] = UniformType_Float;
+    lua["UniformType_Vector2"] = UniformType_Vector2;
 
     // #NOTE (Juan): OpenGL
     lua["GL_ZERO"] = GL_ZERO;

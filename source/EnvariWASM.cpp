@@ -150,11 +150,12 @@ int main(int argc, char** argv)
     ScriptingInit();
 #endif
 
-    GameInit();
-
     GL_Init();
     coloredProgram = GL_CompileProgram(SHADERS_GLES_COLORED_VERT, SHADERS_GLES_COLORED_FRAG);
+    fontProgram = GL_CompileProgram(SHADERS_GLES_FONT_VERT, SHADERS_GLES_FONT_FRAG);
     texturedProgram = GL_CompileProgram(SHADERS_GLES_TEXTURED_VERT, SHADERS_GLES_TEXTURED_FRAG);
+
+    GameInit();
 
     // #NOTE (Juan): Create framebuffer
     if(gameState->render.framebufferEnabled) {
@@ -274,7 +275,10 @@ static void main_loop()
         }
 
         GameLoop();
+
         GL_Render();
+
+        EditorDrawAllOpen();
 
         End2D();
 

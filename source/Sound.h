@@ -76,4 +76,14 @@ void SoundPlay(const char* filepath)
     ma_decoder_seek_to_pcm_frame(targetDecoder, 0);
 }
 
+float dbToVolume(float db)
+{
+    return powf(10.0f, 0.05f * db);    
+}
+
+float volumeToDB(float volume)
+{
+    return 20.0f * log10f(volume);
+}
+
 #endif

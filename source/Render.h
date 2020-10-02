@@ -1,10 +1,19 @@
 #ifndef RENDER_H
 #define RENDER_H
 
+void RenderDebugReset()
+{
+    editorRenderDebugger.drawCount = 0;
+    editorRenderDebugger.programChanges = 0;    
+}
+
 void Begin2D(u32 frameBufferID, u32 width, u32 height)
 {
     renderState.lastRenderID = 0;
     renderState.renderColor = V4(1, 1, 1, 1);
+    renderState.overrideProgram = 0;
+    renderState.overridingVertices = false;
+    renderState.overridingIndices = false;
     renderTemporaryMemory = BeginTemporaryMemory(&temporalState->arena);
     
     RenderHeader *clearFirstHeader = (RenderHeader *)renderTemporaryMemory.arena->base;
@@ -22,10 +31,9 @@ static RenderHeader *RenderPushElement_(TemporaryMemory *memory, u32 size, Rende
     renderState.lastRenderID++;
 
     if(memory->arena->used + size < memory->arena->size) {
-        result = (RenderHeader *)PushSize(memory->arena, size);
+        result = (RenderHeader *)PushSize(memory, size);
         result->id = renderState.lastRenderID;
         result->type = type;
-        memory->used += size;
     }
     else {
         InvalidCodePath;
@@ -174,6 +182,25 @@ void DrawString(f32 posX, f32 posY, f32 scaleX, f32 scaleY, const char* string)
     text->position = V2(posX, posY);
     text->scale = V2(scaleX, scaleY);
     text->string = PushString(&renderTemporaryMemory, string, &text->stringSize);
+}
+
+void DrawSetUniform(u32 locationID, UniformType type)
+{
+    RenderSetUniform *uniform = RenderPushElement(&renderTemporaryMemory, RenderSetUniform);
+    uniform->location = locationID;
+    uniform->type = type;
+    u32 size = 0;
+    switch(type) {
+        case UniformType_Float: { size = 4; break; }
+        case UniformType_Vector2: { size = 8; break; }
+    }
+    uniform->parametersSize = size;
+}
+
+void DrawOverrideProgram(u32 programID)
+{
+    RenderOverrideProgram *program = RenderPushElement(&renderTemporaryMemory, RenderOverrideProgram);
+    program->programID = programID;
 }
 
 void DrawOverrideVertices(f32* vertices, u32 count)

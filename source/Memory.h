@@ -15,7 +15,7 @@ inline void ZeroSize(size_t size, void *pointer)
 #define PushStruct(arena, type) (type *)PushSize_(arena, sizeof(type))
 #define PushArray(arena, count, type) (type *)PushSize_(arena, ((count)*sizeof(type)))
 #define PushSize(arena, size) PushSize_(arena, size)
-static void* PushSize_(MemoryArena *arena, size_t size)
+void* PushSize_(MemoryArena *arena, size_t size)
 {
     Assert(arena->used + size < arena->size);
     void *result = arena->base + arena->used;
@@ -24,7 +24,7 @@ static void* PushSize_(MemoryArena *arena, size_t size)
     return(result);
 }
 
-static void* PushSize_(TemporaryMemory *memory, size_t size)
+void* PushSize_(TemporaryMemory *memory, size_t size)
 {
     void *result = PushSize_(memory->arena, size);
     memory->used += size;

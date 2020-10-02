@@ -184,8 +184,15 @@ enum RenderType
     type_RenderFont,
     type_RenderChar,
     type_RenderText,
+    type_RenderSetUniform,
+    type_RenderOverrideProgram,
     type_RenderOverrideVertices,
     type_RenderOverrideIndices,
+};
+
+enum UniformType {
+    UniformType_Float,
+    UniformType_Vector2,
 };
 
 struct RenderHeader
@@ -331,6 +338,19 @@ struct RenderText
     u32 stringSize;
 };
 
+struct RenderSetUniform {
+    RenderHeader header;
+    u32 location;
+    UniformType type;
+    u32 parametersSize;
+};
+
+struct RenderOverrideProgram
+{
+    RenderHeader header;
+    u32 programID;
+};
+
 struct RenderOverrideVertices
 {
     RenderHeader header;
@@ -352,6 +372,8 @@ struct RenderState {
     u32 wrapT;
     u32 minFilter;
     u32 magFilter;
+    u32 currentProgram;
+    u32 overrideProgram;
     bool overridingVertices;
     bool overridingIndices;
 };
@@ -359,7 +381,6 @@ struct RenderState {
 // #NOTE (Juan): Game
 struct Game {
     bool running;
-
 };
 
 struct Render {
@@ -446,7 +467,7 @@ struct DataTable {
 
 // #NOTE (Juan): Changing this enum order will break save games
 enum SerializableType {
-    SerializableType_CHAR,
+    SerializableType_STRING,
     SerializableType_I32,
     SerializableType_F32
 };

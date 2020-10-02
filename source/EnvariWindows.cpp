@@ -141,16 +141,17 @@ i32 CALLBACK WinMain(
     ScriptingInit();
 #endif
 
+    GL_Init();
+    coloredProgram = GL_CompileProgram(SHADERS_GLCORE_COLORED_VERT, SHADERS_GLCORE_COLORED_FRAG);
+    fontProgram = GL_CompileProgram(SHADERS_GLCORE_FONT_VERT, SHADERS_GLCORE_FONT_FRAG);
+    texturedProgram = GL_CompileProgram(SHADERS_GLCORE_TEXTURED_VERT, SHADERS_GLCORE_TEXTURED_FRAG);
+
     GameInit();
     
     SerializableTable* test = 0;
     DeserializeTable(&permanentState->arena, &test, "saveData.save");
-    Log(&editorConsole, "%s", TableGetString(&test, "String"));
-    SerializeTable(&test, "saveData.save");
-
-    GL_Init();
-    coloredProgram = GL_CompileProgram(SHADERS_GLCORE_COLORED_VERT, SHADERS_GLCORE_COLORED_FRAG);
-    texturedProgram = GL_CompileProgram(SHADERS_GLCORE_TEXTURED_VERT, SHADERS_GLCORE_TEXTURED_FRAG);
+    Log(&editorConsole, "%d", TableGetInt(&test, "IntValue", 0));
+    Log(&editorConsole, "%f", TableGetFloat(&test, "FloatValue", 0));
 
     // #NOTE (Juan): Create framebuffer
     if(gameState->render.framebufferEnabled) {
@@ -258,7 +259,8 @@ i32 CALLBACK WinMain(
         ScriptingWatchChanges();
 #endif
 
-        GL_WatchChanges();        
+        GL_WatchChanges();
+        RenderDebugReset();
 
         if(gameState->render.framebufferEnabled) {
             Begin2D(gameState->render.frameBuffer, (u32)gameState->render.bufferWidth, (u32)gameState->render.bufferHeight);
@@ -268,7 +270,10 @@ i32 CALLBACK WinMain(
         }
 
         GameLoop();
+
         GL_Render();
+
+        EditorDrawAllOpen();
 
         End2D();
 
@@ -309,6 +314,8 @@ i32 CALLBACK WinMain(
             std::this_thread::sleep_until(end);
         }
     }
+
+    SerializeTable(&test, "saveData.save");
 
     GL_End();
     

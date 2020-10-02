@@ -31,8 +31,11 @@ REM -d2cgsummary
 REM -Bt REM Build Time
 REM -MP multiprocesor build
 REM %random% to get random number
-if not "%LastScriptingDate%"=="%ScriptingDate%" cl -c ..\..\Envari\source\ScriptingBindings.cpp -FmScriptingBindings.map %CommonCompilerFlags% -Bt -I ..\..\Envari\SDL2\include -I ..\..\Envari\LUA\include
-set LastScriptingDate=%ScriptingDate%
+if not exist ScriptingBindings.%ScriptingDate::=.%.tmp (
+    cl -c ..\..\Envari\source\ScriptingBindings.cpp -FmScriptingBindings.map %CommonCompilerFlags% -Bt -I ..\..\Envari\SDL2\include -I ..\..\Envari\LUA\include
+    del /F *.tmp >NUL 2>NUL
+    echo timestamp > ScriptingBindings.%ScriptingDate::=.%.tmp
+)
 
 cl ..\..\Envari\source\EnvariWindows.cpp ScriptingBindings.obj -FmEnvariWindows.map %CommonCompilerFlags% -Bt -I ..\..\Envari\SDL2\include -I ..\..\Envari\LUA\include -link %CommonLinkerFlags% -LIBPATH:"..\..\Envari\SDL2\lib\x86" -LIBPATH:"..\..\Envari\LUA\lib\x86" -PDB:EnvariWindows.pdb
 @echo End time %time%

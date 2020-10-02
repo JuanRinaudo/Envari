@@ -16,11 +16,6 @@ struct DataTokenizer {
     bool parsingString;
 };
 
-struct HelpWindow
-{
-    bool open;
-};
-
 enum DebugMenuAction {
     DebugMenuAction_NONE,
     DebugMenuAction_GO_TO_FUNCTION,
@@ -61,6 +56,14 @@ enum TextureInspect
     TextureInspect_CACHE,
 };
 
+struct RenderDebuggerWindow
+{
+    bool open;
+
+    i32 drawCount;
+    i32 programChanges;
+};
+
 struct TextureDebuggerWindow
 {
     bool open;
@@ -82,5 +85,10 @@ struct LUADebuggerWindow
     u32 currentFileSize;
 };
 #endif
+
+struct HelpWindow
+{
+    bool open;
+};
 
 #endif

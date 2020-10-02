@@ -83,8 +83,6 @@ static u32 GameInit()
 static u32 GameLoop()
 {
     f32 fps = (f32)(1 / gameState->time.deltaTime);
-
-    EditorDrawAllOpen();
     
 #ifdef LUA_SCRIPTING_ENABLED
     sol::protected_function Update(lua["Update"]);

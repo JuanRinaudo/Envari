@@ -51,6 +51,11 @@ static void EditorInit(ConsoleWindow* console)
     Log(console, "Envari Console Start");
 }
 
+static void EditorInit(RenderDebuggerWindow* debugger)
+{
+    debugger->open = true;
+}
+
 static void EditorInit(TextureDebuggerWindow* debugger)
 {
     debugger->open = true;
@@ -250,10 +255,11 @@ static void EditorDraw(ConsoleWindow* console)
             ImGui::EndMenu();
         }
         if (ImGui::BeginMenu("Debug"))
-        {            
-            if (ImGui::MenuItem("Debug Textures")) { EditorInit(&editorTextureDebugger); }
+        {
+            if (ImGui::MenuItem("Render")) { EditorInit(&editorRenderDebugger); }
+            if (ImGui::MenuItem("Textures")) { EditorInit(&editorTextureDebugger); }
 #ifdef LUA_SCRIPTING_ENABLED
-            if (ImGui::MenuItem("Debug LUA")) { EditorInit(&editorLUADebugger); }
+            if (ImGui::MenuItem("LUA")) { EditorInit(&editorLUADebugger); }
             ImGui::EndMenu();
 #endif
         }
@@ -427,6 +433,23 @@ static void EditorDraw(ConsoleWindow* console)
         ImGui::SetKeyboardFocusHere(-1); // Auto focus previous widget
     }
 
+    ImGui::End();
+}
+
+static void EditorDraw(RenderDebuggerWindow* debugger)
+{
+    if(!debugger->open) { return; };
+    ImGui::SetNextWindowSize(ImVec2(400,300), ImGuiCond_FirstUseEver);
+
+    if (!ImGui::Begin("Render Debugger", &debugger->open))
+    {
+        ImGui::End();
+        return;
+    }
+    
+    ImGui::Text("Draw count: %d", debugger->drawCount);
+    ImGui::Text("Program changes: %d", debugger->programChanges);
+    
     ImGui::End();
 }
 
@@ -686,6 +709,7 @@ static void EditorDraw(HelpWindow* help)
 static void EditorDrawAllOpen()
 {
     EditorDraw(&editorConsole);
+    EditorDraw(&editorRenderDebugger);
     EditorDraw(&editorTextureDebugger);
 #ifdef LUA_SCRIPTING_ENABLED
     EditorDraw(&editorLUADebugger);
