@@ -51,7 +51,17 @@ static void EditorInit(ConsoleWindow* console)
     Log(console, "Envari Console Start");
 }
 
+static void EditorInit(PreviewWindow* preview)
+{
+    preview->open = true;
+}
+
 static void EditorInit(RenderDebuggerWindow* debugger)
+{
+    debugger->open = true;
+}
+
+static void EditorInit(MemoryDebuggerWindow* debugger)
 {
     debugger->open = true;
 }
@@ -254,16 +264,26 @@ static void EditorDraw(ConsoleWindow* console)
             if (ImGui::MenuItem("WIP")) { }
             ImGui::EndMenu();
         }
+        if (ImGui::BeginMenu("Window"))
+        {
+            if (ImGui::MenuItem("Preview")) { EditorInit(&editorPreview); }
+            ImGui::EndMenu();
+        }
         if (ImGui::BeginMenu("Debug"))
         {
             if (ImGui::MenuItem("Render")) { EditorInit(&editorRenderDebugger); }
+            if (ImGui::MenuItem("Memory")) { EditorInit(&editorMemoryDebugger); }
             if (ImGui::MenuItem("Textures")) { EditorInit(&editorTextureDebugger); }
 #ifdef LUA_SCRIPTING_ENABLED
             if (ImGui::MenuItem("LUA")) { EditorInit(&editorLUADebugger); }
-            ImGui::EndMenu();
 #endif
+            ImGui::EndMenu();
         }
-        if (ImGui::MenuItem("Help")) { EditorInit(&editorHelp); }
+        if (ImGui::BeginMenu("Help"))
+        {
+            if (ImGui::MenuItem("About")) { EditorInit(&editorHelp); }
+            ImGui::EndMenu();
+        }
         ImGui::EndMenuBar();
     }
     
@@ -299,15 +319,11 @@ static void EditorDraw(ConsoleWindow* console)
         ImGui::OpenPopup("Options");
     }
     ImGui::SameLine();
-    console->filter.Draw("Filter (\"incl,-excl\") (\"error\")", 180);
+    console->filter.Draw("Filter", 180);
     ImGui::Separator();
 
     const float footer_height_to_reserve = ImGui::GetStyle().ItemSpacing.y + ImGui::GetFrameHeightWithSpacing();
     ImGui::BeginChild("ScrollingRegion", ImVec2(0, -footer_height_to_reserve), false, ImGuiWindowFlags_HorizontalScrollbar);
-    if (ImGui::BeginPopupContextWindow()) {
-        if (ImGui::Selectable("Clear")) ClearLog(console);
-        ImGui::EndPopup();
-    }
 
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4,1));
     if (copy_to_clipboard) {
@@ -436,6 +452,49 @@ static void EditorDraw(ConsoleWindow* console)
     ImGui::End();
 }
 
+static void EditorDraw(PreviewWindow* preview)
+{
+    if(!preview->open) { return; };
+    ImGui::SetNextWindowSize(ImVec2(400,300), ImGuiCond_FirstUseEver);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+    if (!ImGui::Begin("Preview", &preview->open))
+    {
+        ImGui::PopStyleVar();
+        ImGui::End();
+        return;
+    }
+    ImGui::PopStyleVar();
+
+    ImVec2 size = ImGui::GetWindowSize();
+    
+    ImVec2 contentStart = ImGui::GetWindowContentRegionMin();
+    size.y -= contentStart.y;
+
+    gameState->render.size.y = size.y;
+    gameState->render.size.x = size.y * gameState->camera.ratio;
+    
+    f32 offsetX = (size.x - gameState->render.size.x) * 0.5f;
+
+    ImGui::SetCursorPos(ImVec2(offsetX, contentStart.y));
+
+    ImVec2 cursorPosition = ImGui::GetMousePos();
+    ImVec2 previewMin = ImGui::GetWindowPos();
+    previewMin.x += offsetX;
+    ImVec2 previewMax = previewMin + ImGui::GetWindowSize();
+    previewMax.x -= offsetX * 2;
+    preview->cursorInsideWindow = cursorPosition.x > previewMin.x && cursorPosition.x < previewMax.x && cursorPosition.y > previewMin.y && cursorPosition.y < previewMax.y;
+    preview->cursorPosition = V2(Clamp(cursorPosition.x - previewMin.x, 0, gameState->render.size.x), Clamp(cursorPosition.y - previewMin.y - contentStart.y, 0, gameState->render.size.y));
+    
+    ImGui::Image((ImTextureID)gameState->render.frameBuffer, ImVec2((f32)gameState->render.size.x, (f32)gameState->render.size.y), ImVec2(0, 1), ImVec2(1, 0));
+
+    ImGui::SetCursorPos(ImVec2(5, 20));
+    ImGui::Text("Render Size: %d, %d", (i32)gameState->render.size.x, (i32)gameState->render.size.y);
+    ImGui::SetCursorPos(ImVec2(5, 40));
+    ImGui::Text("Buffer Size: %d, %d", (i32)gameState->render.bufferSize.x, (i32)gameState->render.bufferSize.y);
+
+    ImGui::End();
+}
+
 static void EditorDraw(RenderDebuggerWindow* debugger)
 {
     if(!debugger->open) { return; };
@@ -447,8 +506,35 @@ static void EditorDraw(RenderDebuggerWindow* debugger)
         return;
     }
     
+    ImGui::Text("Render memory size: %d", debugger->renderMemory);
     ImGui::Text("Draw count: %d", debugger->drawCount);
     ImGui::Text("Program changes: %d", debugger->programChanges);
+    
+    ImGui::End();
+}
+
+static void EditorDraw(MemoryDebuggerWindow* debugger)
+{
+    if(!debugger->open) { return; };
+    ImGui::SetNextWindowSize(ImVec2(400,300), ImGuiCond_FirstUseEver);
+
+    if (!ImGui::Begin("Memory Debugger", &debugger->open))
+    {
+        ImGui::End();
+        return;
+    }
+
+    ImGui::Text("Permanent memory: %d / %d", permanentState->arena.used, permanentState->arena.size);
+    ImGui::Text("Scene memory: %d / %d", sceneState->arena.used, sceneState->arena.size);
+    ImGui::Text("Temporal memory: %d / %d", temporalState->arena.used, temporalState->arena.size);
+
+#if LUA_SCRIPTING_ENABLED
+    ImGui::Separator();
+    ImGui::Text("LUA Memory: %d", (int)lua.memory_used());
+    if (ImGui::SmallButton("Force GC")) {
+        lua.collect_garbage();
+    }
+#endif
     
     ImGui::End();
 }
@@ -476,11 +562,12 @@ static void EditorDraw(TextureDebuggerWindow* debugger)
 
     i32 textureID = 0;
 
-    if(debugger->inspectMode == TextureInspect_CACHE)
-    {    
-        i32 textureCacheSize = shlen(textureCache);
+    i32 textureCacheSize = shlen(textureCache);
+    if(debugger->inspectMode == TextureInspect_CACHE && debugger->textureID < textureCacheSize)
+    {
         ImGui::Text("Texture Cache ID: %d / %d", debugger->textureID + 1, textureCacheSize);
         
+        ImGui::SameLine();
         if (ImGui::SmallButton("Prev")) {
             debugger->textureID--;
         }
@@ -489,13 +576,15 @@ static void EditorDraw(TextureDebuggerWindow* debugger)
             debugger->textureID++;
         }
 
-        if(debugger->textureID < 0) { debugger->textureID = textureCacheSize; }
+        if(debugger->textureID < 0) { debugger->textureID = textureCacheSize - 1; }
         if(debugger->textureID >= textureCacheSize) { debugger->textureID = 0; }
+
+        GLTexture cachedTexture = textureCache[debugger->textureID].value;
+
+        ImGui::Text("Texture Size: %d x %d", cachedTexture.width, cachedTexture.height);
 
         ImGui::Separator();
 
-        auto io = ImGui::GetIO();
-        GLTexture cachedTexture = textureCache[debugger->textureID].value;
         debugger->textureWidth = cachedTexture.width;
         debugger->textureHeight = cachedTexture.height;
 
@@ -519,12 +608,15 @@ static void EditorDraw(LUADebuggerWindow* debugger)
 {
     if(!debugger->open) { return; };
     ImGui::SetNextWindowSize(ImVec2(400,300), ImGuiCond_FirstUseEver);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
 
     if (!ImGui::Begin("LUA Debugger", &debugger->open, ImGuiWindowFlags_MenuBar))
     {
+        ImGui::PopStyleVar();
         ImGui::End();
         return;
     }
+    ImGui::PopStyleVar();
 
     DebugMenuAction menuAction = DebugMenuAction_NONE;
     if (ImGui::BeginMenuBar())
@@ -543,10 +635,32 @@ static void EditorDraw(LUADebuggerWindow* debugger)
             ImGui::EndMenu();
         }
         
-        if(ImGui::BeginMenu("Debug")) {            
+        if(ImGui::BeginMenu("Debug")) {
+            if(debugger->debugging) {
+                if (ImGui::MenuItem("Stop", "F5")) {
+                    debugger->debugging = false;
+                    Log(&editorConsole, "Debugging stopped");
+                }
+                if (ImGui::MenuItem("Step", "F10")) {
+                    
+                }
+            }
+            else {
+                if (ImGui::MenuItem("Start", "F5")) {
+                    debugger->debugging = true;
+                    Log(&editorConsole, "Debugging started");
+
+                    ScriptingDebugStart();
+                    
+                    LoadLUALibrary(sol::lib::debug);
+                }
+            }
+
+            ImGui::Separator();
             if (ImGui::MenuItem("Break on function")) {
                 menuAction = DebugMenuAction_BREAK_ON_FUNCTION;
             }
+            
             ImGui::EndMenu();
         }
 
@@ -611,44 +725,16 @@ static void EditorDraw(LUADebuggerWindow* debugger)
         ImGui::EndPopup();
     }
 
-    if(debugger->debugging) {
-        if (ImGui::SmallButton("Stop")) {
-            debugger->debugging = false;
-            Log(&editorConsole, "Debugging stopped");
-        }
-
-        ImGui::SameLine();
-
-        if (ImGui::SmallButton("Step")) {
-            
-        }
-
-        ImGui::Separator();
-    }
-    else {
-        if (ImGui::SmallButton("Start")) {
-            debugger->debugging = true;
-            Log(&editorConsole, "Debugging started");
-            
-            LoadLUALibrary(sol::lib::debug);
-        }
-    }
-
-    ImGui::Separator();
-
-    ImGui::Text("Memory: %d", (int)lua.memory_used());
-    if (ImGui::SmallButton("Force GC")) {
-        lua.collect_garbage();
-    }
-
-    ImGui::Separator();
-
     if(debugger->currentFile) {
+        ImVec2 size = ImGui::GetWindowSize();
         i32 line = 1;
         i32 index = 0;
 
-        ImGui::BeginColumns("Text Editor", 2, ImGuiColumnsFlags_NoResize);
-        ImGui::SetColumnWidth(0, ImGui::GetWindowSize().x * 0.08f);
+        ImGui::BeginColumns("Text Editor", 2, ImGuiColumnsFlags_NoResize | ImGuiColumnsFlags_NoBorder);
+        f32 lineSize = size.x * 0.08f;
+        ImGui::SetColumnWidth(0, lineSize);
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
+        ImGui::Dummy(ImVec2(0, 3));
         while(index <= debugger->currentFileSize) {
             if(debugger->currentFile[index] == '\r') { ++index; }
             if(debugger->currentFile[index] == '\n' || debugger->currentFile[index] == 0) {
@@ -665,6 +751,7 @@ static void EditorDraw(LUADebuggerWindow* debugger)
 
         index = 0;
         i32 lastIndex = 0;
+        ImGui::Dummy(ImVec2(0, 3));
         while(index <= debugger->currentFileSize) {
             if(debugger->currentFile[index] == '\r') { ++index; }
             if(debugger->currentFile[index] == '\n' || debugger->currentFile[index] == 0) {
@@ -674,7 +761,10 @@ static void EditorDraw(LUADebuggerWindow* debugger)
             }
             ++index;
         }
+        // size.x -= lineSize;
+        // ImGui::InputTextMultiline("", debugger->currentFile, debugger->currentFileSize, size);
 
+        ImGui::PopStyleVar();
         ImGui::EndColumns();
     }
     else {
@@ -706,13 +796,55 @@ static void EditorDraw(HelpWindow* help)
     ImGui::End();
 }
 
+static void EditorInit()
+{
+    SerializableTable* editorSave = 0;
+    DeserializeTable(&permanentState->arena, &editorSave, "editor.save");
+    
+    editorConsole.open = TableGetBool(&editorSave, "editorConsoleOpen");
+    if(editorConsole.open) { EditorInit(&editorConsole); }
+
+    editorPreview.open = TableGetBool(&editorSave, "editorPreviewOpen");
+    if(editorPreview.open) { EditorInit(&editorPreview); }
+
+    editorRenderDebugger.open = TableGetBool(&editorSave, "editorRenderDebuggerOpen");
+    if(editorRenderDebugger.open) { EditorInit(&editorRenderDebugger); }
+
+    editorMemoryDebugger.open = TableGetBool(&editorSave, "editorMemoryDebuggerOpen");
+    if(editorMemoryDebugger.open) { EditorInit(&editorMemoryDebugger); }
+
+    editorTextureDebugger.open = TableGetBool(&editorSave, "editorTextureDebuggerOpen");
+    if(editorTextureDebugger.open) { EditorInit(&editorTextureDebugger); }
+
+#ifdef LUA_SCRIPTING_ENABLED
+    editorLUADebugger.open = TableGetBool(&editorSave, "editorLUADebuggerOpen");
+    if(editorLUADebugger.open) { EditorInit(&editorLUADebugger); }
+#endif
+}
+
 static void EditorDrawAllOpen()
 {
     EditorDraw(&editorConsole);
+    EditorDraw(&editorPreview);
     EditorDraw(&editorRenderDebugger);
+    EditorDraw(&editorMemoryDebugger);
     EditorDraw(&editorTextureDebugger);
 #ifdef LUA_SCRIPTING_ENABLED
     EditorDraw(&editorLUADebugger);
 #endif
     EditorDraw(&editorHelp);
+}
+
+static void EditorEnd()
+{
+    SerializableTable* editorSave = 0;
+    TableSetBool(&permanentState->arena, editorSave, "editorConsoleOpen", editorConsole.open);
+    TableSetBool(&permanentState->arena, editorSave, "editorPreviewOpen", editorPreview.open);
+    TableSetBool(&permanentState->arena, editorSave, "editorRenderDebuggerOpen", editorRenderDebugger.open);
+    TableSetBool(&permanentState->arena, editorSave, "editorMemoryDebuggerOpen", editorMemoryDebugger.open);
+    TableSetBool(&permanentState->arena, editorSave, "editorTextureDebuggerOpen", editorTextureDebugger.open);
+#ifdef LUA_SCRIPTING_ENABLED
+    TableSetBool(&permanentState->arena, editorSave, "editorLUADebuggerOpen", editorLUADebugger.open);
+#endif
+    SerializeTable(&editorSave, "editor.save");
 }

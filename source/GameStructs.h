@@ -1,98 +1,6 @@
 #ifndef GAMESTRUCTS_H
 #define GAMESTRUCTS_H
 
-// #NOTE (Juan): Math
-union v2
-{
-    struct
-    {
-        f32 x, y;
-    };
-    f32 e[2];
-};
-
-union v3
-{
-    struct
-    {
-        f32 x, y, z;
-    };
-    struct
-    {
-        f32 r, g, b;
-    };
-    struct
-    {
-        v2 xy;
-        f32 IgnoredZ_;
-    };
-    f32 e[3];
-};
-
-union v4
-{
-    struct
-    {
-        f32 x, y, z, w;
-    };
-    struct
-    {
-        f32 r, g, b, a;
-    };
-    f32 e[4];
-};
-
-union m22
-{
-    struct
-    {
-        f32 _00, _01,
-            _10, _11;
-    };
-    f32 e[4];
-};
-
-union m33
-{
-    struct
-    {
-        f32 _00, _01, _02,
-            _10, _11, _12,
-            _20, _21, _22;
-    };
-    f32 e[9];
-};
-
-union m44
-{
-    struct
-    {
-        f32 _00, _01, _02, _03,
-            _10, _11, _12, _13,
-            _20, _21, _22, _23,
-            _30, _31, _32, _33;
-    };
-    f32 e[16];
-};
-
-struct rectangle2
-{
-    v2 min;
-    v2 max;
-};
-
-struct rectangle3
-{
-    v3 min;
-    v3 max;
-};
-
-struct transform2D
-{
-    v2 position;
-    v2 scale;
-};
-
 // #NOTE (Juan): Memory
 struct MemoryArena {
     size_t size;
@@ -144,13 +52,15 @@ struct FontAtlas {
     char* fontFilepath;
     u32 fontFilepathSize;
     f32 fontSize;
+    f32 lineHeight;
+    i32 tabSize;
     u32 width;
     u32 height;
     stbtt_bakedchar charData[FONT_CHAR_SIZE];
 };
 
 struct GLFontReference {
-    char* key;
+    u32 key;
     FontAtlas value;
 };
 
@@ -168,26 +78,27 @@ struct WatchedProgram {
 
 enum RenderType
 {
-    type_RenderClear,
-    type_RenderColor,
-    type_RenderLineWidth,
-    type_RenderTransparent,
-    type_RenderLine,
-    type_RenderTriangle,
-    type_RenderRectangle,
-    type_RenderCircle,
-    type_RenderTextureParameters,
-    type_RenderTexture,
-    type_RenderImage,
-    type_RenderImageUV,
-    type_RenderAtlasSprite,
-    type_RenderFont,
-    type_RenderChar,
-    type_RenderText,
-    type_RenderSetUniform,
-    type_RenderOverrideProgram,
-    type_RenderOverrideVertices,
-    type_RenderOverrideIndices,
+    RenderType_RenderClear,
+    RenderType_RenderColor,
+    RenderType_RenderLineWidth,
+    RenderType_RenderTransparent,
+    RenderType_RenderLine,
+    RenderType_RenderTriangle,
+    RenderType_RenderRectangle,
+    RenderType_RenderCircle,
+    RenderType_RenderTextureParameters,
+    RenderType_RenderTexture,
+    RenderType_RenderImage,
+    RenderType_RenderImageUV,
+    RenderType_RenderAtlasSprite,
+    RenderType_RenderFont,
+    RenderType_RenderChar,
+    RenderType_RenderText,
+    RenderType_RenderStyledText,
+    RenderType_RenderSetUniform,
+    RenderType_RenderOverrideProgram,
+    RenderType_RenderOverrideVertices,
+    RenderType_RenderOverrideIndices,
 };
 
 enum UniformType {
@@ -314,11 +225,7 @@ struct RenderAtlasSprite
 struct RenderFont
 {
     RenderHeader header;
-    char* filepath;
-    u32 filepathSize;
-    f32 fontSize;
-    u32 width;
-    u32 height;
+    i32 fontID;
 };
 
 struct RenderChar
@@ -333,6 +240,16 @@ struct RenderText
 {
     RenderHeader header;
     v2 position;
+    v2 scale;
+    char* string;
+    u32 stringSize;
+};
+
+struct RenderStyledText
+{
+    RenderHeader header;
+    v2 position;
+    v2 endPosition;
     v2 scale;
     char* string;
     u32 stringSize;
@@ -381,6 +298,7 @@ struct RenderState {
 // #NOTE (Juan): Game
 struct Game {
     bool running;
+    bool updateRunning;
 };
 
 struct Render {
@@ -389,10 +307,10 @@ struct Render {
     u32 renderBuffer;
     u32 depthrenderbuffer;
     i32 refreshRate;
-    i32 width;
-    i32 height;
-    i32 bufferWidth;
-    i32 bufferHeight;
+    v2 size;
+    v2 bufferSize;
+    v2 windowPosition;
+    v2 windowSize;
 };
 
 struct Camera {
@@ -468,8 +386,10 @@ struct DataTable {
 // #NOTE (Juan): Changing this enum order will break save games
 enum SerializableType {
     SerializableType_STRING,
+    SerializableType_BOOL,
     SerializableType_I32,
-    SerializableType_F32
+    SerializableType_F32,
+    SerializableType_V2,
 };
 
 struct SerializableValue {

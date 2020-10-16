@@ -37,8 +37,18 @@ struct ConsoleLog
     ConsoleLogType type;
 };
 
+struct PreviewWindow
+{
+    bool open;
+
+    bool cursorInsideWindow;
+    v2 cursorPosition;
+};
+
 struct ConsoleWindow
 {
+    bool open;
+
     char inputBuffer[CONSOLE_INPUT_BUFFER_COUNT];
     ImVector<ConsoleLog> items;
     ImVector<const char*> commands;
@@ -47,7 +57,6 @@ struct ConsoleWindow
     ImGuiTextFilter filter;
     bool autoScroll;
     bool scrollToBottom;
-    bool open;
 };
 
 enum TextureInspect
@@ -60,8 +69,14 @@ struct RenderDebuggerWindow
 {
     bool open;
 
+    i32 renderMemory;
     i32 drawCount;
     i32 programChanges;
+};
+
+struct MemoryDebuggerWindow
+{
+    bool open;
 };
 
 struct TextureDebuggerWindow

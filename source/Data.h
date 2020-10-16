@@ -40,15 +40,17 @@ static bool TokenIsFloat(const char* string)
 
 static void StartTokenizer(DataTokenizer* tokenizer, const char* filepath)
 {
-    tokenizer->active = true;
     tokenizer->memory = LoadFileToMemory(filepath, FILE_MODE_READ_BINARY, &tokenizer->memorySize);
-    tokenizer->dataString = (char*)tokenizer->memory;
-    tokenizer->dataIndex = 0;
-    tokenizer->tokenBufferIndex = 0;
-    tokenizer->currentLine = 0;
-    tokenizer->tokenLineCount = -1;
-    tokenizer->onComment = false;
-    tokenizer->parsingString = false;
+    tokenizer->active = tokenizer->memory != 0;
+    if(tokenizer->active) {
+        tokenizer->dataString = (char*)tokenizer->memory;
+        tokenizer->dataIndex = 0;
+        tokenizer->tokenBufferIndex = 0;
+        tokenizer->currentLine = 0;
+        tokenizer->tokenLineCount = -1;
+        tokenizer->onComment = false;
+        tokenizer->parsingString = false;
+    }
 }
 
 static DataTokenizer StartTokenizer(const char* filepath)
@@ -129,6 +131,7 @@ static char* NextToken(DataTokenizer* tokenizer)
         }
     }
 
+    tokenizer->active = false;
     return 0;
 }
 
@@ -320,7 +323,7 @@ static void TableSetValue_(MemoryArena *arena, SerializableTable** table, const 
     } \
 }
 
-#define GenerateTableSet(POSTFIX, valueType, serializableType, typeDefault) static void TableSet##POSTFIX##_(MemoryArena *arena, SerializableTable** table, const char* key, valueType value) \
+#define GenerateTableSet(POSTFIX, valueType, serializableType) static void TableSet##POSTFIX##_(MemoryArena *arena, SerializableTable** table, const char* key, valueType value) \
 { \
     char* keyPointer = PushString(arena, key); \
     SerializableValue* tableValue = PushStruct(arena, SerializableValue); \
@@ -331,13 +334,21 @@ static void TableSetValue_(MemoryArena *arena, SerializableTable** table, const 
     shput(*table, keyPointer, tableValue); \
 }
 
-GenerateTableGet(Int, i32, 0)
-#define TableSetInt(arena, table, key, value) TableSetInt_(arena, &table, key, value)
-GenerateTableSet(Int, i32, SerializableType_I32, 0)
+GenerateTableGet(Bool, bool, false)
+#define TableSetBool(arena, table, key, value) TableSetBool_(arena, &table, key, value)
+GenerateTableSet(Bool, bool, SerializableType_BOOL)
 
-GenerateTableGet(Float, f32, 0)
-#define TableSetFloat(arena, table, key, value) TableSetFloat_(arena, &table, key, value)
-GenerateTableSet(Float, f32, SerializableType_F32, 0)
+GenerateTableGet(I32, i32, 0)
+#define TableSetI32(arena, table, key, value) TableSetI32_(arena, &table, key, value)
+GenerateTableSet(I32, i32, SerializableType_I32)
+
+GenerateTableGet(F32, f32, 0)
+#define TableSetF32(arena, table, key, value) TableSetF32_(arena, &table, key, value)
+GenerateTableSet(F32, f32, SerializableType_F32)
+
+GenerateTableGet(V2, v2, V2(0, 0))
+#define TableSetV2(arena, table, key, value) TableSetV2_(arena, &table, key, value)
+GenerateTableSet(V2, v2, SerializableType_V2)
 
 static char* TableGetString(SerializableTable** table, const char* key, char* defaultValue = "")
 {
@@ -356,8 +367,11 @@ static u32 SerializableValueSize(SerializableType type)
         case SerializableType_STRING: {
             return 1;
         }
-        case SerializableType_I32: case SerializableType_F32: {
+        case SerializableType_I32: case SerializableType_BOOL: case SerializableType_F32: {
             return 4;
+        }
+        case SerializableType_V2: {
+            return 8;
         }
         default: {
             InvalidCodePath;
@@ -401,6 +415,12 @@ static bool DeserializeTable(MemoryArena *arena, SerializableTable** table, cons
                         if(valueIndex == 0) { valuePointer = (void*)value; }
                         break;
                     }
+                    case SerializableType_BOOL: {
+                        token = NextToken(&tokenizer);
+                        i32 value = atoi(token);
+                        *((bool*)valuePointer + valueOffset) = value == 1;
+                        break;
+                    }
                     case SerializableType_I32: {
                         token = NextToken(&tokenizer);
                         i32 value = atoi(token);
@@ -412,6 +432,15 @@ static bool DeserializeTable(MemoryArena *arena, SerializableTable** table, cons
                         char* endPointer = 0;
                         f32 value = strtof(token, &endPointer);
                         *((f32*)valuePointer + valueOffset) = value;
+                        break;
+                    }
+                    case SerializableType_V2: {
+                        token = NextToken(&tokenizer);
+                        char* endPointer = 0;
+                        f32 x = strtof(token, &endPointer);
+                        token = NextToken(&tokenizer);
+                        f32 y = strtof(token, &endPointer);
+                        *((v2*)valuePointer + valueOffset) = V2(x, y);
                         break;
                     }
                     default: {
@@ -463,6 +492,11 @@ static void SerializeTable(SerializableTable** table, const char* filepath)
                         fputc('"', file);
                         break;
                     }
+                    case SerializableType_BOOL: {
+                        bool i = *((bool*)data.value->value);
+                        fprintf(file, "%d", i ? 1 : 0);
+                        break;
+                    }
                     case SerializableType_I32: {
                         i32 i = *((i32*)data.value->value);
                         fprintf(file, "%d", i);
@@ -471,6 +505,11 @@ static void SerializeTable(SerializableTable** table, const char* filepath)
                     case SerializableType_F32: {
                         f32 f = *((f32*)data.value->value);
                         fprintf(file, "%f", f);
+                        break;
+                    }
+                    case SerializableType_V2: {
+                        v2 v = *((v2*)data.value->value);
+                        fprintf(file, "%f %f", v.x, v.y);
                         break;
                     }
                     default: {

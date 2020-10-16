@@ -1,10 +1,10 @@
 #ifndef RENDER_H
 #define RENDER_H
 
-void RenderDebugReset()
+void RenderDebugStart()
 {
     editorRenderDebugger.drawCount = 0;
-    editorRenderDebugger.programChanges = 0;    
+    editorRenderDebugger.programChanges = 0;
 }
 
 void Begin2D(u32 frameBufferID, u32 width, u32 height)
@@ -24,7 +24,7 @@ void Begin2D(u32 frameBufferID, u32 width, u32 height)
 	glViewport(0,0, width, height);
 }
 
-#define RenderPushElement(arena, type) (type *)RenderPushElement_(arena, sizeof(type), type_##type);
+#define RenderPushElement(arena, type) (type *)RenderPushElement_(arena, sizeof(type), RenderType_##type);
 static RenderHeader *RenderPushElement_(TemporaryMemory *memory, u32 size, RenderType type)
 {
     RenderHeader *result = 0;
@@ -140,12 +140,12 @@ void DrawImage(f32 posX, f32 posY, f32 scaleX, f32 scaleY, const char* filepath,
     image->filepath = PushString(&renderTemporaryMemory, filepath, &image->filepathSize);
 }
 
-void DrawImageUV(f32 posX, f32 posY, f32 scaleX, f32 scaleY, rectangle2 uv, const char* filepath)
+void DrawImageUV(f32 posX, f32 posY, f32 scaleX, f32 scaleY, f32 uvX, f32 uvY, f32 uvEndX, f32 uvEndY, const char* filepath)
 {
     RenderImageUV *image = RenderPushElement(&renderTemporaryMemory, RenderImageUV);
     image->position = V2(posX, posY);
     image->scale = V2(scaleX, scaleY);
-    image->uv = uv;
+    image->uv = Rectangle2(uvX, uvY, uvEndX, uvEndY);
     image->filepath = PushString(&renderTemporaryMemory, filepath, &image->filepathSize);
 }
 
@@ -159,13 +159,10 @@ void DrawAtlasSprite(f32 posX, f32 posY, f32 scaleX, f32 scaleY, const char* fil
     atlas->spriteKey = PushString(&renderTemporaryMemory, key, &atlas->spriteKeySize);
 }
 
-void DrawFont(const char* filepath, f32 fontSize, u32 width, u32 height)
+void DrawSetFont(i32 fontID)
 {
     RenderFont *font = RenderPushElement(&renderTemporaryMemory, RenderFont);
-    font->filepath = PushString(&renderTemporaryMemory, filepath, &font->filepathSize);
-    font->fontSize = fontSize;
-    font->width = width;
-    font->height = height;
+    font->fontID = fontID;
 }
 
 void DrawChar(f32 posX, f32 posY, f32 scaleX, f32 scaleY, const char singleChar)
@@ -180,6 +177,15 @@ void DrawString(f32 posX, f32 posY, f32 scaleX, f32 scaleY, const char* string)
 {
     RenderText *text = RenderPushElement(&renderTemporaryMemory, RenderText);
     text->position = V2(posX, posY);
+    text->scale = V2(scaleX, scaleY);
+    text->string = PushString(&renderTemporaryMemory, string, &text->stringSize);
+}
+
+void DrawStyledString(f32 posX, f32 posY, f32 endX, f32 endY, f32 scaleX, f32 scaleY, const char* string)
+{
+    RenderStyledText *text = RenderPushElement(&renderTemporaryMemory, RenderStyledText);
+    text->position = V2(posX, posY);
+    text->endPosition = V2(endX, endY);
     text->scale = V2(scaleX, scaleY);
     text->string = PushString(&renderTemporaryMemory, string, &text->stringSize);
 }
@@ -235,22 +241,27 @@ void DrawOverrideIndices(u32* indices, u32 count)
     }
 }
 
+void RenderDebugEnd()
+{
+    editorRenderDebugger.renderMemory = renderTemporaryMemory.used;
+}
+
 void End2D()
 {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     EndTemporaryMemory(&renderTemporaryMemory);
 }
 
-v2 ScreenToViewport(f32 screenX, f32 screenY, f32 size, f32 ratio)
+v2 RenderToViewport(f32 renderX, f32 renderY, f32 size, f32 ratio)
 {
     v2 position = V2(0, 0);
-
-    f32 scaleDifference = (f32)gameState->render.height / (f32)gameState->render.bufferHeight;
-    f32 scaledWidth = (f32)gameState->render.bufferWidth * scaleDifference;
-    f32 offsetX = ((f32)gameState->render.width - scaledWidth) * 0.5f;
     
-    position.x = (((screenX - offsetX) / scaledWidth) - 0.5f) * size * ratio;
-    position.y = ((screenY / gameState->render.height) - 0.5f) * size;
+    f32 scaleDifference = (f32)gameState->render.size.y / (f32)gameState->render.bufferSize.y;
+    f32 scaledWidth = (f32)gameState->render.bufferSize.x * scaleDifference;
+    f32 offsetX = ((f32)gameState->render.size.x - scaledWidth) * 0.5f;
+    
+    position.x = (((renderX - offsetX) / scaledWidth) - 0.5f) * size * ratio + size * 0.5f;
+    position.y = ((renderY / gameState->render.size.y) - 0.5f) * size + size * 0.5f;
 
     return position;
 }

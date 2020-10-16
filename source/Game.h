@@ -9,6 +9,7 @@
 #include <filesystem>
 #include "STB/stb_truetype.h"
 
+#include "MathStructs.h"
 #include "EditorStructs.h"
 #include "GameStructs.h"
 
@@ -41,10 +42,11 @@ sol::state lua;
 #include "IMGUI/imgui.h"
 
 #include "GameMath.h"
-
 #include "Memory.h"
 #include "File.h"
+#ifdef GAME_INTERNAL
 #include "Editor.h"
+#endif
 #include "Data.h"
 #include "Data.cpp"
 #include "Sound.h"
@@ -58,7 +60,7 @@ sol::state lua;
 
 static u32 GameInit()
 {
-    EditorInit(&editorConsole);
+    gameState->game.updateRunning = true;
 
 #ifdef LUA_SCRIPTING_ENABLED
     LoadScriptFile(TableGetString(&initialConfig, INITLUASCRIPT));
@@ -82,22 +84,24 @@ static u32 GameInit()
 
 static u32 GameLoop()
 {
-    f32 fps = (f32)(1 / gameState->time.deltaTime);
-    
-#ifdef LUA_SCRIPTING_ENABLED
-    sol::protected_function Update(lua["Update"]);
-    if(Update.valid()) {
-        sol::protected_function_result result = Update();
-        if (!result.valid()) {
-            sol::error error = result;
-		    std::string what = error.what();
-            LogError(&editorConsole, "%s", what.c_str());
+    if(gameState->game.updateRunning) {
+        f32 fps = (f32)(1 / gameState->time.deltaTime);
+        
+    #ifdef LUA_SCRIPTING_ENABLED
+        sol::protected_function Update(lua["Update"]);
+        if(Update.valid()) {
+            sol::protected_function_result result = Update();
+            if (!result.valid()) {
+                sol::error error = result;
+                std::string what = error.what();
+                LogError(&editorConsole, "%s", what.c_str());
+            }
         }
+        else {
+            LogError(&editorConsole, "Error on script 'Update', not valid");
+        }
+    #endif
     }
-    else {
-        LogError(&editorConsole, "Error on script 'Update', not valid");
-    }
-#endif
 
     return 0;
 }

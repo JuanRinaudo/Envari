@@ -1,6 +1,11 @@
 #ifndef SCRIPTING_H
 #define SCRIPTING_H
 
+extern "C" {
+    #include "luasocket.h"
+    #include "mime.h"
+}
+
 #ifdef GAME_INTERNAL
 char watchList[200];
 std::filesystem::file_time_type watchListTimes[20];
@@ -73,12 +78,17 @@ void LoadLUALibrary(sol::lib library)
             const char* workingDirectory = string.c_str();
             i32 workingDirectorySize = strlen(workingDirectory);
 
-            char* packagePath = PushArray(&temporalState->arena, workingDirectorySize + 7, char);
+            char* packagePath = PushArray(&temporalState->arena, 512, char);
             
             i32 offset = 0;
             strcpy(packagePath, workingDirectory);
             offset += workingDirectorySize;
-            strcpy(packagePath + offset, "/?.lua;");
+            const char* luaRelative = "\\scripts\\?.lua;";
+            strcpy(packagePath + offset, luaRelative);
+            offset += strlen(luaRelative);
+            strcpy(packagePath + offset, workingDirectory);
+            offset += workingDirectorySize;
+            strcpy(packagePath + offset, "\\scripts\\envari\\?.lua;");
 
             lua["package"]["path"] = packagePath;
             
@@ -95,11 +105,22 @@ void LoadLUALibrary(sol::lib library)
 }
 
 void ScriptingInit()
-{
+{    
     lua.set_panic(sol::c_call<decltype(&ScriptingPanic), &ScriptingPanic>);
 	lua.set_exception_handler(&ScriptingExceptionHandler);
 
     ScriptingInitBindings();
+}
+
+void ScriptingDebugStart()
+{
+    luaopen_socket_core(lua);
+    luaopen_mime_core(lua);
+
+    lua.script("local json = require(\"dkjson\");\n"
+    "local debuggee = require(\"vscode-debuggee\")\n"
+    "local startResult, breakerType = debuggee.start(json)\n"
+    "LogConsole(\"debuggee start -> \" .. tostring(startResult) .. \" \" .. tostring(breakerType))");
 }
 
 void ScriptingWatchChanges()

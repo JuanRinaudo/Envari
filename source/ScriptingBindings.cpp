@@ -13,6 +13,7 @@
 #include "Miniaudio/miniaudio.h"
 #include "IMGUI/imgui.h"
 
+#include "MathStructs.h"
 #include "EditorStructs.h"
 #include "GameStructs.h"
 
@@ -62,19 +63,21 @@ extern void DrawCircle(f32 posX, f32 posY, f32 radius, i32 segments);
 extern void DrawTextureParameters(u32 wrapS, u32 wrapT, u32 minFilter, u32 magFilter);
 extern void DrawTexture(f32 posX, f32 posY, f32 scaleX, f32 scaleY, u32 textureID);
 extern void DrawImage(f32 posX, f32 posY, f32 scaleX, f32 scaleY, const char* filepath, u32 renderFlags);
-extern void DrawImageUV(f32 posX, f32 posY, f32 scaleX, f32 scaleY, rectangle2 uv, const char* filepath);
+extern void DrawImageUV(f32 posX, f32 posY, f32 scaleX, f32 scaleY, f32 uvX, f32 uvY, f32 uvEndX, f32 uvEndY, const char* filepath);
 extern void DrawAtlasSprite(f32 posX, f32 posY, f32 scaleX, f32 scaleY, const char* filepath, const char* atlasName, const char* key);
-extern void DrawFont(const char* filepath, f32 fontSize, u32 width, u32 height);
+extern void DrawSetFont(i32 fontID);
 extern void DrawChar(f32 posX, f32 posY, f32 scaleX, f32 scaleY, const char singleChar);
 extern void DrawString(f32 posX, f32 posY, f32 scaleX, f32 scaleY, const char* string);
+extern void DrawStyledString(f32 posX, f32 posY, f32 endX, f32 endY, f32 scaleX, f32 scaleY, const char* string);
 extern void DrawSetUniform(u32 locationID, UniformType type);
 extern void DrawOverrideProgram(u32 programID);
 extern void DrawOverrideVertices(f32* vertices, u32 count);
 extern void DrawOverrideIndices(u32* indices, u32 count);
 extern void End2D();
-extern v2 ScreenToViewport(f32 screenX, f32 screenY, f32 size, f32 ratio);
+extern v2 RenderToViewport(f32 screenX, f32 screenY, f32 size, f32 ratio);
 
 extern f32* CreateQuadPosUV(f32 posStartX, f32 posStartY, f32 posEndX, f32 posEndY, f32 uvStartX, f32 uvStartY, f32 uvEndX, f32 uvEndY);
+extern i32 GL_GenerateFont(const char *filepath, f32 fontSize, u32 width, u32 height);
 extern i32 GL_CompileProgram(const char *vertexShaderSource, const char *fragmentShaderSource);
 
 extern ma_decoder* SoundLoad(const char* soundKey);
@@ -205,10 +208,9 @@ void ScriptingInitBindings()
 
     sol::usertype<Render> screen_usertype = lua.new_usertype<Render>("screen");
     screen_usertype["refreshRate"] = &Render::refreshRate;
-    screen_usertype["width"] = &Render::width;
-    screen_usertype["height"] = &Render::height;
-    screen_usertype["bufferWidth"] = &Render::bufferWidth;
-    screen_usertype["bufferHeight"] = &Render::bufferHeight;
+    screen_usertype["size"] = &Render::size;
+    screen_usertype["bufferSize"] = &Render::bufferSize;
+    screen_usertype["windowSize"] = &Render::windowSize;
     lua["screen"] = &gameState->render;
 
     sol::usertype<Time> time_usertype = lua.new_usertype<Time>("time");
@@ -253,9 +255,10 @@ void ScriptingInitBindings()
     lua["DrawAtlasSprite"] = DrawAtlasSprite;
     lua["DrawTransparent"] = DrawTransparent;
     lua["DrawTransparentDisable"] = DrawTransparentDisable;
-    lua["DrawFont"] = DrawFont;
+    lua["DrawSetFont"] = DrawSetFont;
     lua["DrawChar"] = DrawChar;
     lua["DrawString"] = DrawString;
+    lua["DrawStyledString"] = DrawStyledString;
     lua["DrawSetUniform"] = DrawSetUniform;
     lua["DrawOverrideProgram"] = DrawOverrideProgram;
     lua["DrawDisableOverrideProgram"] = DrawDisableOverrideProgram;
@@ -264,7 +267,7 @@ void ScriptingInitBindings()
     lua["DrawOverrideIndices"] = DrawOverrideIndices;
     lua["DrawDisableOverrideIndices"] = DrawDisableOverrideIndices;
 
-    lua["ScreenToViewport"] = ScreenToViewport;
+    lua["RenderToViewport"] = RenderToViewport;
     
     lua["IMAGE_ADAPTATIVE_FIT"] = IMAGE_ADAPTATIVE_FIT;
     lua["IMAGE_KEEP_RATIO_X"] = IMAGE_KEEP_RATIO_X;
@@ -275,6 +278,7 @@ void ScriptingInitBindings()
 
     // #NOTE (Juan): GLRender
     lua["CreateQuadPosUV"] = CreateQuadPosUV;
+    lua["GenerateFont"] = GL_GenerateFont;
     lua["CompileProgram"] = GL_CompileProgram;
     lua["GetUniformLocation"] = glGetUniformLocation;
     lua["UniformType_Float"] = UniformType_Float;

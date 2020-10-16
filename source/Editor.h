@@ -18,9 +18,17 @@ ConsoleWindow editorConsole;
 static void EditorInit(ConsoleWindow* console);
 static void EditorDraw(ConsoleWindow* console);
 
+PreviewWindow editorPreview;
+static void EditorInit(PreviewWindow* preview);
+static void EditorDraw(PreviewWindow* preview);
+
 static RenderDebuggerWindow editorRenderDebugger;
 static void EditorInit(RenderDebuggerWindow* debugger);
 static void EditorDraw(RenderDebuggerWindow* debugger);
+
+static MemoryDebuggerWindow editorMemoryDebugger;
+static void EditorInit(MemoryDebuggerWindow* debugger);
+static void EditorDraw(MemoryDebuggerWindow* debugger);
 
 static TextureDebuggerWindow editorTextureDebugger;
 static void EditorInit(TextureDebuggerWindow* debugger);
@@ -41,6 +49,7 @@ static i32 TextEditCallbackStub(ImGuiInputTextCallbackData* data);
 
 static void ExecCommand(ConsoleWindow* console, const char* command_line);
 
+static void EditorInit();
 static void EditorDrawAllOpen();
 
 #endif

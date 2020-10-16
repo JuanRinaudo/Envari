@@ -221,7 +221,7 @@ int main(int argc, char *argv[])
                         gameState->input.mouseScreenPosition.x = (f32)event.button.x;
                         gameState->input.mouseScreenPosition.y = (f32)event.button.y;
 
-                        gameState->input.mousePosition = ScreenToViewport(gameState->input.mouseScreenPosition.x, gameState->input.mouseScreenPosition.y, gameState->camera.size, gameState->camera.ratio);
+                        gameState->input.mousePosition = RenderToViewport(gameState->input.mouseScreenPosition.x, gameState->input.mouseScreenPosition.y, gameState->camera.size, gameState->camera.ratio);
                     }
                     break;
                 }

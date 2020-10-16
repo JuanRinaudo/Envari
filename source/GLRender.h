@@ -144,7 +144,7 @@ static TextureAtlas GL_LoadAtlas(const char *atlasKey)
             char* token = NextToken(&tokenizer);
 
             if(tokenizer.tokenLineCount == 0) {
-                keyPointer = PushString(&permanentState->arena, tokenizer.tokenBuffer, tokenizer.tokenBufferIndex);
+                keyPointer = PushString(&sceneState->arena, tokenizer.tokenBuffer, tokenizer.tokenBufferIndex);
 
                 i32 x = atoi(NextToken(&tokenizer));
                 i32 y = atoi(NextToken(&tokenizer));
@@ -163,39 +163,14 @@ static TextureAtlas GL_LoadAtlas(const char *atlasKey)
     }
 }
 
-static FontAtlas GL_LoadFont(const char *filepath, f32 fontSize, u32 width, u32 height)
+static i32 GL_LoadFont(i32 fontID, FontAtlas *atlas)
 {
-    i32 index = (i32)shgeti(fontCache, filepath);
+    i32 index = (i32)hmgeti(fontCache, fontID);
     if(index > -1) {
-        return shget(fontCache, filepath); 
+        *atlas = fontCache[index].value;
+        return 1;
     } else {
-        FontAtlas result;
-        result.fontFilepath = PushString(&permanentState->arena, filepath, &result.fontFilepathSize);
-        result.fontSize = fontSize;
-        result.width = width;
-        result.height = height;
-
-        u32 data_size = 0;
-        void* data = LoadFileToMemory(filepath, FILE_MODE_READ_BINARY, &data_size);
-
-        u8* tempBitmap = PushArray(&temporalState->arena, width * height, u8);
-        stbtt_BakeFontBitmap((u8 *)data, 0, fontSize, tempBitmap, width, height, 32, 96, result.charData); // no guarantee this fits!
-
-        u32 textureID;
-        glGenTextures(1, &textureID);
-        glBindTexture(GL_TEXTURE_2D, textureID);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, width, height, 0, GL_ALPHA, GL_UNSIGNED_BYTE, tempBitmap);
-        glGenerateMipmap(GL_TEXTURE_2D);
-
-        GLTexture texture;
-        texture.textureID = textureID;
-        texture.width = width;
-        texture.height = height;
-        texture.channels = 4;
-        shput(textureCache, filepath, texture);
-        shput(fontCache, filepath, result);
-
-        return result;
+        return 0;
     }
 }
 
@@ -290,6 +265,44 @@ static void GL_InitFramebuffer(i32 bufferWidth, i32 bufferHeight)
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "STB/stb_image_write.h"
+
+i32 GL_GenerateFont(const char *filepath, f32 fontSize, u32 width, u32 height)
+{
+    FontAtlas result;
+    result.fontFilepath = PushString(&sceneState->arena, filepath, &result.fontFilepathSize);
+    result.fontSize = fontSize;
+    result.lineHeight = fontSize;
+    result.tabSize = (i32)fontSize * 2;
+    result.width = width;
+    result.height = height;
+
+    u32 data_size = 0;
+    void* data = LoadFileToMemory(filepath, FILE_MODE_READ_BINARY, &data_size);
+
+    u8* tempBitmap = PushArray(&temporalState->arena, width * height, u8);
+    stbtt_BakeFontBitmap((u8 *)data, 0, fontSize, tempBitmap, width, height, 32, 96, result.charData); // no guarantee this fits!
+
+    // stbi_write_png("bakedFont.png", width, height, 1, tempBitmap, width);
+
+    u32 textureID;
+    glGenTextures(1, &textureID);
+    glBindTexture(GL_TEXTURE_2D, textureID);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, width, height, 0, GL_ALPHA, GL_UNSIGNED_BYTE, tempBitmap);
+    glGenerateMipmap(GL_TEXTURE_2D);
+
+    GLTexture texture;
+    texture.textureID = textureID;
+    texture.width = width;
+    texture.height = height;
+    texture.channels = 4;
+    shput(textureCache, filepath, texture);
+    hmput(fontCache, textureID, result);
+
+    return textureID;
+}
+
 i32 GL_CompileProgram(const char *vertexShaderPath, const char *fragmentShaderPath)
 {
     // NOTE(Juan): Shaders
@@ -307,6 +320,8 @@ i32 GL_CompileProgram(const char *vertexShaderPath, const char *fragmentShaderPa
     i32 size = (i32)data_size;
     glShaderSource(vertexShader, 1, &vertexSource, &size);
     glCompileShader(vertexShader);
+
+    UnloadFileFromMemory(data);
 
     i32 success;
     char infoLog[512];
@@ -332,6 +347,8 @@ i32 GL_CompileProgram(const char *vertexShaderPath, const char *fragmentShaderPa
     size = (i32)data_size;
     glShaderSource(fragmentShader, 1, &fragmentSource, &size);
     glCompileShader(fragmentShader);
+
+    UnloadFileFromMemory(data);
 
     if (!success)
     {
@@ -383,81 +400,92 @@ static void GL_WatchChanges()
         std::filesystem::file_time_type fragmentTime = std::filesystem::last_write_time(watched.fragmentFilepath);
 
         if(vertexTime != watched.vertexTime || fragmentTime != watched.fragmentTime) {
+            // if(vertexSource[0] != '\0' && fragmentSource[0] != '\0') {
+            Log(&editorConsole, "Started to reload program %d, vertex %s, fragment %s", watched.shaderProgram, watched.vertexFilepath, watched.fragmentFilepath);
+            glDetachShader(watched.shaderProgram, watched.vertexShader);
+            glDetachShader(watched.shaderProgram, watched.fragmentShader);
+            
+            watched.vertexShader = glCreateShader(GL_VERTEX_SHADER);
+            
             size_t vertexSouceSize = 0;
             void* data = LoadFileToMemory(watched.vertexFilepath, FILE_MODE_READ_BINARY, &vertexSouceSize);
             SOURCE_TYPE vertexSource = static_cast<SOURCE_TYPE>(data);
+
+            i32 size = (i32)vertexSouceSize;
+            glShaderSource(watched.vertexShader, 1, &vertexSource, &size);
+            glCompileShader(watched.vertexShader);
+
+            UnloadFileFromMemory(data);
+
+            i32 success;
+            char infoLog[512];
+            glGetShaderiv(watched.vertexShader, GL_COMPILE_STATUS, &success);
+
+            if (!success)
+            {
+                glGetShaderInfoLog(watched.vertexShader, 512, NULL, infoLog);
+                LogError(&editorConsole, "ERROR::VERTEX::COMPILATION_FAILED %s\n", watched.vertexFilepath);
+                LogError(&editorConsole, infoLog);
+            }
+
+            watched.fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
 
             size_t fragmentSouceSize = 0;
             data = LoadFileToMemory(watched.fragmentFilepath, FILE_MODE_READ_BINARY, &fragmentSouceSize);
             SOURCE_TYPE fragmentSource = static_cast<SOURCE_TYPE>(data);
 
-            if(vertexSource[0] != '\0' && fragmentSource[0] != '\0') {
-                Log(&editorConsole, "Started to reload program %d, vertex %s, fragment %s", watched.shaderProgram, watched.vertexFilepath, watched.fragmentFilepath);
-                glDetachShader(watched.shaderProgram, watched.vertexShader);
-                glDetachShader(watched.shaderProgram, watched.fragmentShader);
-                
-                watched.vertexShader = glCreateShader(GL_VERTEX_SHADER);
-                
-                i32 size = (i32)vertexSouceSize;
-                glShaderSource(watched.vertexShader, 1, &vertexSource, &size);
-                glCompileShader(watched.vertexShader);
+            size = (i32)fragmentSouceSize;
+            glShaderSource(watched.fragmentShader, 1, &fragmentSource, &size);
+            glCompileShader(watched.fragmentShader);
 
-                i32 success;
-                char infoLog[512];
-                glGetShaderiv(watched.vertexShader, GL_COMPILE_STATUS, &success);
+            UnloadFileFromMemory(data);
 
-                if (!success)
-                {
-                    glGetShaderInfoLog(watched.vertexShader, 512, NULL, infoLog);
-                    LogError(&editorConsole, "ERROR::VERTEX::COMPILATION_FAILED %s\n", watched.vertexFilepath);
-                    LogError(&editorConsole, infoLog);
-                }
-
-                watched.fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-
-                size = (i32)fragmentSouceSize;
-                glShaderSource(watched.fragmentShader, 1, &fragmentSource, &size);
-                glCompileShader(watched.fragmentShader);
-
-                if (!success)
-                {
-                    glGetShaderInfoLog(watched.vertexShader, 512, NULL, infoLog);
-                    LogError(&editorConsole, "ERROR::FRAGMENT::COMPILATION_FAILED %s\n", watched.fragmentFilepath);
-                    LogError(&editorConsole, infoLog);
-                }
-
-                glAttachShader(watched.shaderProgram, watched.vertexShader);
-                glAttachShader(watched.shaderProgram, watched.fragmentShader);
-                glLinkProgram(watched.shaderProgram);
-
-                glGetProgramiv(watched.shaderProgram, GL_LINK_STATUS, &success);
-                if (!success) {
-                    glGetProgramInfoLog(watched.shaderProgram, 512, NULL, infoLog);
-                    LogError(&editorConsole, "ERROR::PROGRAM::COMPILATION_FAILED\n");
-                    LogError(&editorConsole, infoLog);
-                }
-
-                glDeleteShader(watched.vertexShader);
-                glDeleteShader(watched.fragmentShader);
-
-                watched.vertexTime = vertexTime;
-                watched.fragmentTime = fragmentTime;
-                watchedPrograms[i] = watched;
+            if (!success)
+            {
+                glGetShaderInfoLog(watched.vertexShader, 512, NULL, infoLog);
+                LogError(&editorConsole, "ERROR::FRAGMENT::COMPILATION_FAILED %s\n", watched.fragmentFilepath);
+                LogError(&editorConsole, infoLog);
             }
+
+            glAttachShader(watched.shaderProgram, watched.vertexShader);
+            glAttachShader(watched.shaderProgram, watched.fragmentShader);
+            glLinkProgram(watched.shaderProgram);
+
+            glGetProgramiv(watched.shaderProgram, GL_LINK_STATUS, &success);
+            if (!success) {
+                glGetProgramInfoLog(watched.shaderProgram, 512, NULL, infoLog);
+                LogError(&editorConsole, "ERROR::PROGRAM::COMPILATION_FAILED\n");
+                LogError(&editorConsole, infoLog);
+            }
+
+            glDeleteShader(watched.vertexShader);
+            glDeleteShader(watched.fragmentShader);
+
+            watched.vertexTime = vertexTime;
+            watched.fragmentTime = fragmentTime;
+            watchedPrograms[i] = watched;
+            // }
         }
     }
     #endif
 }
 
-static void CalculateCharacterOffset(FontAtlas *font, char singleChar, f32 *posX, f32 *posY)
+static void CalculateCharacterOffset(FontAtlas *font, char singleChar, f32 *posX, f32 *posY, u32 *lineCharacterCount)
 {
-    if(singleChar < SPECIAL_ASCII_CHAR_OFFSET) {
-        switch(singleChar) {
-            case '\n': {
-                *posX = 0;
-                *posY = *posY + font->fontSize;
-                break;
-            }
+    switch(singleChar) {
+        case '\n': {
+            *lineCharacterCount = 0;
+            *posX = 0;
+            *posY = *posY + font->lineHeight;
+            break;
+        }
+        case '\t': {
+            *posX = (f32)(CeilToInt(*posX / font->tabSize) * font->tabSize);
+            break;
+        }
+        default: {
+            (*lineCharacterCount)++;
+            break;
         }
     }
 }
@@ -603,6 +631,8 @@ static void GL_Render()
     RenderHeader *renderHeader = (RenderHeader *)renderTemporaryMemory.arena->base;
 
     m44 view = gameState->camera.view;
+    view._30 = -gameState->camera.size * 0.5f;
+    view._31 = view._30;
     view._23 = 1.0f;
     m44 projection = gameState->camera.projection;
 
@@ -612,7 +642,7 @@ static void GL_Render()
         i32 size = 0;
         // #TODO (Juan): More render types can be added line, spline, etc
         switch(renderHeader->type) {
-            case type_RenderClear: {
+            case RenderType_RenderClear: {
                 RenderClear *clear = (RenderClear *)renderHeader;
                 glClearColor(clear->color.r, clear->color.g, clear->color.b, clear->color.a);
                 glClear(GL_COLOR_BUFFER_BIT);
@@ -620,21 +650,21 @@ static void GL_Render()
                 size = sizeof(RenderClear);
                 break;
             }
-            case type_RenderColor: {
+            case RenderType_RenderColor: {
                 RenderColor *color = (RenderColor *)renderHeader;
                 renderState.renderColor = color->color;
 
                 size = sizeof(RenderColor);
                 break;
             }
-            case type_RenderLineWidth: {
+            case RenderType_RenderLineWidth: {
                 RenderLineWidth *line = (RenderLineWidth *)renderHeader;
                 glLineWidth(line->width);
 
                 size = sizeof(RenderLineWidth);
                 break;
             }
-            case type_RenderTransparent: {
+            case RenderType_RenderTransparent: {
                 RenderTransparent *transparent = (RenderTransparent *)renderHeader;
                 if(transparent->enabled) {
                     glEnable(GL_BLEND);
@@ -650,7 +680,7 @@ static void GL_Render()
                 size = sizeof(RenderTransparent);
                 break;
             }
-            case type_RenderLine: {
+            case RenderType_RenderLine: {
                 RenderLine *line = (RenderLine *)renderHeader;
                 
                 UseProgram(coloredProgram);
@@ -681,7 +711,7 @@ static void GL_Render()
                 size = sizeof(RenderLine);
                 break;
             }
-            case type_RenderTriangle: {
+            case RenderType_RenderTriangle: {
                 RenderTriangle *triangle = (RenderTriangle *)renderHeader;
                 
                 UseProgram(coloredProgram);
@@ -713,7 +743,7 @@ static void GL_Render()
                 size = sizeof(RenderTriangle);
                 break;
             }
-            case type_RenderRectangle: {
+            case RenderType_RenderRectangle: {
                 RenderRectangle *rectangle = (RenderRectangle *)renderHeader;
 
                 UseProgram(coloredProgram);
@@ -734,7 +764,7 @@ static void GL_Render()
                 size = sizeof(RenderRectangle);
                 break;
             }
-            case type_RenderCircle: {
+            case RenderType_RenderCircle: {
                 RenderCircle *circle = (RenderCircle *)renderHeader;
 
                 UseProgram(coloredProgram);
@@ -781,7 +811,7 @@ static void GL_Render()
                 size = sizeof(RenderRectangle);
                 break;
             }
-            case type_RenderTextureParameters: {
+            case RenderType_RenderTextureParameters: {
                 RenderTextureParameters *textureParameters = (RenderTextureParameters *)renderHeader;
                 
                 renderState.wrapS = textureParameters->wrapS;
@@ -792,7 +822,7 @@ static void GL_Render()
                 size = sizeof(RenderTextureParameters);
                 break;
             }
-            case type_RenderTexture: {
+            case RenderType_RenderTexture: {
                 RenderTexture *texture = (RenderTexture *)renderHeader;
 
                 UseProgram(texturedProgram);
@@ -816,7 +846,7 @@ static void GL_Render()
                 size = sizeof(RenderTexture);
                 break;
             }
-            case type_RenderImage: {
+            case RenderType_RenderImage: {
                 RenderImage *image = (RenderImage *)renderHeader;
 
                 UseProgram(texturedProgram);
@@ -869,7 +899,7 @@ static void GL_Render()
                 size = sizeof(RenderImage) + image->filepathSize;
                 break;
             }
-            case type_RenderImageUV: {
+            case RenderType_RenderImageUV: {
                 RenderImageUV *imageUV = (RenderImageUV *)renderHeader;
 
                 UseProgram(texturedProgram);
@@ -883,9 +913,17 @@ static void GL_Render()
 
                 model *= ScaleM44(imageUV->scale);
                 model *= TranslationM44(imageUV->position);
-                SetupModelUniforms(coloredProgram, renderState.renderColor, model, view, projection);
+                SetupModelUniforms(texturedProgram, renderState.renderColor, model, view, projection);
 
-                BindBuffer();
+                CreateQuadPosUV(0, 0, 1, 1, imageUV->uv.min.x, imageUV->uv.min.y, imageUV->uv.max.x, imageUV->uv.max.y);
+
+                glBindVertexArray(customBuffer.vertexArray);
+
+                glBindBuffer(GL_ARRAY_BUFFER, customBuffer.vertexBuffer);
+                glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), quadVertices, GL_STATIC_DRAW);
+
+                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, customBuffer.indexBuffer);
+                glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(quadIndices), quadIndices, GL_STATIC_DRAW); 
 
                 glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)0);
                 glEnableVertexAttribArray(0);
@@ -897,7 +935,7 @@ static void GL_Render()
                 size = sizeof(RenderImageUV) + imageUV->filepathSize;
                 break;
             }
-            case type_RenderAtlasSprite: {
+            case RenderType_RenderAtlasSprite: {
                 RenderAtlasSprite *atlas = (RenderAtlasSprite *)renderHeader;
 
                 UseProgram(texturedProgram);
@@ -938,14 +976,14 @@ static void GL_Render()
                 size = sizeof(RenderAtlasSprite) + atlas->filepathSize + atlas->atlasNameSize + atlas->spriteKeySize;
                 break;
             }
-            case type_RenderFont: {
+            case RenderType_RenderFont: {
                 RenderFont *font = (RenderFont *)renderHeader;
-                currentFont = GL_LoadFont(font->filepath, font->fontSize, font->width, font->height);
+                GL_LoadFont(font->fontID, &currentFont);
 
-                size = sizeof(RenderFont) + font->filepathSize;
+                size = sizeof(RenderFont);
                 break;
             }
-            case type_RenderChar: {
+            case RenderType_RenderChar: {
                 RenderChar *renderChar = (RenderChar *)renderHeader;
 
                 UseProgram(fontProgram);
@@ -982,7 +1020,7 @@ static void GL_Render()
                 size = sizeof(RenderChar);
                 break;
             }
-            case type_RenderText: {
+            case RenderType_RenderText: {
                 RenderText *text = (RenderText *)renderHeader;
 
                 UseProgram(fontProgram);
@@ -1003,10 +1041,11 @@ static void GL_Render()
                 f32 posY = currentFont.fontSize;
                 stbtt_aligned_quad quad;
 
+                u32 lineCharacterCount = 0;
                 for(i32 i = 0; i < text->stringSize - 1; ++i) {
                     char currentChar = text->string[i];
 
-                    CalculateCharacterOffset(&currentFont, currentChar, &posX, &posY);
+                    CalculateCharacterOffset(&currentFont, currentChar, &posX, &posY, &lineCharacterCount);
                     stbtt_GetBakedQuad(currentFont.charData, currentFont.width, currentFont.height, currentChar - SPECIAL_ASCII_CHAR_OFFSET, &posX, &posY, &quad, 1);
                     CreateQuadPosUV(quad.x0, quad.y0, quad.x1, quad.y1, quad.s0, quad.t0, quad.s1, quad.t1);
 
@@ -1029,7 +1068,63 @@ static void GL_Render()
                 size = sizeof(RenderText) + text->stringSize;
                 break;
             }
-            case type_RenderSetUniform: {
+            case RenderType_RenderStyledText: {
+                RenderStyledText *styledText = (RenderStyledText *)renderHeader;
+
+                UseProgram(fontProgram);
+
+                model *= ScaleM44(styledText->scale);
+                model *= TranslationM44(styledText->position);
+                SetupModelUniforms(texturedProgram, renderState.renderColor, model, view, projection);
+
+                GLTexture texture = GL_LoadTexture(currentFont.fontFilepath);
+                glBindTexture(GL_TEXTURE_2D, texture.textureID);
+                SetupTextureParameters(GL_TEXTURE_2D);
+
+                v2 textSize = styledText->scale;
+                v2 textPosition = styledText->position;
+                v2 fontDividers = V2(currentFont.fontSize / currentFont.width, currentFont.fontSize / currentFont.height);
+
+                f32 posX = 0;
+                f32 posY = currentFont.fontSize;
+                stbtt_aligned_quad quad;
+
+                u32 lineCharacterCount = 0;
+                for(i32 i = 0; i < styledText->stringSize - 1; ++i) {
+                    char currentChar = styledText->string[i];
+                    
+                    CalculateCharacterOffset(&currentFont, currentChar, &posX, &posY, &lineCharacterCount);
+                    stbtt_GetBakedQuad(currentFont.charData, currentFont.width, currentFont.height, currentChar - SPECIAL_ASCII_CHAR_OFFSET, &posX, &posY, &quad, 1);
+
+                    if(posX + styledText->position.x > styledText->endPosition.x) {
+                        lineCharacterCount = 0;
+                        posX = 0;
+                        posY = posY + currentFont.lineHeight;
+                        stbtt_GetBakedQuad(currentFont.charData, currentFont.width, currentFont.height, currentChar - SPECIAL_ASCII_CHAR_OFFSET, &posX, &posY, &quad, 1);
+                    }
+
+                    CreateQuadPosUV(quad.x0, quad.y0, quad.x1, quad.y1, quad.s0, quad.t0, quad.s1, quad.t1);
+
+                    glBindVertexArray(customBuffer.vertexArray);
+
+                    glBindBuffer(GL_ARRAY_BUFFER, customBuffer.vertexBuffer);
+                    glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), quadVertices, GL_STATIC_DRAW);
+
+                    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, customBuffer.indexBuffer);
+                    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(quadIndices), quadIndices, GL_STATIC_DRAW); 
+
+                    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)0);
+                    glEnableVertexAttribArray(0);
+                    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)(3 * sizeof(f32)));
+                    glEnableVertexAttribArray(1);
+
+                    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+                }
+                
+                size = sizeof(RenderStyledText) + styledText->stringSize;
+                break;
+            }
+            case RenderType_RenderSetUniform: {
                 RenderSetUniform *uniform = (RenderSetUniform *)renderHeader;
 
                 size = sizeof(RenderSetUniform);
@@ -1044,15 +1139,17 @@ static void GL_Render()
                 size += uniform->parametersSize;
                 break;
             }
-            case type_RenderOverrideProgram: {
+            case RenderType_RenderOverrideProgram: {
                 RenderOverrideProgram *program = (RenderOverrideProgram *)renderHeader;
  
                 renderState.overrideProgram = program->programID;
 
+                UseProgram(program->programID);
+
                 size = sizeof(RenderOverrideProgram);
                 break;
             }
-            case type_RenderOverrideVertices: {
+            case RenderType_RenderOverrideVertices: {
                 RenderOverrideVertices *vertices = (RenderOverrideVertices *)renderHeader;
  
                 renderState.overridingVertices = vertices->vertices != 0;
@@ -1065,7 +1162,7 @@ static void GL_Render()
                 size = sizeof(RenderOverrideVertices) + vertices->size;
                 break;
             }
-            case type_RenderOverrideIndices: {
+            case RenderType_RenderOverrideIndices: {
                 RenderOverrideIndices *indices = (RenderOverrideIndices *)renderHeader;
 
                 renderState.overridingIndices = indices->indices != 0;
