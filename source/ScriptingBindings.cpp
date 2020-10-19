@@ -292,6 +292,8 @@ void ScriptingInitBindings()
     lua["ImageRenderFlag_KeepRatioY"] = ImageRenderFlag_KeepRatioY;
 
     lua["TextRenderFlag_Center"] = TextRenderFlag_Center;
+    lua["TextRenderFlag_LetterWrap"] = TextRenderFlag_LetterWrap;
+    lua["TextRenderFlag_WordWrap"] = TextRenderFlag_WordWrap;
 
     lua["PerspectiveProjection"] = PerspectiveProjection;
     lua["OrtographicProjection"] = sol::resolve<m44(f32, f32, f32, f32)>(OrtographicProjection);

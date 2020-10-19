@@ -1187,36 +1187,60 @@ static void GL_Render()
                 f32 posY = currentFont.fontSize;
                 stbtt_aligned_quad quad;
 
+                bool letterWrap = (styledText->header.renderFlags & TextRenderFlag_LetterWrap) > 0;
+                bool wordWrap = (styledText->header.renderFlags & TextRenderFlag_WordWrap) > 0;
+
+                u32 lastWordIndex;
+
                 u32 lineCharacterCount = 0;
-                for(i32 i = 0; i < styledText->stringSize - 1; ++i) {
+                for(u32 i = 0; i < styledText->stringSize - 1; ++i) {
                     char currentChar = styledText->string[i];
                     
                     CalculateCharacterOffset(&currentFont, currentChar, &posX, &posY, &lineCharacterCount);
-                    GetBakedQuad(&currentFont, currentChar - SPECIAL_ASCII_CHAR_OFFSET, &posX, &posY, &quad);
 
-                    if(posX + styledText->position.x > styledText->endPosition.x) {
-                        lineCharacterCount = 0;
-                        posX = 0;
-                        posY = posY + currentFont.lineHeight;
-                        GetBakedQuad(&currentFont, currentChar - SPECIAL_ASCII_CHAR_OFFSET, &posX, &posY, &quad);
+                    char normalizedChar = currentChar - SPECIAL_ASCII_CHAR_OFFSET;
+                    if(normalizedChar >= 0) {
+                        if(wordWrap) {
+                            f32 wordEndPosition = posX;
+                            
+                            for(u32 j = i; j < styledText->stringSize - 1 && styledText->string[j] > SPECIAL_ASCII_CHAR_OFFSET; ++j) {
+                                wordEndPosition += currentFont.charData[styledText->string[j] - SPECIAL_ASCII_CHAR_OFFSET].xadvance;
+                            }
+
+                            if(wordEndPosition + styledText->position.x > styledText->endPosition.x) {
+                                lineCharacterCount = 0;
+                                posX = 0;
+                                posY = posY + currentFont.lineHeight;
+                            }
+                        }
+
+                        if(letterWrap && posX + currentFont.charData[normalizedChar].xadvance + styledText->position.x > styledText->endPosition.x) {
+                            lineCharacterCount = 0;
+                            posX = 0;
+                            posY = posY + currentFont.lineHeight;
+                        }
+
+                        GetBakedQuad(&currentFont, normalizedChar, &posX, &posY, &quad);
+
+                        CreateQuadPosUV(quad.x0, quad.y0, quad.x1, quad.y1, quad.s0, quad.t0, quad.s1, quad.t1);
+
+                        glBindVertexArray(customBuffer.vertexArray);
+
+                        glBindBuffer(GL_ARRAY_BUFFER, customBuffer.vertexBuffer);
+                        glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), quadVertices, GL_STATIC_DRAW);
+
+                        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, customBuffer.indexBuffer);
+                        glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(quadIndices), quadIndices, GL_STATIC_DRAW); 
+
+                        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)0);
+                        glEnableVertexAttribArray(0);
+                        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)(3 * sizeof(f32)));
+                        glEnableVertexAttribArray(1);
+
+                        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+                    } else {
+                        lastWordIndex = i + 1;
                     }
-
-                    CreateQuadPosUV(quad.x0, quad.y0, quad.x1, quad.y1, quad.s0, quad.t0, quad.s1, quad.t1);
-
-                    glBindVertexArray(customBuffer.vertexArray);
-
-                    glBindBuffer(GL_ARRAY_BUFFER, customBuffer.vertexBuffer);
-                    glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), quadVertices, GL_STATIC_DRAW);
-
-                    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, customBuffer.indexBuffer);
-                    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(quadIndices), quadIndices, GL_STATIC_DRAW); 
-
-                    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)0);
-                    glEnableVertexAttribArray(0);
-                    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)(3 * sizeof(f32)));
-                    glEnableVertexAttribArray(1);
-
-                    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
                 }
                 
                 size = sizeof(RenderStyledText) + styledText->stringSize;

@@ -123,6 +123,8 @@ enum ImageRenderFlag {
 
 enum TextRenderFlag {
     TextRenderFlag_Center = 0x1,
+    TextRenderFlag_LetterWrap = 0x2,
+    TextRenderFlag_WordWrap = 0x4,
 };
 
 struct RenderHeader
