@@ -64,7 +64,7 @@ struct GLFontReference {
     FontAtlas value;
 };
 
-#ifdef GAME_INTERNAL
+#ifdef GAME_EDITOR
 struct WatchedProgram {
     u32 vertexShader;
     u32 fragmentShader;
@@ -75,6 +75,13 @@ struct WatchedProgram {
     std::filesystem::file_time_type fragmentTime;
 };
 #endif
+
+enum ConsoleLogType
+{
+    ConsoleLogType_NORMAL,
+    ConsoleLogType_COMMAND,
+    ConsoleLogType_ERROR,
+};
 
 enum RenderType
 {
@@ -90,11 +97,13 @@ enum RenderType
     RenderType_RenderTexture,
     RenderType_RenderImage,
     RenderType_RenderImageUV,
+    RenderType_RenderImage9Slice,
     RenderType_RenderAtlasSprite,
     RenderType_RenderFont,
     RenderType_RenderChar,
     RenderType_RenderText,
     RenderType_RenderStyledText,
+    RenderType_RenderButton,
     RenderType_RenderSetUniform,
     RenderType_RenderOverrideProgram,
     RenderType_RenderOverrideVertices,
@@ -104,6 +113,16 @@ enum RenderType
 enum UniformType {
     UniformType_Float,
     UniformType_Vector2,
+};
+
+enum ImageRenderFlag {
+    ImageRenderFlag_Fit = 0x1,
+    ImageRenderFlag_KeepRatioX = 0x2,
+    ImageRenderFlag_KeepRatioY = 0x4,
+};
+
+enum TextRenderFlag {
+    TextRenderFlag_Center = 0x1,
 };
 
 struct RenderHeader
@@ -209,6 +228,16 @@ struct RenderImageUV
     u32 filepathSize;
 };
 
+struct RenderImage9Slice
+{
+    RenderHeader header;
+    v2 position;
+    v2 endPosition;
+    f32 slice;
+    char* filepath;
+    u32 filepathSize;
+};
+
 struct RenderAtlasSprite
 {
     RenderHeader header;
@@ -240,7 +269,6 @@ struct RenderText
 {
     RenderHeader header;
     v2 position;
-    v2 scale;
     char* string;
     u32 stringSize;
 };
@@ -250,7 +278,6 @@ struct RenderStyledText
     RenderHeader header;
     v2 position;
     v2 endPosition;
-    v2 scale;
     char* string;
     u32 stringSize;
 };

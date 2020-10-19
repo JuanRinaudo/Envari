@@ -91,7 +91,7 @@ static char* NextToken(DataTokenizer* tokenizer)
                     tokenizer->tokenBufferIndex++;
                     
                     if(tokenizer->tokenBufferIndex == DATA_MAX_TOKEN_COUNT) {
-                        // Log(&editorConsole, "Parsing error, max token count reached %d", DATA_MAX_TOKEN_COUNT);
+                        Log("Parsing error, max token count reached %d", DATA_MAX_TOKEN_COUNT);
                         return 0;
                     }
 
@@ -246,7 +246,7 @@ static bool DeserializeDataTable(MemoryArena *arena, DataTable** table, const ch
             }
             valueIndex = 0;
             if(keyPointer != 0) {
-                Log(&editorConsole, "Parsing error, parsing a key token when last token was a key, line: %d", tokenizer.currentLine);
+                Log("Parsing error, parsing a key token when last token was a key, line: %d", tokenizer.currentLine);
                 return false;
             }
             

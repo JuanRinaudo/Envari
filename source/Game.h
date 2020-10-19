@@ -7,11 +7,10 @@
 
 #include <cstdlib>
 #include <filesystem>
-#include "STB/stb_truetype.h"
 
 #include "MathStructs.h"
-#include "EditorStructs.h"
 #include "GameStructs.h"
+#include "EditorStructs.h"
 
 #define SOL_ALL_SAFETIES_ON 1
 
@@ -44,19 +43,24 @@ sol::state lua;
 #include "GameMath.h"
 #include "Memory.h"
 #include "File.h"
-#ifdef GAME_INTERNAL
+#ifdef GAME_EDITOR
 #include "Editor.h"
+#else
+#include "Runtime.h"
 #endif
 #include "Data.h"
 #include "Data.cpp"
 #include "Sound.h"
+#include "Input.h"
 #include "Render.h"
 #include "GLRender.h"
-#include "Input.h"
 #ifdef LUA_SCRIPTING_ENABLED
 #include "Scripting.h"
 #endif
+
+#ifdef GAME_EDITOR
 #include "Editor.cpp"
+#endif
 
 static u32 GameInit()
 {
@@ -71,11 +75,11 @@ static u32 GameInit()
         if (!result.valid()) {
             sol::error error = result;
 		    std::string what = error.what();
-            LogError(&editorConsole, "%s", what.c_str());
+            LogError("%s", what.c_str());
         }
     }
     else {
-        LogError(&editorConsole, "Error on script 'Init', not valid");
+        LogError("Error on script 'Init', not valid");
     }
 #endif
     
@@ -94,11 +98,11 @@ static u32 GameLoop()
             if (!result.valid()) {
                 sol::error error = result;
                 std::string what = error.what();
-                LogError(&editorConsole, "%s", what.c_str());
+                LogError("%s", what.c_str());
             }
         }
         else {
-            LogError(&editorConsole, "Error on script 'Update', not valid");
+            LogError("Error on script 'Update', not valid");
         }
     #endif
     }

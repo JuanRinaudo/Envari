@@ -6,7 +6,7 @@ extern "C" {
     #include "mime.h"
 }
 
-#ifdef GAME_INTERNAL
+#ifdef GAME_EDITOR
 char watchList[200];
 std::filesystem::file_time_type watchListTimes[20];
 u32 watchListSize = 0;
@@ -34,7 +34,7 @@ void LoadScriptFile(char* filePath)
         std::string errorReport = luaError.what();
     }
 
-    #ifdef GAME_INTERNAL
+    #ifdef GAME_EDITOR
     watchListTimes[watchFiles] = std::filesystem::last_write_time(filePath);
     watchFiles++;
 
@@ -45,22 +45,22 @@ void LoadScriptFile(char* filePath)
 }
 
 void ScriptingPanic(sol::optional<std::string> maybe_msg) {
-    LogError(&editorConsole, "Lua is in a panic state and will now abort() the application");
+    LogError("Lua is in a panic state and will now abort() the application");
 	if (maybe_msg) {
-	    LogError(&editorConsole, "%s", maybe_msg.value().c_str());
+	    LogError("%s", maybe_msg.value().c_str());
 	}
 	// When this function exits, Lua will exhibit default behavior and abort()
 }
 
 i32 ScriptingExceptionHandler(lua_State* L, sol::optional<const std::exception&> maybe_exception, sol::string_view description) {
-	LogError(&editorConsole, "An exception occurred in a function, here's what it says");
+	LogError("An exception occurred in a function, here's what it says");
 	if (maybe_exception) {
 		const std::exception& exception = *maybe_exception;
         std::string what = exception.what();
-	    LogError(&editorConsole, "(straight from the exception): %s", what.c_str());
+	    LogError("(straight from the exception): %s", what.c_str());
 	}
 	else {
-	    LogError(&editorConsole, "(from the description parameter): %s %d", description.data(), description.size());
+	    LogError("(from the description parameter): %s %d", description.data(), description.size());
 	}
 
 	// #NOTE (Juan): Push string description to stack for function to recieve
@@ -112,6 +112,7 @@ void ScriptingInit()
     ScriptingInitBindings();
 }
 
+#ifdef GAME_EDITOR
 void ScriptingDebugStart()
 {
     luaopen_socket_core(lua);
@@ -122,10 +123,11 @@ void ScriptingDebugStart()
     "local startResult, breakerType = debuggee.start(json)\n"
     "LogConsole(\"debuggee start -> \" .. tostring(startResult) .. \" \" .. tostring(breakerType))");
 }
+#endif
 
 void ScriptingWatchChanges()
 {
-    #ifdef GAME_INTERNAL
+    #ifdef GAME_EDITOR
     i32 nameIndex = 0;
     i32 fileIndex = 0;
     i32 watchIndex = 0;
@@ -136,7 +138,7 @@ void ScriptingWatchChanges()
 
             auto fileTime = std::filesystem::last_write_time(name);
             if(fileTime != watchListTimes[fileIndex]) {
-                Log(&editorConsole, "Started to reload script %s", name);
+                Log("Started to reload script %s", name);
 
                 sol::load_result loadResult = lua.load_file(name);
 
@@ -148,15 +150,15 @@ void ScriptingWatchChanges()
                     else {
                         sol::error luaError = loadResult;
                         std::string errorReport = luaError.what();
-                        LogError(&editorConsole, "Scripting reload run error");
-                        LogError(&editorConsole, errorReport.c_str());
+                        LogError("Scripting reload run error");
+                        LogError(errorReport.c_str());
                     }
                 }
                 else {
                     sol::error luaError = loadResult;
                     std::string errorReport = luaError.what();
-                    LogError(&editorConsole, "Scripting reload file error");
-                    LogError(&editorConsole, errorReport.c_str());
+                    LogError("Scripting reload file error");
+                    LogError(errorReport.c_str());
                 }
 
                 watchListTimes[fileIndex] = fileTime;

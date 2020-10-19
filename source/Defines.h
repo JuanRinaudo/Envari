@@ -12,6 +12,12 @@
 
 #define PI32 3.14159265359f
 
+#define MIN(a, b) (a) > (b) ? (b) : (a)
+#define MAX(a, b) (a) < (b) ? (b) : (a)
+#define ABS(a) ((a) > 0 ? (a) : -(a))
+#define MOD(a, m) ((a) % (m)) >= 0 ? ((a) % (m)) : (((a) % (m)) + (m))
+#define SQUARE(x) ((x) * (x))
+
 #define KEY_COUNT 500
 #define MOUSE_COUNT 8
 
@@ -62,7 +68,7 @@ typedef double f64;
 
 /*
     #NOTE (Juan):
-    GAME_INTERNAL:
+    GAME_EDITOR:
         0 - Build for public release
         1 - Build for development
 
@@ -77,9 +83,5 @@ typedef double f64;
 #define Terabytes(Value) (Gigabytes(Value)*1024LL)
 
 #define ArrayCount(Array) (sizeof(Array) / sizeof((Array)[0]))
-
-#define IMAGE_ADAPTATIVE_FIT 0x1
-#define IMAGE_KEEP_RATIO_X 0x2
-#define IMAGE_KEEP_RATIO_Y 0x4
 
 #endif

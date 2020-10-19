@@ -9,8 +9,8 @@
 #include "STB/stb_truetype.h"
 
 #include "Defines.h"
-#include "EditorStructs.h"
 #include "GameStructs.h"
+#include "EditorStructs.h"
 
 #include "File.h"
 #include "Memory.h"

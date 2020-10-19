@@ -48,7 +48,7 @@ static void EditorInit(ConsoleWindow* console)
 
     console->open = true;
     
-    Log(console, "Envari Console Start");
+    Log("Envari Console Start");
 }
 
 static void EditorInit(PreviewWindow* preview)
@@ -115,7 +115,7 @@ static i32 TextEditCallback(ConsoleWindow* console, ImGuiInputTextCallbackData* 
 
             if (candidates.Size == 0) {
                 // No match
-                Log(console, "No match for \"%.*s\"!\n", (int)(word_end-word_start), word_start);
+                Log("No match for \"%.*s\"!\n", (int)(word_end-word_start), word_start);
             }
             else if (candidates.Size == 1) {
                 // Single match. Delete the beginning of the word and replace it entirely so we've got nice casing
@@ -146,9 +146,9 @@ static i32 TextEditCallback(ConsoleWindow* console, ImGuiInputTextCallbackData* 
                 }
 
                 // List matches
-                Log(console, "Possible matches:\n");
+                Log("Possible matches:\n");
                 for (i32 i = 0; i < candidates.Size; i++) {
-                    Log(console, "- %s\n", candidates[i]);
+                    Log("- %s\n", candidates[i]);
                 }
             }
 
@@ -220,15 +220,15 @@ static void ExecCommand(ConsoleWindow* console, const char* command_line)
         ClearLog(console);
     }
     else if (Stricmp(command, "HELP") == 0) {
-        Log(console, "Commands:");
+        Log("Commands:");
         for (i32 i = 0; i < console->commands.Size; i++) {
-            Log(console, "- %s", console->commands[i]);
+            Log("- %s", console->commands[i]);
         }
     }
     else if (Stricmp(command, "HISTORY") == 0) {
         i32 first = console->history.Size - 10;
         for (i32 i = first > 0 ? first : 0; i < console->history.Size; i++) {
-            Log(console, "%3d: %s\n", i, console->history[i]);
+            Log("%3d: %s\n", i, console->history[i]);
         }
     }
 #ifdef LUA_SCRIPTING_ENABLED
@@ -237,7 +237,7 @@ static void ExecCommand(ConsoleWindow* console, const char* command_line)
     }
 #endif
     else {
-        Log(console, "Unknown command: '%s'\n", command_line);
+        Log("Unknown command: '%s'\n", command_line);
     }
 
     // On commad input, we scroll to bottom even if autoScroll==false
@@ -598,7 +598,9 @@ static void EditorDraw(TextureDebuggerWindow* debugger)
         textureID = debugger->textureID;
     }
 
+    ImGui::BeginChild("Texture", ImVec2(0, 0), true, ImGuiWindowFlags_AlwaysVerticalScrollbar | ImGuiWindowFlags_AlwaysHorizontalScrollbar | ImGuiWindowFlags_NavFlattened);
     ImGui::Image((ImTextureID)textureID, ImVec2((f32)debugger->textureWidth, (f32)debugger->textureHeight));
+    ImGui::EndChild();
 
     ImGui::End();
 }
@@ -639,7 +641,7 @@ static void EditorDraw(LUADebuggerWindow* debugger)
             if(debugger->debugging) {
                 if (ImGui::MenuItem("Stop", "F5")) {
                     debugger->debugging = false;
-                    Log(&editorConsole, "Debugging stopped");
+                    Log("Debugging stopped");
                 }
                 if (ImGui::MenuItem("Step", "F10")) {
                     
@@ -648,7 +650,7 @@ static void EditorDraw(LUADebuggerWindow* debugger)
             else {
                 if (ImGui::MenuItem("Start", "F5")) {
                     debugger->debugging = true;
-                    Log(&editorConsole, "Debugging started");
+                    Log("Debugging started");
 
                     ScriptingDebugStart();
                     
@@ -681,7 +683,7 @@ static void EditorDraw(LUADebuggerWindow* debugger)
             i32 function = lua_getglobal(lua, debugger->inputBuffer);
             if(function > 0) {
                 lua_getinfo(lua, ">S", &debugInfo);
-                Log(&editorConsole, "Function found %s:%d", debugInfo.source, debugInfo.linedefined);
+                Log("Function found %s:%d", debugInfo.source, debugInfo.linedefined);
 
                 if(debugger->currentFile) {
                     UnloadFileFromMemory(debugger->currentFile);
@@ -690,7 +692,7 @@ static void EditorDraw(LUADebuggerWindow* debugger)
                 debugger->currentFile = (char*)LoadFileToMemory(debugInfo.source + 1, FILE_MODE_READ_BINARY, &debugger->currentFileSize);
             }
             else {
-                Log(&editorConsole, "Function not found %s", debugger->inputBuffer);
+                Log("Function not found %s", debugger->inputBuffer);
             }
 
             ImGui::CloseCurrentPopup();
@@ -710,13 +712,13 @@ static void EditorDraw(LUADebuggerWindow* debugger)
             i32 function = lua_getglobal(lua, debugger->inputBuffer);
             if(function > 0) {
                 lua_getinfo(lua, ">S", &debugInfo);
-                Log(&editorConsole, "Function found %s:%d", debugInfo.source, debugInfo.linedefined);
+                Log("Function found %s:%d", debugInfo.source, debugInfo.linedefined);
 
                 // lua_sethook(lua, 0, 0, 0);
                 // lua_sethook(lua, function, LUA_MASKCALL, 0);
             }
             else {
-                Log(&editorConsole, "Function not found %s", debugger->inputBuffer);
+                Log("Function not found %s", debugger->inputBuffer);
             }
 
             ImGui::CloseCurrentPopup();
@@ -740,7 +742,7 @@ static void EditorDraw(LUADebuggerWindow* debugger)
             if(debugger->currentFile[index] == '\n' || debugger->currentFile[index] == 0) {
                 ImGui::Text("%d         ", line);
                 // if(ImGui::IsItemClicked()) {
-	            //     LogCommand(&editorConsole, "%d", line);
+	            //     LogCommand("%d", line);
                 // }
                 ++line;
             }

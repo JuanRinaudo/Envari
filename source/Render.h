@@ -1,11 +1,18 @@
 #ifndef RENDER_H
 #define RENDER_H
 
+#ifdef GAME_EDITOR
 void RenderDebugStart()
 {
     editorRenderDebugger.drawCount = 0;
     editorRenderDebugger.programChanges = 0;
 }
+
+void RenderDebugEnd()
+{
+    editorRenderDebugger.renderMemory = renderTemporaryMemory.used;
+}
+#endif
 
 void Begin2D(u32 frameBufferID, u32 width, u32 height)
 {
@@ -149,6 +156,15 @@ void DrawImageUV(f32 posX, f32 posY, f32 scaleX, f32 scaleY, f32 uvX, f32 uvY, f
     image->filepath = PushString(&renderTemporaryMemory, filepath, &image->filepathSize);
 }
 
+void DrawImage9Slice(f32 posX, f32 posY, f32 endX, f32 endY, f32 slice, const char* filepath)
+{
+    RenderImage9Slice *image = RenderPushElement(&renderTemporaryMemory, RenderImage9Slice);
+    image->position = V2(posX, posY);
+    image->endPosition = V2(endX, endY);
+    image->slice = slice;
+    image->filepath = PushString(&renderTemporaryMemory, filepath, &image->filepathSize);
+}
+
 void DrawAtlasSprite(f32 posX, f32 posY, f32 scaleX, f32 scaleY, const char* filepath, const char* atlasName, const char* key)
 {
     RenderAtlasSprite *atlas = RenderPushElement(&renderTemporaryMemory, RenderAtlasSprite);
@@ -173,21 +189,30 @@ void DrawChar(f32 posX, f32 posY, f32 scaleX, f32 scaleY, const char singleChar)
     renderChar->singleChar = singleChar;
 }
 
-void DrawString(f32 posX, f32 posY, f32 scaleX, f32 scaleY, const char* string)
+void DrawString(f32 posX, f32 posY, const char* string, u32 renderFlags)
 {
     RenderText *text = RenderPushElement(&renderTemporaryMemory, RenderText);
     text->position = V2(posX, posY);
-    text->scale = V2(scaleX, scaleY);
     text->string = PushString(&renderTemporaryMemory, string, &text->stringSize);
 }
 
-void DrawStyledString(f32 posX, f32 posY, f32 endX, f32 endY, f32 scaleX, f32 scaleY, const char* string)
+void DrawStyledString(f32 posX, f32 posY, f32 endX, f32 endY, const char* string, u32 renderFlags = 0)
 {
     RenderStyledText *text = RenderPushElement(&renderTemporaryMemory, RenderStyledText);
+    text->header.renderFlags = renderFlags;
     text->position = V2(posX, posY);
     text->endPosition = V2(endX, endY);
-    text->scale = V2(scaleX, scaleY);
     text->string = PushString(&renderTemporaryMemory, string, &text->stringSize);
+}
+
+bool DrawButton(f32 posX, f32 posY, f32 endX, f32 endY, f32 slice, const char* string, const char* buttonUp, const char* buttonDown)
+{
+    bool mouseOver = MouseOverRectangle(RectMinMax(V2(posX, posY), V2(endX, endY)));
+    bool mouseDown = gameState->input.mouseState[1] == KEY_DOWN;
+    bool mouseReleased = gameState->input.mouseState[1] == KEY_RELEASED;
+    DrawImage9Slice(posX, posY, endX, endY, slice, mouseOver && mouseDown ? buttonDown : buttonUp);
+    DrawStyledString(posX, posY, endX, endY, string, TextRenderFlag_Center);
+    return mouseOver && mouseReleased;
 }
 
 void DrawSetUniform(u32 locationID, UniformType type)
@@ -239,11 +264,6 @@ void DrawOverrideIndices(u32* indices, u32 count)
         override->size = 0;
         override->indices = 0;
     }
-}
-
-void RenderDebugEnd()
-{
-    editorRenderDebugger.renderMemory = renderTemporaryMemory.used;
 }
 
 void End2D()

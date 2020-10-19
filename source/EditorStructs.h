@@ -22,13 +22,6 @@ enum DebugMenuAction {
     DebugMenuAction_BREAK_ON_FUNCTION,
 };
 
-enum ConsoleLogType
-{
-    ConsoleLogType_NORMAL,
-    ConsoleLogType_COMMAND,
-    ConsoleLogType_ERROR,
-};
-
 struct ConsoleLog
 {
     char* log;

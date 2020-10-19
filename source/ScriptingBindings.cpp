@@ -11,20 +11,29 @@
 #include "Defines.h"
 #include "LUA/sol.hpp"
 #include "Miniaudio/miniaudio.h"
-#include "IMGUI/imgui.h"
 
 #include "MathStructs.h"
-#include "EditorStructs.h"
 #include "GameStructs.h"
+
+#ifdef GAME_EDITOR
+#include "IMGUI/imgui.h"
+#include "EditorStructs.h"
+extern ConsoleWindow editorConsole;
+#endif
 
 extern sol::state lua;
 
-extern ConsoleWindow editorConsole;
-
+#ifdef GAME_EDITOR
 extern void Log_(ConsoleWindow* console, ConsoleLogType type, const char* fmt, ...);
-#define Log(console, fmt, ...) Log_(console, ConsoleLogType_NORMAL, fmt, ##__VA_ARGS__)
-#define LogError(console, fmt, ...) Log_(console, ConsoleLogType_ERROR, fmt, ##__VA_ARGS__)
-#define LogCommand(console, fmt, ...) Log_(console, ConsoleLogType_COMMAND, fmt, ##__VA_ARGS__)
+#define Log(fmt, ...) Log_(&editorConsole, ConsoleLogType_NORMAL, fmt, ##__VA_ARGS__)
+#define LogError(fmt, ...) Log_(&editorConsole, ConsoleLogType_ERROR, fmt, ##__VA_ARGS__)
+#define LogCommand(fmt, ...) Log_(&editorConsole, ConsoleLogType_COMMAND, fmt, ##__VA_ARGS__)
+#else
+extern void Log_(ConsoleLogType type, const char* fmt, ...);
+#define Log(fmt, ...) Log_(ConsoleLogType_NORMAL, fmt, ##__VA_ARGS__)
+#define LogError(fmt, ...) Log_(ConsoleLogType_ERROR, fmt, ##__VA_ARGS__)
+#define LogCommand(fmt, ...) Log_(ConsoleLogType_COMMAND, fmt, ##__VA_ARGS__)
+#endif
 
 #define PushStruct(arena, type) (type *)PushSize_(arena, sizeof(type))
 #define PushArray(arena, count, type) (type *)PushSize_(arena, ((count)*sizeof(type)))
@@ -45,6 +54,7 @@ extern void LoadLUALibrary(sol::lib library);
 // #NOTE (Juan): Bindings
 extern bool MouseOverRectangle(rectangle2 rectangle);
 extern bool ClickOverRectangle(rectangle2 rectangle, i32 button);
+extern bool ClickedOverRectangle(rectangle2 rectangle, i32 button);
 
 extern m44 PerspectiveProjection(f32 fovY, f32 aspect, f32 nearPlane, f32 farPlane);
 extern m44 OrtographicProjection(f32 left, f32 right, f32 top, f32 bottom, f32 nearPlane, f32 farPlane);
@@ -64,11 +74,13 @@ extern void DrawTextureParameters(u32 wrapS, u32 wrapT, u32 minFilter, u32 magFi
 extern void DrawTexture(f32 posX, f32 posY, f32 scaleX, f32 scaleY, u32 textureID);
 extern void DrawImage(f32 posX, f32 posY, f32 scaleX, f32 scaleY, const char* filepath, u32 renderFlags);
 extern void DrawImageUV(f32 posX, f32 posY, f32 scaleX, f32 scaleY, f32 uvX, f32 uvY, f32 uvEndX, f32 uvEndY, const char* filepath);
+extern void DrawImage9Slice(f32 posX, f32 posY, f32 endX, f32 endY, f32 slice, const char* filepath);
 extern void DrawAtlasSprite(f32 posX, f32 posY, f32 scaleX, f32 scaleY, const char* filepath, const char* atlasName, const char* key);
 extern void DrawSetFont(i32 fontID);
 extern void DrawChar(f32 posX, f32 posY, f32 scaleX, f32 scaleY, const char singleChar);
-extern void DrawString(f32 posX, f32 posY, f32 scaleX, f32 scaleY, const char* string);
-extern void DrawStyledString(f32 posX, f32 posY, f32 endX, f32 endY, f32 scaleX, f32 scaleY, const char* string);
+extern void DrawString(f32 posX, f32 posY, const char* string, u32 renderFlags);
+extern void DrawStyledString(f32 posX, f32 posY, f32 endX, f32 endY, const char* string, u32 renderFlags);
+extern bool DrawButton(f32 posX, f32 posY, f32 endX, f32 endY, f32 slice, const char* string, const char* buttonUp, const char* buttonDown);
 extern void DrawSetUniform(u32 locationID, UniformType type);
 extern void DrawOverrideProgram(u32 programID);
 extern void DrawOverrideVertices(f32* vertices, u32 count);
@@ -81,7 +93,10 @@ extern i32 GL_GenerateFont(const char *filepath, f32 fontSize, u32 width, u32 he
 extern i32 GL_CompileProgram(const char *vertexShaderSource, const char *fragmentShaderSource);
 
 extern ma_decoder* SoundLoad(const char* soundKey);
-extern void SoundPlay(const char* filepath);
+extern void SoundPlay(const char* filepath, f32 volume);
+extern void SetMasterVolume(float value);
+extern float dbToVolume(float db);
+extern float volumeToDB(float volume);
 
 extern v2 V2(f32 x, f32 y);
 extern v3 V3(f32 x, f32 y, f32 z);
@@ -115,17 +130,17 @@ extern f32 Length(v2 a);
 // #NOTE(Juan): Console
 static void LogConsole(const char* log)
 {
-	Log(&editorConsole, log);
+	Log(log);
 }
 
 static void LogConsoleError(const char* log)
 {
-	LogError(&editorConsole, log);
+	LogError(log);
 }
 
 static void LogConsoleCommand(const char* log)
 {
-	LogCommand(&editorConsole, log);
+	LogCommand(log);
 }
 
 // #NOTE(Juan): Cast
@@ -239,6 +254,7 @@ void ScriptingInitBindings()
     // #NOTE (Juan): Input
     lua["MouseOverRectangle"] = MouseOverRectangle;
     lua["ClickOverRectangle"] = ClickOverRectangle;
+    lua["ClickedOverRectangle"] = ClickedOverRectangle;
 
     // #NOTE (Juan): Render
     lua["DrawClear"] = DrawClear;
@@ -252,6 +268,7 @@ void ScriptingInitBindings()
     lua["DrawTexture"] = DrawTexture;
     lua["DrawImage"] = DrawImage;
     lua["DrawImageUV"] = DrawImageUV;
+    lua["DrawImage9Slice"] = DrawImage9Slice;
     lua["DrawAtlasSprite"] = DrawAtlasSprite;
     lua["DrawTransparent"] = DrawTransparent;
     lua["DrawTransparentDisable"] = DrawTransparentDisable;
@@ -259,6 +276,7 @@ void ScriptingInitBindings()
     lua["DrawChar"] = DrawChar;
     lua["DrawString"] = DrawString;
     lua["DrawStyledString"] = DrawStyledString;
+    lua["DrawButton"] = DrawButton;
     lua["DrawSetUniform"] = DrawSetUniform;
     lua["DrawOverrideProgram"] = DrawOverrideProgram;
     lua["DrawDisableOverrideProgram"] = DrawDisableOverrideProgram;
@@ -269,9 +287,11 @@ void ScriptingInitBindings()
 
     lua["RenderToViewport"] = RenderToViewport;
     
-    lua["IMAGE_ADAPTATIVE_FIT"] = IMAGE_ADAPTATIVE_FIT;
-    lua["IMAGE_KEEP_RATIO_X"] = IMAGE_KEEP_RATIO_X;
-    lua["IMAGE_KEEP_RATIO_Y"] = IMAGE_KEEP_RATIO_Y;
+    lua["ImageRenderFlag_Fit"] = ImageRenderFlag_Fit;
+    lua["ImageRenderFlag_KeepRatioX"] = ImageRenderFlag_KeepRatioX;
+    lua["ImageRenderFlag_KeepRatioY"] = ImageRenderFlag_KeepRatioY;
+
+    lua["TextRenderFlag_Center"] = TextRenderFlag_Center;
 
     lua["PerspectiveProjection"] = PerspectiveProjection;
     lua["OrtographicProjection"] = sol::resolve<m44(f32, f32, f32, f32)>(OrtographicProjection);
@@ -365,6 +385,9 @@ void ScriptingInitBindings()
     // #NOTE (Juan): Sound
     lua["SoundLoad"] = SoundLoad;
     lua["SoundPlay"] = SoundPlay;
+    lua["SetMasterVolume"] = SetMasterVolume;
+    lua["dbToVolume"] = dbToVolume;
+    lua["volumeToDB"] = volumeToDB;
 
     // #NOTE (Juan): Console
     lua["LogConsole"] = LogConsole;

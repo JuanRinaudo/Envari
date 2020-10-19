@@ -5,21 +5,20 @@
 #include <string>
 
 #include "CodeGen/FileMap.h"
-#include "CodeGen/WindowsConfigMap.h"
+#include "CodeGen/EditorConfigMap.h"
 
 #define SOURCE_TYPE const char* const
 
 #include "GL3W/gl3w.c"
 #define IMGUI_IMPL_OPENGL_LOADER_GL3W
 
-#define INITLUASCRIPT WINDOWSCONFIG_INITLUASCRIPT
-#define GAME_INTERNAL
-#define GAME_SLOW
+#define INITLUASCRIPT EDITORCONFIG_INITLUASCRIPT
 
 #include <SDL.h>
 
 #include "IMGUI/imgui.cpp"
 
+#include "STB/stb_truetype.h"
 #include "Game.h"
 
 #include "IMGUI/imgui_draw.cpp"
@@ -73,7 +72,7 @@ i32 CALLBACK WinMain(
     InitializeArena(&sceneState->arena, (size_t)(gameState->memory.sceneStorageSize - sizeof(SceneData)), (u8 *)gameState->memory.sceneStorage + sizeof(SceneData));
     InitializeArena(&temporalState->arena, (size_t)(gameState->memory.temporalStorageSize - sizeof(TemporalData)), (u8 *)gameState->memory.temporalStorage + sizeof(TemporalData));
 
-    DeserializeDataTable(&initialConfig, DATA_WINDOWSCONFIG_ENVT);
+    DeserializeDataTable(&initialConfig, DATA_EDITORCONFIG_ENVT);
 
     SerializableTable* configSave = 0;
     DeserializeTable(&permanentState->arena, &configSave, "config.save");
@@ -88,7 +87,7 @@ i32 CALLBACK WinMain(
 
     SDL_GetCurrentDisplayMode(0, &displayMode);
     gameState->render.windowPosition = TableGetV2(&configSave, "windowPosition", V2(-1, -1));
-    gameState->render.windowSize = TableGetV2(&configSave, "windowSize", TableGetV2(&initialConfig, WINDOWSCONFIG_WINDOWSIZE));
+    gameState->render.windowSize = TableGetV2(&configSave, "windowSize", TableGetV2(&initialConfig, EDITORCONFIG_WINDOWSIZE));
 
     if(gameState->render.windowSize.x <= 10 && gameState->render.windowSize.y <= 10) {
         gameState->render.size.x = displayMode.w * gameState->render.windowSize.x;
@@ -101,9 +100,9 @@ i32 CALLBACK WinMain(
     gameState->render.windowSize.x = gameState->render.size.x;
     gameState->render.windowSize.y = gameState->render.size.y;
 
-    gameState->render.framebufferEnabled = TableHasKey(initialConfig, WINDOWSCONFIG_BUFFERSIZE);
+    gameState->render.framebufferEnabled = TableHasKey(initialConfig, EDITORCONFIG_BUFFERSIZE);
     if(gameState->render.framebufferEnabled) {
-        v2 bufferSize = TableGetV2(&initialConfig, WINDOWSCONFIG_BUFFERSIZE);
+        v2 bufferSize = TableGetV2(&initialConfig, EDITORCONFIG_BUFFERSIZE);
         if(gameState->render.windowSize.x <= 10 && gameState->render.windowSize.y <= 10) {
             gameState->render.bufferSize.x = gameState->render.size.x * bufferSize.x;
             gameState->render.bufferSize.y = gameState->render.size.y * bufferSize.y;
@@ -120,7 +119,7 @@ i32 CALLBACK WinMain(
 
     gameState->render.refreshRate = displayMode.refresh_rate;
 
-    char* windowTitle = TableGetString(&initialConfig, WINDOWSCONFIG_WINDOWTITLE);
+    char* windowTitle = TableGetString(&initialConfig, EDITORCONFIG_WINDOWTITLE);
     sdlWindow = SDL_CreateWindow(windowTitle, gameState->render.windowPosition.x > 0 ? (i32)gameState->render.windowPosition.x : SDL_WINDOWPOS_UNDEFINED,
         gameState->render.windowPosition.y > 0 ? (i32)gameState->render.windowPosition.y : SDL_WINDOWPOS_UNDEFINED, 
         (i32)gameState->render.windowSize.x, (i32)gameState->render.windowSize.y, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
@@ -135,9 +134,9 @@ i32 CALLBACK WinMain(
 		return -1;
 	}
 
-    i32 fpsLimit = TableGetInt(&initialConfig, WINDOWSCONFIG_FPSLIMIT);
+    i32 fpsLimit = TableGetInt(&initialConfig, EDITORCONFIG_FPSLIMIT);
     i32 fpsDelta = 1000 / fpsLimit;
-    i32 vsync = TableGetInt(&initialConfig, WINDOWSCONFIG_VSYNC);
+    i32 vsync = TableGetInt(&initialConfig, EDITORCONFIG_VSYNC);
     SDL_GL_SetSwapInterval(vsync);
 
     const char* glsl_version = 0;
@@ -155,9 +154,6 @@ i32 CALLBACK WinMain(
 #endif
 
     GL_Init();
-    coloredProgram = GL_CompileProgram(SHADERS_GLCORE_COLORED_VERT, SHADERS_GLCORE_COLORED_FRAG);
-    fontProgram = GL_CompileProgram(SHADERS_GLCORE_FONT_VERT, SHADERS_GLCORE_FONT_FRAG);
-    texturedProgram = GL_CompileProgram(SHADERS_GLCORE_TEXTURED_VERT, SHADERS_GLCORE_TEXTURED_FRAG);
 
     // #NOTE (Juan): Create framebuffer
     if(gameState->render.framebufferEnabled) {
@@ -272,6 +268,12 @@ i32 CALLBACK WinMain(
 
         if(mouseOverPreview) {
             gameState->input.mousePosition = RenderToViewport(editorPreview.cursorPosition.x, editorPreview.cursorPosition.y, gameState->camera.size, gameState->camera.ratio);
+        }
+
+        SDL_ShowCursor(mouseOverPreview);
+        if(mouseOverPreview) {
+            ImGui::SetMouseCursor(ImGuiMouseCursor_None);
+            io.MouseDrawCursor = false;
         }
 
         ImGui_ImplOpenGL3_NewFrame();

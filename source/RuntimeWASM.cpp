@@ -1,4 +1,4 @@
-// #define LUA_SCRIPTING_ENABLED
+#include <emscripten.h>
 
 #include <chrono>
 #include <thread>
@@ -6,17 +6,15 @@
 #include <string>
 
 #include "CodeGen/FileMap.h"
-#include "CodeGen/AndroidConfigMap.h"
+#include "CodeGen/WasmConfigMap.h"
 
 #define SOURCE_TYPE const char* const
 
-#define INITLUASCRIPT ANDROIDCONFIG_INITLUASCRIPT
+#define INITLUASCRIPT WASMCONFIG_INITLUASCRIPT
 
 #include <SDL.h>
 
 #include <GLES3/gl3.h>
-
-#include "IMGUI/imgui.cpp"
 
 #define GL_PROFILE_GLES3
 #include "Game.h"
@@ -25,17 +23,14 @@
 #include "ScriptingBindings.cpp"
 #endif
 
-#include "IMGUI/imgui_draw.cpp"
-#include "IMGUI/imgui_widgets.cpp"
-
-#include "IMGUI/imgui_impl_sdl.h"
-#include "IMGUI/imgui_impl_opengl3.h"
-#include "IMGUI/imgui_impl_sdl.cpp"
-#include "IMGUI/imgui_impl_opengl3.cpp"
-
 SDL_Window* sdlWindow;
 SDL_DisplayMode displayMode;
 SDL_GLContext glContext;
+ImGuiContext *imguiContext;
+
+i32 fpsLimit;
+i32 fpsDelta;
+std::chrono::steady_clock::time_point start;
 
 static void CheckInput() {
     for(i32 key = 0; key < KEY_COUNT; ++key) {
@@ -51,7 +46,9 @@ static void CheckInput() {
     }
 }
 
-int main(int argc, char *argv[])
+static void main_loop();
+
+int main(int argc, char** argv)
 {
     size_t permanentStorageSize = Megabytes(32);
     void* permanentStorage = malloc(permanentStorageSize);
@@ -72,7 +69,7 @@ int main(int argc, char *argv[])
     InitializeArena(&sceneState->arena, (size_t)(gameState->memory.sceneStorageSize - sizeof(SceneData)), (u8 *)gameState->memory.sceneStorage + sizeof(SceneData));
     InitializeArena(&temporalState->arena, (size_t)(gameState->memory.temporalStorageSize - sizeof(TemporalData)), (u8 *)gameState->memory.temporalStorage + sizeof(TemporalData));
 
-//     DeserializeDataTable(&initialConfig, DATA_ANDROIDCONFIG_ENVT);
+    DeserializeDataTable(&initialConfig, DATA_WASMCONFIG_ENVT);
 
     // #TODO (Juan): Check this SDL_INIT_EVERYTHING, check what really needs to be init
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
@@ -84,104 +81,102 @@ int main(int argc, char *argv[])
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 
-//     // SDL_GetCurrentDisplayMode(0, &displayMode);
-    v2 windowSize = V2(640, 640);
-    // v2 windowSize = TableGetV2(&initialConfig, ANDROIDCONFIG_WINDOWSIZE);
-//     // if(windowSize.x <= 10 && windowSize.y <= 10) {
-//     //     gameState->render.width = FloorToInt(displayMode.w * windowSize.x);
-//     //     gameState->render.height = FloorToInt(displayMode.h * windowSize.y);
-//     // }
-//     // else {
+    SDL_GetCurrentDisplayMode(0, &displayMode);
+    v2 windowSize = TableGetV2(&initialConfig, WASMCONFIG_WINDOWSIZE);
+    if(windowSize.x <= 10 && windowSize.y <= 10) {
+        gameState->render.width = FloorToInt(displayMode.w * windowSize.x);
+        gameState->render.height = FloorToInt(displayMode.h * windowSize.y);
+    }
+    else {
         gameState->render.width = FloorToInt(windowSize.x);
         gameState->render.height = FloorToInt(windowSize.y);
-//     // }
+    }
 
-    // gameState->render.framebufferEnabled = TableHasKey(&initialConfig, ANDROIDCONFIG_BUFFERSIZE);
-    // if(gameState->render.framebufferEnabled) {
-    //     v2 bufferSize = TableGetV2(&initialConfig, ANDROIDCONFIG_BUFFERSIZE);
-    //     if(windowSize.x <= 10 && windowSize.y <= 10) {
-    //         gameState->render.bufferWidth = FloorToInt(gameState->render.width * bufferSize.x);
-    //         gameState->render.bufferHeight = FloorToInt(gameState->render.height * bufferSize.y);
-    //     }
-    //     else {
-    //         gameState->render.bufferWidth = FloorToInt(bufferSize.x);
-    //         gameState->render.bufferHeight = FloorToInt(bufferSize.y);
-    //     }
-    // }
-    // else {
-    //     gameState->render.bufferWidth = -1;
-    //     gameState->render.bufferHeight = -1;
-    // }
+    gameState->render.framebufferEnabled = TableHasKey(&initialConfig, WASMCONFIG_BUFFERSIZE);
+    if(gameState->render.framebufferEnabled) {
+        v2 bufferSize = TableGetV2(&initialConfig, WASMCONFIG_BUFFERSIZE);
+        if(windowSize.x <= 10 && windowSize.y <= 10) {
+            gameState->render.bufferWidth = FloorToInt(gameState->render.width * bufferSize.x);
+            gameState->render.bufferHeight = FloorToInt(gameState->render.height * bufferSize.y);
+        }
+        else {
+            gameState->render.bufferWidth = FloorToInt(bufferSize.x);
+            gameState->render.bufferHeight = FloorToInt(bufferSize.y);
+        }
+    }
+    else {
+        gameState->render.bufferWidth = -1;
+        gameState->render.bufferHeight = -1;
+    }
 
-    // gameState->render.refreshRate = displayMode.refresh_rate;
-    gameState->render.refreshRate = 60;
+    gameState->render.refreshRate = displayMode.refresh_rate;
 
-    const char* windowTitle = "Test";
-    // char* windowTitle = TableGetString(&initialConfig, ANDROIDCONFIG_WINDOWTITLE);
+    char* windowTitle = TableGetString(&initialConfig, WASMCONFIG_WINDOWTITLE);
     sdlWindow = SDL_CreateWindow(windowTitle, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, gameState->render.width, gameState->render.height, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
 
     if (!sdlWindow) {
         return -1;
     }
 
+    emscripten_set_main_loop(main_loop, 0, false);
+
     glContext = SDL_GL_CreateContext(sdlWindow);
 
-    // i32 fpsLimit = TableGetInt(&initialConfig, ANDROIDCONFIG_FPSLIMIT);
-    // i32 fpsDelta = 1000 / fpsLimit;
-    // i32 vsync = TableGetInt(&initialConfig, ANDROIDCONFIG_VSYNC);
-    // SDL_GL_SetSwapInterval(vsync);
+    fpsLimit = TableGetInt(&initialConfig, WASMCONFIG_FPSLIMIT);
+    fpsDelta = 1000 / fpsLimit;
+    i32 vsync = TableGetInt(&initialConfig, WASMCONFIG_VSYNC);
+    SDL_GL_SetSwapInterval(vsync);
 
     const char* glsl_version = 0;
     
     IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
+    imguiContext = ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
     ImGui::StyleColorsDark();
     ImGui_ImplSDL2_InitForOpenGL(sdlWindow, glContext);
     ImGui_ImplOpenGL3_Init(glsl_version);
 
-// #ifdef LUA_SCRIPTING_ENABLED
-//     ScriptingInit();
-// #endif
+#ifdef LUA_SCRIPTING_ENABLED
+    ScriptingInit();
+#endif
 
-//     GL_Init();
-//     coloredProgram = GL_CompileProgram(SHADERS_GLCORE_COLORED_VERT, SHADERS_GLCORE_COLORED_FRAG);
-//     fontProgram = GL_CompileProgram(SHADERS_GLES_FONT_VERT, SHADERS_GLES_FONT_FRAG);
-//     texturedProgram = GL_CompileProgram(SHADERS_GLCORE_TEXTURED_VERT, SHADERS_GLCORE_TEXTURED_FRAG);
+    GL_Init();
 
     GameInit();
 
     // #NOTE (Juan): Create framebuffer
-    // if(gameState->render.framebufferEnabled) {
-    //     GL_InitFramebuffer(gameState->render.bufferWidth, gameState->render.bufferHeight);
-    // }
-    // else {
-    //     gameState->render.frameBuffer = 0;
-    // }
+    if(gameState->render.framebufferEnabled) {
+        GL_InitFramebuffer(gameState->render.bufferWidth, gameState->render.bufferHeight);
+    }
 
     SoundInit();
 
     gameState->game.running = true;
-    auto start = std::chrono::steady_clock::now(); // #NOTE (Juan): Start timer for fps limit
-    while (gameState->game.running)
-    {
+    start = std::chrono::steady_clock::now(); // #NOTE (Juan): Start timer for fps limit
+
+    return 0;
+}
+
+static void main_loop()
+{
+    if(gameState->game.running) {
         f32 gameTime = SDL_GetTicks() / 1000.0f;
         gameState->time.gameTime = (f32)gameTime;
         gameState->time.deltaTime = (f32)(gameTime - gameState->time.lastFrameGameTime);
         gameState->time.frames++;
 
-//         // #NOTE(Juan): Do a fps limit if enabled
-//         std::chrono::steady_clock::time_point end;
-//         if(fpsLimit > 0) {
-//             auto now = std::chrono::steady_clock::now();
-//             i64 epochTime = now.time_since_epoch().count() / 1000000;
-//             auto diff = now - start;
-//             end = now + std::chrono::milliseconds(fpsDelta - epochTime % fpsDelta);
-//             if(diff >= std::chrono::seconds(1))
-//             {
-//                 start = now;
-//             }
-//         }
+        // #NOTE(Juan): Do a fps limit if enabled
+        std::chrono::steady_clock::time_point end;
+        if(fpsLimit > 0) {
+            auto now = std::chrono::steady_clock::now();
+            i64 epochTime = now.time_since_epoch().count() / 1000000;
+            auto diff = now - start;
+            end = now + std::chrono::milliseconds(fpsDelta - epochTime % fpsDelta);
+            if(diff >= std::chrono::seconds(1))
+            {
+                start = now;
+            }
+        }
 
         ImGuiIO imguiIO = ImGui::GetIO();
         bool mouseEnabled = !imguiIO.WantCaptureMouse;
@@ -253,55 +248,52 @@ int main(int argc, char *argv[])
         ImGui_ImplSDL2_NewFrame(sdlWindow);
         ImGui::NewFrame();
 
-// #ifdef LUA_SCRIPTING_ENABLED
-//         ScriptingWatchChanges();
-// #endif
+    #ifdef LUA_SCRIPTING_ENABLED
+        ScriptingWatchChanges();
+    #endif
 
-//         GL_WatchChanges();        
+        GL_WatchChanges();        
 
-//         if(gameState->render.framebufferEnabled) {
-//             Begin2D(gameState->render.frameBuffer, (u32)gameState->render.bufferWidth, (u32)gameState->render.bufferHeight);
-//         }
-//         else {
-//             Begin2D(0, (u32)gameState->render.width, (u32)gameState->render.height);
-//         }
+        if(gameState->render.framebufferEnabled) {
+            Begin2D(gameState->render.frameBuffer, (u32)gameState->render.bufferWidth, (u32)gameState->render.bufferHeight);
+        }
+        else {
+            Begin2D(0, (u32)gameState->render.width, (u32)gameState->render.height);
+        }
 
         GameLoop();
-//         GL_Render();
 
-//         EditorDrawAllOpen();
+        GL_Render();
 
-//         End2D();
+        EditorDrawAllOpen();
 
-//         if(gameState->render.framebufferEnabled) {
-//             // #NOTE (Juan): Render framebuffer to actual screen buffer, save data and then restore it
-//             f32 tempSize = gameState->camera.size;
-//             f32 tempRatio = gameState->camera.ratio;
-//             m44 tempView = gameState->camera.view;
-//             m44 tempProjection = gameState->camera.projection;
+        End2D();
 
-//             gameState->camera.size = 1;
-//             gameState->camera.ratio = (f32)gameState->render.width / (f32)gameState->render.height;
-//             gameState->camera.view = IdM44();
-//             gameState->camera.projection = OrtographicProjection(gameState->camera.size, gameState->camera.ratio, gameState->camera.nearPlane, gameState->camera.farPlane);
-//             Begin2D(0, (u32)gameState->render.width, (u32)gameState->render.height);
-//             DrawOverrideVertices(0, 0);
-//             DrawClear(0, 0, 0, 1);
-//             DrawTextureParameters(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, GL_NEAREST, GL_NEAREST);
-//             f32 sizeX = gameState->camera.size * tempRatio;
-//             DrawTexture(-sizeX * 0.5f, gameState->camera.size * 0.5f, sizeX, -gameState->camera.size, gameState->render.renderBuffer);
-//             GL_Render();
-//             End2D();
+        if(gameState->render.framebufferEnabled) {
+            // #NOTE (Juan): Render framebuffer to actual screen buffer, save data and then restore it
+            f32 tempSize = gameState->camera.size;
+            f32 tempRatio = gameState->camera.ratio;
+            m44 tempView = gameState->camera.view;
+            m44 tempProjection = gameState->camera.projection;
 
-//             gameState->camera.size = tempSize;
-//             gameState->camera.ratio = tempRatio;
-//             gameState->camera.view = tempView;
-//             gameState->camera.projection = tempProjection;
-//         }
+            gameState->camera.size = 1;
+            gameState->camera.ratio = (f32)gameState->render.width / (f32)gameState->render.height;
+            gameState->camera.view = IdM44();
+            gameState->camera.projection = OrtographicProjection(gameState->camera.size, gameState->camera.ratio, gameState->camera.nearPlane, gameState->camera.farPlane);
+            Begin2D(0, (u32)gameState->render.width, (u32)gameState->render.height);
+            DrawOverrideVertices(0, 0);
+            DrawClear(0, 0, 0, 1);
+            DrawTextureParameters(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, GL_NEAREST, GL_NEAREST);
+            f32 sizeX = gameState->camera.size * tempRatio;
+            DrawTexture(-sizeX * 0.5f, gameState->camera.size * 0.5f, sizeX, -gameState->camera.size, gameState->render.renderBuffer);
+            GL_Render();
+            End2D();
 
-        glViewport(0,0, gameState->render.width, gameState->render.height);
-        glClearColor(1, 1, 0, 1);
-        glClear(GL_COLOR_BUFFER_BIT);
+            gameState->camera.size = tempSize;
+            gameState->camera.ratio = tempRatio;
+            gameState->camera.view = tempView;
+            gameState->camera.projection = tempProjection;
+        }
 
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
@@ -310,22 +302,22 @@ int main(int argc, char *argv[])
 
         CheckInput();
 
-//         if(fpsLimit > 0) {
-//             std::this_thread::sleep_until(end);
-//         }
+        if(fpsLimit > 0) {
+            std::this_thread::sleep_until(end);
+        }
     }
+}
 
-//     GL_End();
+static void main_end()
+{
+    GL_End();
     
-    SDL_GL_DeleteContext(glContext);  
+    SDL_GL_DeleteContext(glContext);
 
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplSDL2_Shutdown();
-    ImGui::DestroyContext();
 
     GameEnd();
 
     ma_device_uninit(&soundDevice);
-
-    return 0;
 }

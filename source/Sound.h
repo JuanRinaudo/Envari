@@ -42,11 +42,11 @@ static void SoundInit()
     deviceConfig.dataCallback      = data_callback;
 
     if (ma_device_init(NULL, &deviceConfig, &soundDevice) != MA_SUCCESS) {
-        Log(&editorConsole, "Failed to open playback device.\n");
+        Log("Failed to open playback device.\n");
     }
 
     if (ma_device_start(&soundDevice) != MA_SUCCESS) {
-        Log(&editorConsole, "Failed to start playback device.\n");
+        Log("Failed to start playback device.\n");
         ma_device_uninit(&soundDevice);
     }
 }
@@ -61,7 +61,7 @@ ma_decoder* SoundLoad(const char* soundKey)
         ma_decoder* decoder = (ma_decoder*)malloc(sizeof(ma_decoder));
         result = ma_decoder_init_file_wav(soundKey, NULL, decoder);
         if (result != MA_SUCCESS) {
-            Log(&editorConsole, "Failed to load sound.\n");
+            Log("Failed to load sound.\n");
         }
         
         shput(soundCache, soundKey, decoder);
@@ -70,9 +70,15 @@ ma_decoder* SoundLoad(const char* soundKey)
     }
 }
 
-void SoundPlay(const char* filepath)
+void SetMasterVolume(float value)
+{    
+    ma_device_set_master_volume(&soundDevice, value);
+}
+
+void SoundPlay(const char* filepath, f32 volume)
 {
     targetDecoder = SoundLoad(filepath);
+    SetMasterVolume(volume);
     ma_decoder_seek_to_pcm_frame(targetDecoder, 0);
 }
 

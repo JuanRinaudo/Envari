@@ -7,6 +7,9 @@
 #include "CodeGen/FileMap.h"
 #include "CodeGen/WindowsConfigMap.h"
 
+#define STB_TRUETYPE_IMPLEMENTATION
+#include "STB/stb_truetype.h"
+
 #define SOURCE_TYPE const char* const
 
 #include "GL3W/gl3w.c"
@@ -133,9 +136,6 @@ i32 CALLBACK WinMain(
 #endif
 
     GL_Init();
-    coloredProgram = GL_CompileProgram(SHADERS_GLCORE_COLORED_VERT, SHADERS_GLCORE_COLORED_FRAG);
-    fontProgram = GL_CompileProgram(SHADERS_GLCORE_FONT_VERT, SHADERS_GLCORE_FONT_FRAG);
-    texturedProgram = GL_CompileProgram(SHADERS_GLCORE_TEXTURED_VERT, SHADERS_GLCORE_TEXTURED_FRAG);
 
     // #NOTE (Juan): Create framebuffer
     if(gameState->render.framebufferEnabled) {
@@ -151,6 +151,8 @@ i32 CALLBACK WinMain(
     DeserializeTable(&permanentState->arena, &saveData, "saveData.save");
 
     SoundInit();
+
+    SDL_ShowCursor(false);
 
     gameState->game.running = true;
     auto start = std::chrono::steady_clock::now(); // #NOTE (Juan): Start timer for fps limit
@@ -258,9 +260,9 @@ i32 CALLBACK WinMain(
             Begin2D(0, (u32)gameState->render.size.x, (u32)gameState->render.size.y);
             DrawOverrideVertices(0, 0);
             DrawClear(0, 0, 0, 1);
-            DrawTextureParameters(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, GL_NEAREST, GL_NEAREST);
+            DrawTextureParameters(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
             f32 sizeX = gameState->camera.size * tempRatio;
-            DrawTexture(-sizeX * 0.5f, gameState->camera.size * 0.5f, sizeX, -gameState->camera.size, gameState->render.renderBuffer);
+            DrawTexture(0, gameState->camera.size, sizeX, -gameState->camera.size, gameState->render.renderBuffer);
             GL_Render();
             End2D();
 
@@ -269,8 +271,6 @@ i32 CALLBACK WinMain(
             gameState->camera.view = tempView;
             gameState->camera.projection = tempProjection;
         }
-
-        ImGui::Render();
         
         SDL_GL_SwapWindow(sdlWindow);
 

@@ -22,11 +22,17 @@ static u32 DrawBuffers[1] = {GL_COLOR_ATTACHMENT0};
 static u32 coloredProgram;
 static u32 fontProgram;
 static u32 texturedProgram;
+static u32 textured9SliceProgram;
 
 static u32 colorLocation;
 static u32 modelLocation;
 static u32 viewLocation;
 static u32 projectionLocation;
+
+static u32 textureSizeLocation;
+static u32 dimensionsLocation;
+static u32 borderLocation;
+
 static u32 timeLocation;
 
 static GLTextureCache* textureCache = NULL;
@@ -37,13 +43,13 @@ static FontAtlas currentFont;
 
 static GLFontReference* fontCache = NULL;
 
-enum TextStyles {
-    style_Normal = 0,
-    style_SineX = 1,
-    style_SineY = 2,
-    style_FadeIn = 3,
-    style_FadeOut = 4,
-    style_Typewriter = 5
+enum TextStyle {
+    TextStyle_Normal = 0,
+    TextStyle_SineX = 1,
+    TextStyle_SineY = 2,
+    TextStyle_FadeIn = 3,
+    TextStyle_FadeOut = 4,
+    TextStyle_Typewriter = 5
 };
 
 enum GLVendor {
@@ -63,7 +69,7 @@ static GLVendor currentVendor = GL_VENDOR_UNKOWN;
 // GLuint* uGPUIDs = new GLuint[uNoOfGPUs];
 // wglGetGPUIDsAMD( uNoOfGPUs, uGPUIDs );
 
-#ifdef GAME_INTERNAL
+#ifdef GAME_EDITOR
 static i32 watchedProgramsCount = 0;
 static WatchedProgram watchedPrograms[50];
 #endif
@@ -103,8 +109,9 @@ static i32 GL_AvailableGPUMemoryKB()
 static GLTexture GL_LoadTexture(const char *textureKey)
 {
     i32 index = (i32)shgeti(textureCache, textureKey);
+    GLTexture texture;
     if(index > -1) {
-        return shget(textureCache, textureKey);
+        texture = shget(textureCache, textureKey);
     } else {
         i32 width, height, channels;
         unsigned char *data = stbi_load(textureKey, &width, &height, &channels, 0);
@@ -115,7 +122,6 @@ static GLTexture GL_LoadTexture(const char *textureKey)
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
         glGenerateMipmap(GL_TEXTURE_2D);
 
-        GLTexture texture;
         texture.textureID = textureID;
         texture.width = width;
         texture.height = height;
@@ -123,9 +129,12 @@ static GLTexture GL_LoadTexture(const char *textureKey)
         shput(textureCache, textureKey, texture);
 
         stbi_image_free(data);
-
-        return texture;
     }
+    
+    glBindTexture(GL_TEXTURE_2D, texture.textureID);
+    glUniform2f(textureSizeLocation, (f32)texture.width, (f32)texture.height);
+    
+    return texture;
 }
 
 static TextureAtlas GL_LoadAtlas(const char *atlasKey)
@@ -206,36 +215,6 @@ u32 quadIndices[] = {
     1, 2, 3
 };
 
-static void GL_Init()
-{
-    glGenVertexArrays(1, &quadBuffer.vertexArray);
-    glGenBuffers(1, &quadBuffer.vertexBuffer);
-    glGenBuffers(1, &quadBuffer.indexBuffer);
-
-    glGenVertexArrays(1, &overrideBuffer.vertexArray);
-    glGenBuffers(1, &overrideBuffer.vertexBuffer);
-    glGenBuffers(1, &overrideBuffer.indexBuffer);
-
-    f32* vertices = CreateQuadPosUV(0, 0, 1, 1, 0, 0, 1, 1);
-    glBindVertexArray(quadBuffer.vertexArray);
-    glBindBuffer(GL_ARRAY_BUFFER, quadBuffer.vertexBuffer);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), quadVertices, GL_STATIC_DRAW);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, quadBuffer.indexBuffer);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(quadIndices), quadIndices, GL_STATIC_DRAW); 
-
-    glGenVertexArrays(1, &customBuffer.vertexArray);
-    glGenBuffers(1, &customBuffer.vertexBuffer);
-    glGenBuffers(1, &customBuffer.indexBuffer);
-
-    // #NOTE(Juan): Check GPU vendor
-    if(GL_CheckVendor(GL_STRING_VENDOR_NVIDIA)) {
-        currentVendor = GL_VENDOR_NVIDIA;
-    }
-    else if(GL_CheckVendor(GL_STRING_VENDOR_ATI)) {
-        currentVendor = GL_VENDOR_ATI;
-    }
-}
-
 static void GL_InitFramebuffer(i32 bufferWidth, i32 bufferHeight)
 {
     glGenFramebuffers(1, &gameState->render.frameBuffer);
@@ -257,10 +236,10 @@ static void GL_InitFramebuffer(i32 bufferWidth, i32 bufferHeight)
     glDrawBuffers(1, DrawBuffers);
 
     if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-        Log(&editorConsole, "ERROR::FRAMEBUFFER:: Framebuffer is not complete!");
+        Log("ERROR::FRAMEBUFFER:: Framebuffer is not complete!");
     }
     if(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_UNSUPPORTED) {
-        Log(&editorConsole, "ERROR::FRAMEBUFFER:: Framebuffer is not supported!");
+        Log("ERROR::FRAMEBUFFER:: Framebuffer is not supported!");
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
@@ -282,7 +261,7 @@ i32 GL_GenerateFont(const char *filepath, f32 fontSize, u32 width, u32 height)
     void* data = LoadFileToMemory(filepath, FILE_MODE_READ_BINARY, &data_size);
 
     u8* tempBitmap = PushArray(&temporalState->arena, width * height, u8);
-    stbtt_BakeFontBitmap((u8 *)data, 0, fontSize, tempBitmap, width, height, 32, 96, result.charData); // no guarantee this fits!
+    stbtt_BakeFontBitmap((u8 *)data, 0, fontSize, tempBitmap, width, height, SPECIAL_ASCII_CHAR_OFFSET, FONT_CHAR_SIZE, result.charData); // no guarantee this fits!
 
     // stbi_write_png("bakedFont.png", width, height, 1, tempBitmap, width);
 
@@ -312,7 +291,7 @@ i32 GL_CompileProgram(const char *vertexShaderPath, const char *fragmentShaderPa
     u32 data_size = 0;
     void* data = LoadFileToMemory(vertexShaderPath, FILE_MODE_READ_BINARY, &data_size);
     if(data == 0) {
-        LogError(&editorConsole, "ERROR::VERTEX::FileLoad failed %s", vertexShaderPath);
+        LogError("ERROR::VERTEX::FileLoad failed %s", vertexShaderPath);
         return 0;
     }
     SOURCE_TYPE vertexSource = static_cast<SOURCE_TYPE>(data);
@@ -330,8 +309,8 @@ i32 GL_CompileProgram(const char *vertexShaderPath, const char *fragmentShaderPa
     if (!success)
     {
         glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
-        LogError(&editorConsole, "ERROR::VERTEX::COMPILATION_FAILED %s", vertexShaderPath);
-        LogError(&editorConsole, infoLog);
+        LogError("ERROR::VERTEX::COMPILATION_FAILED %s", vertexShaderPath);
+        LogError(infoLog);
     }
 
     u32 fragmentShader;
@@ -339,7 +318,7 @@ i32 GL_CompileProgram(const char *vertexShaderPath, const char *fragmentShaderPa
 
     data = LoadFileToMemory(fragmentShaderPath, FILE_MODE_READ_BINARY, &data_size);
     if(data == 0) {
-        LogError(&editorConsole, "ERROR::FRAGMENT::FileLoad failed %s", fragmentShaderPath);
+        LogError("ERROR::FRAGMENT::FileLoad failed %s", fragmentShaderPath);
         return 0;
     }
     SOURCE_TYPE fragmentSource = static_cast<SOURCE_TYPE>(data);
@@ -353,8 +332,8 @@ i32 GL_CompileProgram(const char *vertexShaderPath, const char *fragmentShaderPa
     if (!success)
     {
         glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
-        LogError(&editorConsole, "ERROR::FRAGMENT::COMPILATION_FAILED %s", fragmentShaderPath);
-        LogError(&editorConsole, infoLog);
+        LogError("ERROR::FRAGMENT::COMPILATION_FAILED %s", fragmentShaderPath);
+        LogError(infoLog);
     }
 
     i32 shaderProgram = glCreateProgram();
@@ -366,14 +345,14 @@ i32 GL_CompileProgram(const char *vertexShaderPath, const char *fragmentShaderPa
     glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
     if (!success) {
         glGetProgramInfoLog(shaderProgram, 512, NULL, infoLog);
-        LogError(&editorConsole, "ERROR::PROGRAM::LINK_FAILED");
-        LogError(&editorConsole, infoLog);
+        LogError("ERROR::PROGRAM::LINK_FAILED");
+        LogError(infoLog);
     }
 
     glDeleteShader(vertexShader);
     glDeleteShader(fragmentShader);
 
-    #ifdef GAME_INTERNAL
+    #ifdef GAME_EDITOR
     WatchedProgram watched;
     watched.vertexShader = vertexShader;
     watched.fragmentShader = fragmentShader;
@@ -392,7 +371,7 @@ i32 GL_CompileProgram(const char *vertexShaderPath, const char *fragmentShaderPa
 
 static void GL_WatchChanges()
 {
-    #ifdef GAME_INTERNAL
+    #ifdef GAME_EDITOR
     for(i32 i = 0; i < watchedProgramsCount; ++i) {
         WatchedProgram watched = watchedPrograms[i];
 
@@ -400,8 +379,7 @@ static void GL_WatchChanges()
         std::filesystem::file_time_type fragmentTime = std::filesystem::last_write_time(watched.fragmentFilepath);
 
         if(vertexTime != watched.vertexTime || fragmentTime != watched.fragmentTime) {
-            // if(vertexSource[0] != '\0' && fragmentSource[0] != '\0') {
-            Log(&editorConsole, "Started to reload program %d, vertex %s, fragment %s", watched.shaderProgram, watched.vertexFilepath, watched.fragmentFilepath);
+            Log("Started to reload program %d, vertex %s, fragment %s", watched.shaderProgram, watched.vertexFilepath, watched.fragmentFilepath);
             glDetachShader(watched.shaderProgram, watched.vertexShader);
             glDetachShader(watched.shaderProgram, watched.fragmentShader);
             
@@ -424,8 +402,8 @@ static void GL_WatchChanges()
             if (!success)
             {
                 glGetShaderInfoLog(watched.vertexShader, 512, NULL, infoLog);
-                LogError(&editorConsole, "ERROR::VERTEX::COMPILATION_FAILED %s\n", watched.vertexFilepath);
-                LogError(&editorConsole, infoLog);
+                LogError("ERROR::VERTEX::COMPILATION_FAILED %s\n", watched.vertexFilepath);
+                LogError(infoLog);
             }
 
             watched.fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
@@ -443,8 +421,8 @@ static void GL_WatchChanges()
             if (!success)
             {
                 glGetShaderInfoLog(watched.vertexShader, 512, NULL, infoLog);
-                LogError(&editorConsole, "ERROR::FRAGMENT::COMPILATION_FAILED %s\n", watched.fragmentFilepath);
-                LogError(&editorConsole, infoLog);
+                LogError("ERROR::FRAGMENT::COMPILATION_FAILED %s\n", watched.fragmentFilepath);
+                LogError(infoLog);
             }
 
             glAttachShader(watched.shaderProgram, watched.vertexShader);
@@ -454,8 +432,8 @@ static void GL_WatchChanges()
             glGetProgramiv(watched.shaderProgram, GL_LINK_STATUS, &success);
             if (!success) {
                 glGetProgramInfoLog(watched.shaderProgram, 512, NULL, infoLog);
-                LogError(&editorConsole, "ERROR::PROGRAM::COMPILATION_FAILED\n");
-                LogError(&editorConsole, infoLog);
+                LogError("ERROR::PROGRAM::COMPILATION_FAILED\n");
+                LogError(infoLog);
             }
 
             glDeleteShader(watched.vertexShader);
@@ -464,10 +442,30 @@ static void GL_WatchChanges()
             watched.vertexTime = vertexTime;
             watched.fragmentTime = fragmentTime;
             watchedPrograms[i] = watched;
-            // }
         }
     }
     #endif
+}
+
+static void GetBakedQuad(FontAtlas *font, int char_index, float *xpos, float *ypos, stbtt_aligned_quad *q)
+{
+   f32 ipw = 1.0f / font->width;
+   f32 iph = 1.0f / font->height;
+   const stbtt_bakedchar *b = font->charData + char_index;
+   f32 round_x = Floor((*xpos + b->xoff) + 0.5f);
+   f32 round_y = Floor((*ypos + b->yoff) + 0.5f);
+
+   q->x0 = round_x;
+   q->y0 = round_y;
+   q->x1 = round_x + b->x1 - b->x0;
+   q->y1 = round_y + b->y1 - b->y0;
+
+   q->s0 = b->x0 * ipw;
+   q->t0 = b->y0 * iph;
+   q->s1 = b->x1 * ipw;
+   q->t1 = b->y1 * iph;
+
+   *xpos += b->xadvance;
 }
 
 static void CalculateCharacterOffset(FontAtlas *font, char singleChar, f32 *posX, f32 *posY, u32 *lineCharacterCount)
@@ -488,6 +486,39 @@ static void CalculateCharacterOffset(FontAtlas *font, char singleChar, f32 *posX
             break;
         }
     }
+}
+
+static v2 CalculateTextSize(FontAtlas *font, const char* string, i32 stringSize, f32 containerWidth = -1)
+{
+    f32 lineWidth = 0;
+    f32 lineHeight = 0;
+    f32 width = 0;
+    f32 height = 0;
+    u32 lineCharacterCount = 0;
+    for(i32 i = 0; i < stringSize; ++i) {
+        char singleChar = string[i];
+        
+        stbtt_bakedchar charData = font->charData[singleChar - SPECIAL_ASCII_CHAR_OFFSET];
+        lineHeight = MAX(lineHeight, charData.y1 - charData.y0);
+        if(singleChar > SPECIAL_ASCII_CHAR_OFFSET) {
+            lineWidth += charData.xadvance;
+        }
+        else {
+            CalculateCharacterOffset(font, singleChar, &lineWidth, &height, &lineCharacterCount);
+        }
+
+        if(containerWidth > 0 && lineWidth > containerWidth) {
+            lineCharacterCount = 0;
+            width = MAX(width, lineWidth - charData.xadvance);
+            lineWidth = charData.xadvance;
+            height = height + font->lineHeight;
+        }
+    }
+
+    width = MAX(width, lineWidth);
+    height = MAX(height, lineHeight);
+
+    return V2(width, height);
 }
 
 // static void DrawStyledText(FontAtlas *font, const char* string, TextStyles* styleList, f32 x, f32 y, v4 color)
@@ -567,7 +598,9 @@ static void UseProgram(u32 programID)
     if(renderState.overrideProgram) { programID = renderState.overrideProgram; }
 
     if(programID != renderState.currentProgram) {
+        #ifdef GAME_EDITOR
         editorRenderDebugger.programChanges++;
+        #endif
 
         glUseProgram(programID);
 
@@ -575,6 +608,8 @@ static void UseProgram(u32 programID)
         modelLocation = glGetUniformLocation(programID, "model");
         viewLocation = glGetUniformLocation(programID, "view");
         projectionLocation = glGetUniformLocation(programID, "projection");
+
+        textureSizeLocation = glGetUniformLocation(programID, "textureSize");
 
         timeLocation = glGetUniformLocation(programID, "time");
         glUniform1f(timeLocation, gameState->time.gameTime);
@@ -623,6 +658,44 @@ static void BindBuffer()
     }
     else {
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, quadBuffer.indexBuffer);
+    }
+}
+
+static void GL_Init()
+{
+    coloredProgram = GL_CompileProgram(SHADERS_GLCORE_COLORED_VERT, SHADERS_GLCORE_COLORED_FRAG);
+    fontProgram = GL_CompileProgram(SHADERS_GLCORE_TEXTURED_VERT, SHADERS_GLCORE_FONT_FRAG);
+    texturedProgram = GL_CompileProgram(SHADERS_GLCORE_TEXTURED_VERT, SHADERS_GLCORE_TEXTURED_FRAG);
+    textured9SliceProgram = GL_CompileProgram(SHADERS_GLCORE_TEXTURED_VERT, SHADERS_GLCORE_TEXTURED9SLICE_FRAG);
+    
+    dimensionsLocation = glGetUniformLocation(textured9SliceProgram, "dimensions");
+    borderLocation = glGetUniformLocation(textured9SliceProgram, "border");
+
+    glGenVertexArrays(1, &quadBuffer.vertexArray);
+    glGenBuffers(1, &quadBuffer.vertexBuffer);
+    glGenBuffers(1, &quadBuffer.indexBuffer);
+
+    glGenVertexArrays(1, &overrideBuffer.vertexArray);
+    glGenBuffers(1, &overrideBuffer.vertexBuffer);
+    glGenBuffers(1, &overrideBuffer.indexBuffer);
+
+    f32* vertices = CreateQuadPosUV(0, 0, 1, 1, 0, 0, 1, 1);
+    glBindVertexArray(quadBuffer.vertexArray);
+    glBindBuffer(GL_ARRAY_BUFFER, quadBuffer.vertexBuffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), quadVertices, GL_STATIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, quadBuffer.indexBuffer);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(quadIndices), quadIndices, GL_STATIC_DRAW); 
+
+    glGenVertexArrays(1, &customBuffer.vertexArray);
+    glGenBuffers(1, &customBuffer.vertexBuffer);
+    glGenBuffers(1, &customBuffer.indexBuffer);
+
+    // #NOTE(Juan): Check GPU vendor
+    if(GL_CheckVendor(GL_STRING_VENDOR_NVIDIA)) {
+        currentVendor = GL_VENDOR_NVIDIA;
+    }
+    else if(GL_CheckVendor(GL_STRING_VENDOR_ATI)) {
+        currentVendor = GL_VENDOR_ATI;
     }
 }
 
@@ -852,13 +925,12 @@ static void GL_Render()
                 UseProgram(texturedProgram);
 
                 GLTexture texture = GL_LoadTexture(image->filepath);
-                glBindTexture(GL_TEXTURE_2D, texture.textureID);
                 SetupTextureParameters(GL_TEXTURE_2D);
 
                 image->scale.x *= texture.width;
                 image->scale.y *= texture.height;
 
-                if((image->header.renderFlags & IMAGE_ADAPTATIVE_FIT) > 0) {
+                if((image->header.renderFlags & ImageRenderFlag_Fit) > 0) {
                     // #TODO(Juan): Check this and fix errors
                     if(texture.height > texture.width) {
                         f32 oldScaleX = image->scale.x;
@@ -869,13 +941,13 @@ static void GL_Render()
                         image->scale.y *= (f32)texture.width / (f32)texture.height;
                         image->position.y += (oldScaleY - image->scale.y) * 0.5f;
                     }
-                } else if((image->header.renderFlags & IMAGE_KEEP_RATIO_X) > 0) {
+                } else if((image->header.renderFlags & ImageRenderFlag_KeepRatioX) > 0) {
                     f32 quadRatio = (f32)image->scale.y / (f32)image->scale.x;
                     f32 textureRatio = (f32)texture.height / (f32)texture.width;
                     f32 oldScaleY = image->scale.y;
                     image->scale.y *= textureRatio / quadRatio;
                     image->position.y += (oldScaleY - image->scale.y) * 0.5f;
-                } else if((image->header.renderFlags & IMAGE_KEEP_RATIO_Y) > 0) {
+                } else if((image->header.renderFlags & ImageRenderFlag_KeepRatioY) > 0) {
                     f32 quadRatio = (f32)image->scale.x / (f32)image->scale.y;
                     f32 textureRatio = (f32)texture.width / (f32)texture.height;
                     f32 oldScaleX = image->scale.x;
@@ -905,7 +977,6 @@ static void GL_Render()
                 UseProgram(texturedProgram);
 
                 GLTexture texture = GL_LoadTexture(imageUV->filepath);
-                glBindTexture(GL_TEXTURE_2D, texture.textureID);
                 SetupTextureParameters(GL_TEXTURE_2D);
 
                 imageUV->scale.x *= texture.width;
@@ -935,6 +1006,35 @@ static void GL_Render()
                 size = sizeof(RenderImageUV) + imageUV->filepathSize;
                 break;
             }
+            case RenderType_RenderImage9Slice: {
+                RenderImage9Slice *image9Slice = (RenderImage9Slice *)renderHeader;
+
+                UseProgram(textured9SliceProgram);
+
+                GLTexture texture = GL_LoadTexture(image9Slice->filepath);
+                SetupTextureParameters(GL_TEXTURE_2D);
+
+                v2 box = V2((f32)(image9Slice->endPosition.x - image9Slice->position.x), (f32)(image9Slice->endPosition.y - image9Slice->position.y));
+
+                glUniform2f(dimensionsLocation, image9Slice->slice / box.x, image9Slice->slice / box.y);
+                glUniform2f(borderLocation, image9Slice->slice / texture.width, image9Slice->slice / texture.height);
+
+                model *= ScaleM44(box.x, box.y, 1);
+                model *= TranslationM44(image9Slice->position);
+                SetupModelUniforms(texturedProgram, renderState.renderColor, model, view, projection);
+
+                BindBuffer();
+
+                glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)0);
+                glEnableVertexAttribArray(0);
+                glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)(3 * sizeof(f32)));
+                glEnableVertexAttribArray(1);
+
+                glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+                
+                size = sizeof(RenderImage9Slice) + image9Slice->filepathSize;
+                break;
+            }
             case RenderType_RenderAtlasSprite: {
                 RenderAtlasSprite *atlas = (RenderAtlasSprite *)renderHeader;
 
@@ -944,7 +1044,6 @@ static void GL_Render()
                 rectangle2 uvRect = shget(textureAtlas.sprites, atlas->spriteKey);
 
                 GLTexture texture = GL_LoadTexture(atlas->filepath);
-                glBindTexture(GL_TEXTURE_2D, texture.textureID);
                 SetupTextureParameters(GL_TEXTURE_2D);
 
                 v2 rectSize = GetSize(uvRect);
@@ -989,7 +1088,6 @@ static void GL_Render()
                 UseProgram(fontProgram);
 
                 GLTexture texture = GL_LoadTexture(currentFont.fontFilepath);
-                glBindTexture(GL_TEXTURE_2D, texture.textureID);
                 SetupTextureParameters(GL_TEXTURE_2D);
 
                 model *= ScaleM44(renderChar->scale);
@@ -999,7 +1097,7 @@ static void GL_Render()
                 f32 posX = 0;
                 f32 posY = currentFont.fontSize;
                 stbtt_aligned_quad quad;
-                stbtt_GetBakedQuad(currentFont.charData, currentFont.width, currentFont.height, renderChar->singleChar - SPECIAL_ASCII_CHAR_OFFSET, &posX, &posY, &quad, 1);
+                GetBakedQuad(&currentFont, renderChar->singleChar - SPECIAL_ASCII_CHAR_OFFSET, &posX, &posY, &quad);
                 CreateQuadPosUV(quad.x0, quad.y0, quad.x1, quad.y1, quad.s0, quad.t0, quad.s1, quad.t1);
 
                 glBindVertexArray(customBuffer.vertexArray);
@@ -1025,17 +1123,14 @@ static void GL_Render()
 
                 UseProgram(fontProgram);
 
-                model *= ScaleM44(text->scale);
-                model *= TranslationM44(text->position);
-                SetupModelUniforms(texturedProgram, renderState.renderColor, model, view, projection);
-
                 GLTexture texture = GL_LoadTexture(currentFont.fontFilepath);
-                glBindTexture(GL_TEXTURE_2D, texture.textureID);
                 SetupTextureParameters(GL_TEXTURE_2D);
 
-                v2 textSize = text->scale;
-                v2 textPosition = text->position;
-                v2 fontDividers = V2(currentFont.fontSize / currentFont.width, currentFont.fontSize / currentFont.height);
+                v2 textSize = CalculateTextSize(&currentFont, text->string, text->stringSize);
+
+                model *= ScaleM44(1, 1, 1);
+                model *= TranslationM44(text->position);
+                SetupModelUniforms(texturedProgram, renderState.renderColor, model, view, projection);
 
                 f32 posX = 0;
                 f32 posY = currentFont.fontSize;
@@ -1046,7 +1141,7 @@ static void GL_Render()
                     char currentChar = text->string[i];
 
                     CalculateCharacterOffset(&currentFont, currentChar, &posX, &posY, &lineCharacterCount);
-                    stbtt_GetBakedQuad(currentFont.charData, currentFont.width, currentFont.height, currentChar - SPECIAL_ASCII_CHAR_OFFSET, &posX, &posY, &quad, 1);
+                    GetBakedQuad(&currentFont, currentChar - SPECIAL_ASCII_CHAR_OFFSET, &posX, &posY, &quad);
                     CreateQuadPosUV(quad.x0, quad.y0, quad.x1, quad.y1, quad.s0, quad.t0, quad.s1, quad.t1);
 
                     glBindVertexArray(customBuffer.vertexArray);
@@ -1073,17 +1168,20 @@ static void GL_Render()
 
                 UseProgram(fontProgram);
 
-                model *= ScaleM44(styledText->scale);
-                model *= TranslationM44(styledText->position);
-                SetupModelUniforms(texturedProgram, renderState.renderColor, model, view, projection);
-
                 GLTexture texture = GL_LoadTexture(currentFont.fontFilepath);
-                glBindTexture(GL_TEXTURE_2D, texture.textureID);
                 SetupTextureParameters(GL_TEXTURE_2D);
 
-                v2 textSize = styledText->scale;
-                v2 textPosition = styledText->position;
-                v2 fontDividers = V2(currentFont.fontSize / currentFont.width, currentFont.fontSize / currentFont.height);
+                v2 containerSize = V2(styledText->endPosition.x - styledText->position.x, styledText->endPosition.y - styledText->position.y);
+                v2 textSize = CalculateTextSize(&currentFont, styledText->string, styledText->stringSize, containerSize.x);
+
+                if((styledText->header.renderFlags & TextRenderFlag_Center) > 0) {
+                    styledText->position.x += (containerSize.x - textSize.x) * 0.5f;
+                    styledText->position.y -= (containerSize.y - textSize.y) * 0.5f;
+                }
+
+                model *= ScaleM44(1, 1, 1);
+                model *= TranslationM44(styledText->position);
+                SetupModelUniforms(texturedProgram, renderState.renderColor, model, view, projection);
 
                 f32 posX = 0;
                 f32 posY = currentFont.fontSize;
@@ -1094,13 +1192,13 @@ static void GL_Render()
                     char currentChar = styledText->string[i];
                     
                     CalculateCharacterOffset(&currentFont, currentChar, &posX, &posY, &lineCharacterCount);
-                    stbtt_GetBakedQuad(currentFont.charData, currentFont.width, currentFont.height, currentChar - SPECIAL_ASCII_CHAR_OFFSET, &posX, &posY, &quad, 1);
+                    GetBakedQuad(&currentFont, currentChar - SPECIAL_ASCII_CHAR_OFFSET, &posX, &posY, &quad);
 
                     if(posX + styledText->position.x > styledText->endPosition.x) {
                         lineCharacterCount = 0;
                         posX = 0;
                         posY = posY + currentFont.lineHeight;
-                        stbtt_GetBakedQuad(currentFont.charData, currentFont.width, currentFont.height, currentChar - SPECIAL_ASCII_CHAR_OFFSET, &posX, &posY, &quad, 1);
+                        GetBakedQuad(&currentFont, currentChar - SPECIAL_ASCII_CHAR_OFFSET, &posX, &posY, &quad);
                     }
 
                     CreateQuadPosUV(quad.x0, quad.y0, quad.x1, quad.y1, quad.s0, quad.t0, quad.s1, quad.t1);
@@ -1182,7 +1280,9 @@ static void GL_Render()
         }
 
         Assert(size > 0);
+        #ifdef GAME_EDITOR
         editorRenderDebugger.drawCount++;
+        #endif
         renderHeader = (RenderHeader *)((u8 *)renderHeader + size);
     }
 }
