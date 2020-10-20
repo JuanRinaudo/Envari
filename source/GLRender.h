@@ -986,7 +986,7 @@ static void GL_Render()
                 model *= TranslationM44(imageUV->position);
                 SetupModelUniforms(texturedProgram, renderState.renderColor, model, view, projection);
 
-                CreateQuadPosUV(0, 0, 1, 1, imageUV->uv.min.x, imageUV->uv.min.y, imageUV->uv.max.x, imageUV->uv.max.y);
+                CreateQuadPosUV(0, 0, 1, 1, imageUV->uvMin.x, imageUV->uvMin.y, imageUV->uvMax.x, imageUV->uvMax.y);
 
                 glBindVertexArray(customBuffer.vertexArray);
 
@@ -1041,21 +1041,20 @@ static void GL_Render()
                 UseProgram(texturedProgram);
 
                 TextureAtlas textureAtlas = GL_LoadAtlas(atlas->atlasName);
-                rectangle2 uvRect = shget(textureAtlas.sprites, atlas->spriteKey);
+                rectangle2 spriteRect = shget(textureAtlas.sprites, atlas->spriteKey);
 
                 GLTexture texture = GL_LoadTexture(atlas->filepath);
                 SetupTextureParameters(GL_TEXTURE_2D);
 
-                v2 rectSize = GetSize(uvRect);
-                atlas->scale.x *= rectSize.x;
-                atlas->scale.y *= rectSize.y;
+                atlas->scale.x *= spriteRect.width;
+                atlas->scale.y *= spriteRect.height;
 
                 model *= ScaleM44(atlas->scale);
                 model *= TranslationM44(atlas->position);
                 SetupModelUniforms(coloredProgram, renderState.renderColor, model, view, projection);
 
-                CreateQuadPosUV(0, 0, 1, 1, 
-                    uvRect.min.x / texture.width, uvRect.min.y / texture.height, uvRect.max.x / texture.width, uvRect.max.y / texture.height);
+                CreateQuadPosUV(0, 0, 1, 1, spriteRect.x / texture.width, spriteRect.y / texture.height, 
+                    (spriteRect.x + spriteRect.width) / texture.width, (spriteRect.y + spriteRect.height) / texture.height);
 
                 glBindVertexArray(customBuffer.vertexArray);
 

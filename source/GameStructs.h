@@ -225,7 +225,8 @@ struct RenderImageUV
     RenderHeader header;
     v2 position;
     v2 scale;
-    rectangle2 uv;
+    v2 uvMin;
+    v2 uvMax;
     char* filepath;
     u32 filepathSize;
 };

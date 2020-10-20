@@ -345,230 +345,60 @@ v3 Clamp01(v3 value)
 
 // #NOTE(Juan): rectangle2
 
+rectangle2 Rectangle2(f32 x, f32 y, f32 width, f32 height)
+{
+    rectangle2 result;
+
+    result.x = x;
+    result.y = y;
+    result.width = width;
+    result.height = height;
+
+    return result;
+}
+
+rectangle2 Rectangle2MinMax(f32 minX, f32 minY, f32 maxX, f32 maxY)
+{
+    rectangle2 result;
+
+    result.x = minX;
+    result.y = minX;
+    result.width = maxX - minX;
+    result.height = maxY - minY;
+
+    return(result);
+}
+
 v2 GetMinCorner(rectangle2 rectangle)
 {
-    v2 result = rectangle.min;
+    v2 result = V2(rectangle.x, rectangle.y);
     return(result);
 }
 
 v2 GetMaxCorner(rectangle2 rectangle)
 {
-    v2 result = rectangle.max;    
+    v2 result = V2(rectangle.x + rectangle.width, rectangle.y + rectangle.height);
     return(result);
 }
 
 v2 GetSize(rectangle2 rectangle)
 {
-    v2 result = rectangle.max - rectangle.min;    
+    v2 result = V2(rectangle.width, rectangle.height);
     return(result);
 }
 
 v2 GetCenter(rectangle2 rectangle)
 {
-    v2 result = 0.5f * (rectangle.min + rectangle.max);
-    return(result);
-}
-
-rectangle2 Rectangle2(f32 x, f32 y, f32 width, f32 height)
-{
-    rectangle2 result;
-
-    result.min = V2(x, y);
-    result.max = V2(x + width, y + height);
-
-    return result;
-}
-
-rectangle2 RectMinDim(v2 min, v2 dim)
-{
-    rectangle2 result;
-
-    result.min = min;
-    result.max = min + dim;
-
-    return(result);
-}
-
-rectangle2 RectMinMax(v2 min, v2 max)
-{
-    rectangle2 result;
-
-    result.min = min;
-    result.max = max;
-
-    return(result);
-}
-
-rectangle2 RectCenterHalfDim(v2 center, v2 halfDim)
-{
-    rectangle2 result;
-
-    result.min = center - halfDim;
-    result.max = center + halfDim;
-
-    return(result);
-}
-
-rectangle2 RectCenterDim(v2 center, v2 dim)
-{
-    rectangle2 result = RectCenterHalfDim(center, dim * 0.5f);
-
-    return(result);
-}
-
-rectangle2 AddRadiusTo(rectangle2 rectangle, v2 radius)
-{
-    rectangle2 result;
-
-    result.min = rectangle.min - radius;
-    result.max = rectangle.max + radius;
-
-    return(result);
-}
-
-rectangle2 Offset(rectangle2 rectangle, v2 offset)
-{
-    rectangle2 result;
-
-    result.min = rectangle.min + offset;
-    result.max = rectangle.max + offset;
-
+    v2 result = V2(rectangle.x + rectangle.width * 0.5f, rectangle.y + rectangle.height * 0.5f);
     return(result);
 }
 
 b32 IsInRectangle(rectangle2 rectangle, v2 test)
 {
     b32 result = (
-        test.x >= rectangle.min.x && test.y >= rectangle.min.y &&
-        test.x < rectangle.max.x && test.y < rectangle.max.y
+        test.x >= rectangle.x && test.y >= rectangle.y &&
+        test.x < rectangle.x + rectangle.width && test.y < rectangle.y + rectangle.height
     );
-
-    return(result);
-}
-
-v2 GetBarycentric(rectangle2 a, v2 position)
-{
-    v2 result;
-
-    result.x = SafeRatio0(position.x - a.min.x, a.max.x - a.min.x);
-    result.y = SafeRatio0(position.y - a.min.y, a.max.y - a.min.y);
-    
-    return(result);
-}
-
-// #NOTE(Juan): rectangle3
-
-v3 GetMinCorner(rectangle3 rectangle)
-{
-    v3 result = rectangle.min;
-    return(result);
-}
-
-v3 GetMaxCorner(rectangle3 rectangle)
-{
-    v3 result = rectangle.max;    
-    return(result);
-}
-
-v3 GetCenter(rectangle3 rectangle)
-{
-    v3 result = 0.5f * (rectangle.min + rectangle.max);
-    return(result);
-}
-
-rectangle3 RectMinDim(v3 min, v3 dim)
-{
-    rectangle3 result;
-
-    result.min = min;
-    result.max = min + dim;
-
-    return(result);
-}
-
-rectangle3 RectMinMax(v3 min, v3 max)
-{
-    rectangle3 result;
-
-    result.min = min;
-    result.max = max;
-
-    return(result);
-}
-
-rectangle3 RectCenterHalfDim(v3 center, v3 halfDim)
-{
-    rectangle3 result;
-
-    result.min = center - halfDim;
-    result.max = center + halfDim;
-
-    return(result);
-}
-
-rectangle3 RectCenterDim(v3 center, v3 dim)
-{
-    rectangle3 result = RectCenterHalfDim(center, dim * 0.5f);
-
-    return(result);
-}
-
-rectangle3 AddRadiusTo(rectangle3 rectangle, v3 radius)
-{
-    rectangle3 result;
-
-    result.min = rectangle.min - radius;
-    result.max = rectangle.max + radius;
-
-    return(result);
-}
-
-rectangle3 Offset(rectangle3 rectangle, v3 offset)
-{
-    rectangle3 result;
-
-    result.min = rectangle.min + offset;
-    result.max = rectangle.max + offset;
-
-    return(result);
-}
-
-b32 IsInRectangle(rectangle3 rectangle, v3 test)
-{
-    b32 result = (
-        test.x >= rectangle.min.x && test.y >= rectangle.min.y && test.z >= rectangle.min.z &&
-        test.x < rectangle.max.x && test.y < rectangle.max.y && test.z < rectangle.max.z
-    );
-
-    return(result);
-}
-
-v3 GetBarycentric(rectangle3 a, v3 position)
-{
-    v3 result;
-
-    result.x = SafeRatio0(position.x - a.min.x, a.max.x - a.min.x);
-    result.y = SafeRatio0(position.y - a.min.y, a.max.y - a.min.y);
-    result.z = SafeRatio0(position.z - a.min.z, a.max.z - a.min.z);
-    
-    return(result);
-}
-
-rectangle2 ToRectanglexY(rectangle3 a)
-{
-    rectangle2 result;
-
-    result.min = a.min.xy;
-    result.max = a.max.xy;
-
-    return(result);
-}
-
-b32 RectanglesIntersect(rectangle3 a, rectangle3 b)
-{
-    b32 result = !(b.max.x <= a.min.x || b.min.x >= a.max.x ||
-        b.max.y <= a.min.y || b.min.y >= a.max.y || 
-        b.max.z <= a.min.z || b.min.z >= a.max.z);
 
     return(result);
 }

@@ -76,14 +76,10 @@ union m44
 
 struct rectangle2
 {
-    v2 min;
-    v2 max;
-};
-
-struct rectangle3
-{
-    v3 min;
-    v3 max;
+    f32 x;
+    f32 y;
+    f32 width;
+    f32 height;
 };
 
 struct transform2D

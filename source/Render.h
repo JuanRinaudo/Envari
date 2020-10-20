@@ -152,7 +152,8 @@ void DrawImageUV(f32 posX, f32 posY, f32 scaleX, f32 scaleY, f32 uvX, f32 uvY, f
     RenderImageUV *image = RenderPushElement(&renderTemporaryMemory, RenderImageUV);
     image->position = V2(posX, posY);
     image->scale = V2(scaleX, scaleY);
-    image->uv = Rectangle2(uvX, uvY, uvEndX, uvEndY);
+    image->uvMin = V2(uvX, uvY);
+    image->uvMax = V2(uvEndX, uvEndY);
     image->filepath = PushString(&renderTemporaryMemory, filepath, &image->filepathSize);
 }
 
@@ -207,7 +208,7 @@ void DrawStyledString(f32 posX, f32 posY, f32 endX, f32 endY, const char* string
 
 bool DrawButton(f32 posX, f32 posY, f32 endX, f32 endY, f32 slice, const char* string, const char* buttonUp, const char* buttonDown)
 {
-    bool mouseOver = MouseOverRectangle(RectMinMax(V2(posX, posY), V2(endX, endY)));
+    bool mouseOver = MouseOverRectangle(Rectangle2MinMax(posX, posY, endX, endY));
     bool mouseDown = gameState->input.mouseState[1] == KEY_DOWN;
     bool mouseReleased = gameState->input.mouseState[1] == KEY_RELEASED;
     DrawImage9Slice(posX, posY, endX, endY, slice, mouseOver && mouseDown ? buttonDown : buttonUp);
