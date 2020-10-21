@@ -63,9 +63,10 @@ extern m44 OrtographicProjection(f32 size, f32 aspect, f32 nearPlane, f32 farPla
 extern void Begin2D(u32 frameBufferID, u32 width, u32 height);
 extern void DrawClear(f32 red, f32 green, f32 blue, f32 alpha);
 extern void DrawColor(f32 red, f32 green, f32 blue, f32 alpha);
-extern void DrawLineWidth(f32 width);
 extern void DrawTransparent(u32 modeRGB, u32 modeAlpha, u32 srcRGB, u32 dstRGB, u32 srcAlpha, u32 dstAlpha);
 extern void DrawTransparentDisable();
+extern void DrawSetLayer(u32 targetLayer, bool transparent);
+extern void DrawLineWidth(f32 width);
 extern void DrawLine(f32 startX, f32 startY, f32 endX, f32 endY);
 extern void DrawTriangle(f32 p1X, f32 p1Y, f32 p2X, f32 p2Y, f32 p3X, f32 p3Y);
 extern void DrawRectangle(f32 posX, f32 posY, f32 scaleX, f32 scaleY);
@@ -91,6 +92,7 @@ extern v2 RenderToViewport(f32 screenX, f32 screenY, f32 size, f32 ratio);
 extern f32* CreateQuadPosUV(f32 posStartX, f32 posStartY, f32 posEndX, f32 posEndY, f32 uvStartX, f32 uvStartY, f32 uvEndX, f32 uvEndY);
 extern i32 GL_GenerateFont(const char *filepath, f32 fontSize, u32 width, u32 height);
 extern i32 GL_CompileProgram(const char *vertexShaderSource, const char *fragmentShaderSource);
+extern i32 GL_CompileProgramPlatform(const char *vertexShaderPlatform, const char *fragmentShaderPlatform);
 
 extern ma_decoder* SoundLoad(const char* soundKey);
 extern void SoundPlay(const char* filepath, f32 volume);
@@ -259,6 +261,7 @@ void ScriptingInitBindings()
     // #NOTE (Juan): Render
     lua["DrawClear"] = DrawClear;
     lua["DrawColor"] = DrawColor;
+    lua["DrawSetLayer"] = DrawSetLayer;
     lua["DrawLineWidth"] = DrawLineWidth;
     lua["DrawLine"] = DrawLine;
     lua["DrawTriangle"] = DrawTriangle;
@@ -302,6 +305,7 @@ void ScriptingInitBindings()
     lua["CreateQuadPosUV"] = CreateQuadPosUV;
     lua["GenerateFont"] = GL_GenerateFont;
     lua["CompileProgram"] = GL_CompileProgram;
+    lua["CompileProgramPlatform"] = GL_CompileProgramPlatform;
     lua["GetUniformLocation"] = glGetUniformLocation;
     lua["UniformType_Float"] = UniformType_Float;
     lua["UniformType_Vector2"] = UniformType_Vector2;

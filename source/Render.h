@@ -14,23 +14,6 @@ void RenderDebugEnd()
 }
 #endif
 
-void Begin2D(u32 frameBufferID, u32 width, u32 height)
-{
-    renderState.lastRenderID = 0;
-    renderState.renderColor = V4(1, 1, 1, 1);
-    renderState.overrideProgram = 0;
-    renderState.overridingVertices = false;
-    renderState.overridingIndices = false;
-    renderTemporaryMemory = BeginTemporaryMemory(&temporalState->arena);
-    
-    RenderHeader *clearFirstHeader = (RenderHeader *)renderTemporaryMemory.arena->base;
-    ZeroSize(sizeof(RenderHeader), clearFirstHeader);
-    
-	glBindFramebuffer(GL_FRAMEBUFFER, frameBufferID);
-    
-	glViewport(0,0, width, height);
-}
-
 #define RenderPushElement(arena, type) (type *)RenderPushElement_(arena, sizeof(type), RenderType_##type);
 static RenderHeader *RenderPushElement_(TemporaryMemory *memory, u32 size, RenderType type)
 {
@@ -41,6 +24,7 @@ static RenderHeader *RenderPushElement_(TemporaryMemory *memory, u32 size, Rende
         result = (RenderHeader *)PushSize(memory, size);
         result->id = renderState.lastRenderID;
         result->type = type;
+        result->size = 0;
     }
     else {
         InvalidCodePath;
@@ -53,18 +37,14 @@ void DrawClear(f32 red = 0, f32 green = 0, f32 blue = 0, f32 alpha = 1)
 {
     RenderClear *clear = RenderPushElement(&renderTemporaryMemory, RenderClear);
     clear->color = V4(red, green, blue, alpha);
+    clear->header.size = sizeof(RenderClear);
 }
 
 void DrawColor(f32 red = 0, f32 green = 0, f32 blue = 0, f32 alpha = 1)
 {
     RenderColor *color = RenderPushElement(&renderTemporaryMemory, RenderColor);
     color->color = V4(red, green, blue, alpha);
-}
-
-void DrawLineWidth(f32 width = 1)
-{
-    RenderLineWidth *line = RenderPushElement(&renderTemporaryMemory, RenderLineWidth);
-    line->width = width;
+    color->header.size = sizeof(RenderColor);
 }
 
 void DrawTransparent(u32 modeRGB, u32 modeAlpha, u32 srcRGB, u32 dstRGB, u32 srcAlpha, u32 dstAlpha)
@@ -77,6 +57,7 @@ void DrawTransparent(u32 modeRGB, u32 modeAlpha, u32 srcRGB, u32 dstRGB, u32 src
     transparent->dstRGB = dstRGB;
     transparent->srcAlpha = srcAlpha;
     transparent->dstAlpha = dstAlpha;
+    transparent->header.size = sizeof(RenderTransparent);
 }
 
 void DrawTransparentDisable()
@@ -89,6 +70,24 @@ void DrawTransparentDisable()
     transparent->dstRGB = 0;
     transparent->srcAlpha = 0;
     transparent->dstAlpha = 0;
+    transparent->header.size = sizeof(RenderTransparent);
+}
+
+void DrawSetLayer(u32 targetLayer, bool transparent)
+{
+    RenderLayer *layer = RenderPushElement(&renderTemporaryMemory, RenderLayer);
+    layer->layer = targetLayer;
+    layer->header.size = sizeof(RenderLayer);
+
+    renderState.usedLayers |= 1 << targetLayer;
+    renderState.transparentLayers |= (transparent ? 1 : 0) << targetLayer;
+}
+
+void DrawLineWidth(f32 width = 1)
+{
+    RenderLineWidth *line = RenderPushElement(&renderTemporaryMemory, RenderLineWidth);
+    line->width = width;
+    line->header.size = sizeof(RenderLineWidth);
 }
 
 void DrawLine(f32 startX, f32 startY, f32 endX, f32 endY)
@@ -96,6 +95,7 @@ void DrawLine(f32 startX, f32 startY, f32 endX, f32 endY)
     RenderLine *line = RenderPushElement(&renderTemporaryMemory, RenderLine);
     line->start = V2(startX, startY);
     line->end = V2(endX, endY);
+    line->header.size = sizeof(RenderLine);
 }
 
 void DrawTriangle(f32 p1X, f32 p1Y, f32 p2X, f32 p2Y, f32 p3X, f32 p3Y)
@@ -104,6 +104,7 @@ void DrawTriangle(f32 p1X, f32 p1Y, f32 p2X, f32 p2Y, f32 p3X, f32 p3Y)
     triangle->point1 = V2(p1X, p1Y);
     triangle->point2 = V2(p2X, p2Y);
     triangle->point3 = V2(p3X, p3Y);
+    triangle->header.size = sizeof(RenderTriangle);
 }
 
 void DrawRectangle(f32 posX, f32 posY, f32 scaleX, f32 scaleY)
@@ -111,6 +112,7 @@ void DrawRectangle(f32 posX, f32 posY, f32 scaleX, f32 scaleY)
     RenderRectangle *rectangle = RenderPushElement(&renderTemporaryMemory, RenderRectangle);
     rectangle->position = V2(posX, posY);
     rectangle->scale = V2(scaleX, scaleY);
+    rectangle->header.size = sizeof(RenderRectangle);
 }
 
 void DrawCircle(f32 posX, f32 posY, f32 radius, i32 segments)
@@ -119,6 +121,7 @@ void DrawCircle(f32 posX, f32 posY, f32 radius, i32 segments)
     circle->position = V2(posX, posY);
     circle->radius = radius;
     circle->segments = segments;
+    circle->header.size = sizeof(RenderCircle);
 }
 
 void DrawTextureParameters(u32 wrapS, u32 wrapT, u32 minFilter, u32 magFilter)
@@ -128,6 +131,7 @@ void DrawTextureParameters(u32 wrapS, u32 wrapT, u32 minFilter, u32 magFilter)
     textureParameters->wrapT = wrapT;
     textureParameters->minFilter = minFilter;
     textureParameters->magFilter = magFilter;
+    textureParameters->header.size = sizeof(RenderTextureParameters);
 }
 
 void DrawTexture(f32 posX, f32 posY, f32 scaleX, f32 scaleY, u32 textureID)
@@ -136,6 +140,7 @@ void DrawTexture(f32 posX, f32 posY, f32 scaleX, f32 scaleY, u32 textureID)
     texture->position = V2(posX, posY);
     texture->scale = V2(scaleX, scaleY);
     texture->textureID = textureID;
+    texture->header.size = sizeof(RenderTexture);
 }
 
 void DrawImage(f32 posX, f32 posY, f32 scaleX, f32 scaleY, const char* filepath, u32 renderFlags = 0)
@@ -145,6 +150,7 @@ void DrawImage(f32 posX, f32 posY, f32 scaleX, f32 scaleY, const char* filepath,
     image->position = V2(posX, posY);
     image->scale = V2(scaleX, scaleY);
     image->filepath = PushString(&renderTemporaryMemory, filepath, &image->filepathSize);
+    image->header.size = sizeof(RenderImage) + image->filepathSize;
 }
 
 void DrawImageUV(f32 posX, f32 posY, f32 scaleX, f32 scaleY, f32 uvX, f32 uvY, f32 uvEndX, f32 uvEndY, const char* filepath)
@@ -155,6 +161,7 @@ void DrawImageUV(f32 posX, f32 posY, f32 scaleX, f32 scaleY, f32 uvX, f32 uvY, f
     image->uvMin = V2(uvX, uvY);
     image->uvMax = V2(uvEndX, uvEndY);
     image->filepath = PushString(&renderTemporaryMemory, filepath, &image->filepathSize);
+    image->header.size = sizeof(RenderImageUV) + image->filepathSize;
 }
 
 void DrawImage9Slice(f32 posX, f32 posY, f32 endX, f32 endY, f32 slice, const char* filepath)
@@ -164,6 +171,7 @@ void DrawImage9Slice(f32 posX, f32 posY, f32 endX, f32 endY, f32 slice, const ch
     image->endPosition = V2(endX, endY);
     image->slice = slice;
     image->filepath = PushString(&renderTemporaryMemory, filepath, &image->filepathSize);
+    image->header.size = sizeof(RenderImage9Slice) + image->filepathSize;
 }
 
 void DrawAtlasSprite(f32 posX, f32 posY, f32 scaleX, f32 scaleY, const char* filepath, const char* atlasName, const char* key)
@@ -174,12 +182,14 @@ void DrawAtlasSprite(f32 posX, f32 posY, f32 scaleX, f32 scaleY, const char* fil
     atlas->filepath = PushString(&renderTemporaryMemory, filepath, &atlas->filepathSize);
     atlas->atlasName = PushString(&renderTemporaryMemory, atlasName, &atlas->atlasNameSize);
     atlas->spriteKey = PushString(&renderTemporaryMemory, key, &atlas->spriteKeySize);
+    atlas->header.size = sizeof(RenderAtlasSprite) + atlas->filepathSize + atlas->atlasNameSize + atlas->spriteKeySize;
 }
 
 void DrawSetFont(i32 fontID)
 {
     RenderFont *font = RenderPushElement(&renderTemporaryMemory, RenderFont);
     font->fontID = fontID;
+    font->header.size = sizeof(RenderFont);
 }
 
 void DrawChar(f32 posX, f32 posY, f32 scaleX, f32 scaleY, const char singleChar)
@@ -188,6 +198,7 @@ void DrawChar(f32 posX, f32 posY, f32 scaleX, f32 scaleY, const char singleChar)
     renderChar->position = V2(posX, posY);
     renderChar->scale = V2(scaleX, scaleY);
     renderChar->singleChar = singleChar;
+    renderChar->header.size = sizeof(RenderChar);
 }
 
 void DrawString(f32 posX, f32 posY, const char* string, u32 renderFlags)
@@ -195,6 +206,7 @@ void DrawString(f32 posX, f32 posY, const char* string, u32 renderFlags)
     RenderText *text = RenderPushElement(&renderTemporaryMemory, RenderText);
     text->position = V2(posX, posY);
     text->string = PushString(&renderTemporaryMemory, string, &text->stringSize);
+    text->header.size = sizeof(RenderText) + text->stringSize;
 }
 
 void DrawStyledString(f32 posX, f32 posY, f32 endX, f32 endY, const char* string, u32 renderFlags = 0)
@@ -204,16 +216,7 @@ void DrawStyledString(f32 posX, f32 posY, f32 endX, f32 endY, const char* string
     text->position = V2(posX, posY);
     text->endPosition = V2(endX, endY);
     text->string = PushString(&renderTemporaryMemory, string, &text->stringSize);
-}
-
-bool DrawButton(f32 posX, f32 posY, f32 endX, f32 endY, f32 slice, const char* string, const char* buttonUp, const char* buttonDown)
-{
-    bool mouseOver = MouseOverRectangle(Rectangle2MinMax(posX, posY, endX, endY));
-    bool mouseDown = gameState->input.mouseState[1] == KEY_DOWN;
-    bool mouseReleased = gameState->input.mouseState[1] == KEY_RELEASED;
-    DrawImage9Slice(posX, posY, endX, endY, slice, mouseOver && mouseDown ? buttonDown : buttonUp);
-    DrawStyledString(posX, posY, endX, endY, string, TextRenderFlag_Center);
-    return mouseOver && mouseReleased;
+    text->header.size = sizeof(RenderStyledText) + text->stringSize;
 }
 
 void DrawSetUniform(u32 locationID, UniformType type)
@@ -226,13 +229,14 @@ void DrawSetUniform(u32 locationID, UniformType type)
         case UniformType_Float: { size = 4; break; }
         case UniformType_Vector2: { size = 8; break; }
     }
-    uniform->parametersSize = size;
+    uniform->header.size = sizeof(RenderSetUniform) + size;
 }
 
 void DrawOverrideProgram(u32 programID)
 {
     RenderOverrideProgram *program = RenderPushElement(&renderTemporaryMemory, RenderOverrideProgram);
     program->programID = programID;
+    program->header.size = sizeof(RenderOverrideProgram);
 }
 
 void DrawOverrideVertices(f32* vertices, u32 count)
@@ -249,6 +253,7 @@ void DrawOverrideVertices(f32* vertices, u32 count)
         override->size = 0;
         override->vertices = 0;
     }
+    override->header.size = sizeof(RenderOverrideVertices) + override->size;
 }
 
 void DrawOverrideIndices(u32* indices, u32 count)
@@ -265,6 +270,38 @@ void DrawOverrideIndices(u32* indices, u32 count)
         override->size = 0;
         override->indices = 0;
     }
+    override->header.size = sizeof(RenderOverrideIndices) + override->size;
+}
+
+bool DrawButton(f32 posX, f32 posY, f32 endX, f32 endY, f32 slice, const char* string, const char* buttonUp, const char* buttonDown)
+{
+    bool mouseOver = MouseOverRectangle(Rectangle2MinMax(posX, posY, endX, endY));
+    bool mouseDown = gameState->input.mouseState[1] == KEY_DOWN;
+    bool mouseReleased = gameState->input.mouseState[1] == KEY_RELEASED;
+    DrawImage9Slice(posX, posY, endX, endY, slice, mouseOver && mouseDown ? buttonDown : buttonUp);
+    DrawStyledString(posX, posY, endX, endY, string, TextRenderFlag_Center);
+    return mouseOver && mouseReleased;
+}
+
+void Begin2D(u32 frameBufferID, u32 width, u32 height)
+{
+    renderState.lastRenderID = 0;
+    renderState.usedLayers = 0;
+    renderState.transparentLayers = 0;
+    renderState.renderColor = V4(1, 1, 1, 1);
+    renderState.overrideProgram = 0;
+    renderState.overridingVertices = false;
+    renderState.overridingIndices = false;
+    renderTemporaryMemory = BeginTemporaryMemory(&temporalState->arena);
+    
+    RenderHeader *clearFirstHeader = (RenderHeader *)renderTemporaryMemory.arena->base;
+    ZeroSize(sizeof(RenderHeader), clearFirstHeader);
+    
+	glBindFramebuffer(GL_FRAMEBUFFER, frameBufferID);    
+	glViewport(0,0, width, height);
+    
+    DrawTransparent(GL_FUNC_ADD, GL_FUNC_ADD, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+    DrawTextureParameters(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
 }
 
 void End2D()

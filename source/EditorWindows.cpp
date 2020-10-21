@@ -5,8 +5,10 @@
 #include <string>
 
 #include "CodeGen/FileMap.h"
+#include "CodeGen/ShaderMap.h"
 #include "CodeGen/EditorConfigMap.h"
 
+#define SHADER_PREFIX "shaders/core/"
 #define SOURCE_TYPE const char* const
 
 #include "GL3W/gl3w.c"

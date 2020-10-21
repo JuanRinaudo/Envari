@@ -49,6 +49,7 @@ sol::state lua;
 #include "Runtime.h"
 #endif
 #include "Data.h"
+#include "Serialization.h"
 #include "Data.cpp"
 #include "Sound.h"
 #include "Input.h"

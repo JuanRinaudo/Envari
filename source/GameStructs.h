@@ -87,6 +87,7 @@ enum RenderType
 {
     RenderType_RenderClear,
     RenderType_RenderColor,
+    RenderType_RenderLayer,
     RenderType_RenderLineWidth,
     RenderType_RenderTransparent,
     RenderType_RenderLine,
@@ -132,6 +133,7 @@ struct RenderHeader
     i32 id;
     RenderType type;
     u32 renderFlags;
+    u32 size;
 };
 
 struct RenderClear
@@ -144,6 +146,12 @@ struct RenderColor
 {
     RenderHeader header;
     v4 color;
+};
+
+struct RenderLayer
+{
+    RenderHeader header;
+    u32 layer;
 };
 
 struct RenderLineWidth
@@ -289,7 +297,6 @@ struct RenderSetUniform {
     RenderHeader header;
     u32 location;
     UniformType type;
-    u32 parametersSize;
 };
 
 struct RenderOverrideProgram
@@ -315,6 +322,8 @@ struct RenderOverrideIndices
 struct RenderState {
     i32 lastRenderID;
     v4 renderColor;
+    u32 usedLayers;
+    u32 transparentLayers;
     u32 wrapS;
     u32 wrapT;
     u32 minFilter;

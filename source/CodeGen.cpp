@@ -5,22 +5,31 @@
 #include <queue>
 #include <filesystem>
 
+#define Log printf
+
+#define STB_DS_IMPLEMENTATION
+#include "STB/stb_ds.h"
+
 #include "IMGUI/imgui.h"
 #include "STB/stb_truetype.h"
 
 #include "Defines.h"
+#include "MathStructs.h"
+#include "GameMath.h"
 #include "GameStructs.h"
 #include "EditorStructs.h"
 
-#include "File.h"
 #include "Memory.h"
+#include "File.h"
+#include "Data.h"
 
 using namespace std;
 
 enum EntryType {
-    ENTRY_UNKNOWN,
-    ENTRY_FOLDER,
-    ENTRY_ENVARI_TABLE,
+    EntryType_UNKNOWN,
+    EntryType_FOLDER,
+    EntryType_ENVARI_TABLE,
+    EntryType_SHADER,
 };
 
 struct DataEntry
@@ -155,14 +164,17 @@ static void EndMapFile(ofstream* stream)
 static EntryType GetEntryType(filesystem::directory_entry* entry, DataEntry* definition)
 {
     if(entry->is_directory()) {
-        return ENTRY_FOLDER;
+        return EntryType_FOLDER;
     }
     else {
         if(strstr(definition->path, ".envt")) {
-            return ENTRY_ENVARI_TABLE;
+            return EntryType_ENVARI_TABLE;
+        }
+        else if(strstr(definition->path, ".vert") || strstr(definition->path, ".frag")) {
+            return EntryType_SHADER;
         }
         else {
-            return ENTRY_UNKNOWN;
+            return EntryType_UNKNOWN;
         }
     }
 }
@@ -223,15 +235,19 @@ i32 main()
 
     ofstream foldersCodegen;
     ofstream fileCodegen;
+    ofstream shaderCodegen;
 
     ofstream luaFoldersCodegen;
     ofstream luaFileCodegen;
+    ofstream luaShaderCodegen;
 
     StartMapFile(&foldersCodegen, folderPath, "FolderMap.h", "FOLDERMAP_H");
     StartMapFile(&fileCodegen, folderPath, "FileMap.h", "FILEMAP_H");
+    StartMapFile(&shaderCodegen, folderPath, "ShaderMap.h", "SHADERMAP_H");
     
     StartFile(&luaFoldersCodegen, scriptingPath, "FolderMap.lua");
     StartFile(&luaFileCodegen, scriptingPath, "FileMap.lua");
+    StartFile(&luaShaderCodegen, scriptingPath, "ShaderMap.lua");
 
     cout << '\n';
 
@@ -260,7 +276,7 @@ i32 main()
         
         dataCount++;
 
-        if(definition->type == ENTRY_FOLDER) {
+        if(definition->type == EntryType_FOLDER) {
             for (const auto& entry : filesystem::directory_iterator(path)) {
                 entryQueue.push(entry);
             }
@@ -271,13 +287,14 @@ i32 main()
 
     for(i32 i = 0; i < dataCount; ++i) {
         DataEntry *definition = rootDefinitions + i;
-        cout << "Found: " << definition->fullPath <<
-            " | filepath: " << definition->name <<
-            " | Path: " << definition->path <<
-            " | Key: " << definition->mapKey <<
-            " | Entry type: " << definition->type << '\n';
+        // #NOTE (Juan): Debug log data
+        // cout << "Found: " << definition->fullPath <<
+        //     " | filepath: " << definition->name <<
+        //     " | Path: " << definition->path <<
+        //     " | Key: " << definition->mapKey <<
+        //     " | Entry type: " << definition->type << '\n';
 
-        if(definition->type == ENTRY_FOLDER) {
+        if(definition->type == EntryType_FOLDER) {
             WriteConstant(&foldersCodegen, definition->mapKey, definition->path);
             WriteScriptingConstant(&luaFoldersCodegen, definition->mapKey, definition->path);
         } else {
@@ -285,7 +302,19 @@ i32 main()
             WriteScriptingConstant(&luaFileCodegen, definition->mapKey, definition->path);
         }
 
-        if(definition->type == ENTRY_ENVARI_TABLE) {
+        if(definition->type == EntryType_SHADER) {
+            char* relativePathStart = strstr(definition->path, "/core/");
+            char* esPathStart = strstr(definition->path, "/es/");
+            if(relativePathStart != 0 && esPathStart == 0) {
+                char* relativePath = relativePathStart + 6;
+                char* relativeKey = PushString(&stringArena, relativePath);
+                StringToKey(relativeKey);
+                WriteConstant(&shaderCodegen, relativeKey, relativePath);
+                WriteScriptingConstant(&luaShaderCodegen, relativeKey, relativePath);
+            }
+        }
+
+        if(definition->type == EntryType_ENVARI_TABLE) {
             ofstream tableCodegen;
             i32 nameSize = strlen(definition->name) - 5;
             char* name = PushString(&stringArena, definition->name, nameSize);
@@ -318,9 +347,11 @@ i32 main()
 
     EndMapFile(&foldersCodegen);
     EndMapFile(&fileCodegen);
+    EndMapFile(&shaderCodegen);
 
     EndFile(&luaFoldersCodegen);
     EndFile(&luaFileCodegen);
+    EndFile(&luaShaderCodegen);
 
     return 0;
 }

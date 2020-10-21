@@ -5,11 +5,10 @@
 #include <string>
 
 #include "CodeGen/FileMap.h"
+#include "CodeGen/ShaderMap.h"
 #include "CodeGen/WindowsConfigMap.h"
 
-#define STB_TRUETYPE_IMPLEMENTATION
-#include "STB/stb_truetype.h"
-
+#define SHADER_PREFIX "shaders/core/"
 #define SOURCE_TYPE const char* const
 
 #include "GL3W/gl3w.c"
@@ -18,6 +17,9 @@
 #define INITLUASCRIPT WINDOWSCONFIG_INITLUASCRIPT
 
 #include <SDL.h>
+
+#define STB_TRUETYPE_IMPLEMENTATION
+#include "STB/stb_truetype.h"
 
 #include "Game.h"
 

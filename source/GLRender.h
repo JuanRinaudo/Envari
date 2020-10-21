@@ -369,6 +369,17 @@ i32 GL_CompileProgram(const char *vertexShaderPath, const char *fragmentShaderPa
     return shaderProgram;
 }
 
+i32 GL_CompileProgramPlatform(const char *vertexShaderPlatform, const char *fragmentShaderPlatform)
+{
+    char* vertexShaderPath = PushString(&temporalState->arena, SHADER_PREFIX, sizeof(SHADER_PREFIX) - 1);
+    PushString(&temporalState->arena, vertexShaderPlatform);
+    
+    char* fragmentShaderPath = PushString(&temporalState->arena, SHADER_PREFIX, sizeof(SHADER_PREFIX) - 1);
+    PushString(&temporalState->arena, fragmentShaderPlatform);
+    
+    return GL_CompileProgram(vertexShaderPath, fragmentShaderPath);
+}
+
 static void GL_WatchChanges()
 {
     #ifdef GAME_EDITOR
@@ -663,10 +674,10 @@ static void BindBuffer()
 
 static void GL_Init()
 {
-    coloredProgram = GL_CompileProgram(SHADERS_GLCORE_COLORED_VERT, SHADERS_GLCORE_COLORED_FRAG);
-    fontProgram = GL_CompileProgram(SHADERS_GLCORE_TEXTURED_VERT, SHADERS_GLCORE_FONT_FRAG);
-    texturedProgram = GL_CompileProgram(SHADERS_GLCORE_TEXTURED_VERT, SHADERS_GLCORE_TEXTURED_FRAG);
-    textured9SliceProgram = GL_CompileProgram(SHADERS_GLCORE_TEXTURED_VERT, SHADERS_GLCORE_TEXTURED9SLICE_FRAG);
+    coloredProgram = GL_CompileProgramPlatform(COLORED_VERT, COLORED_FRAG);
+    fontProgram = GL_CompileProgramPlatform(TEXTURED_VERT, FONT_FRAG);
+    texturedProgram = GL_CompileProgramPlatform(TEXTURED_VERT, TEXTURED_FRAG);
+    textured9SliceProgram = GL_CompileProgramPlatform(TEXTURED_VERT, TEXTURED9SLICE_FRAG);
     
     dimensionsLocation = glGetUniformLocation(textured9SliceProgram, "dimensions");
     borderLocation = glGetUniformLocation(textured9SliceProgram, "border");
@@ -703,6 +714,30 @@ static void GL_Render()
 {
     RenderHeader *renderHeader = (RenderHeader *)renderTemporaryMemory.arena->base;
 
+    // #NOTE (Juan): Check if there are layers setted and sort commands by layer
+    if(renderState.usedLayers > 0) {
+        void *sortedRenderStart = renderTemporaryMemory.arena->base + renderTemporaryMemory.arena->used;
+        
+        for(u32 layerIndex = 31; layerIndex < 32; --layerIndex) {
+            if((renderState.usedLayers & 1 << layerIndex) > 0) {
+                RenderHeader *searchHeader = (RenderHeader *)renderTemporaryMemory.arena->base;
+                u32 searchLayer = 0;
+                while(searchHeader->id > 0 && (void*)searchHeader < sortedRenderStart) {
+                    if(searchHeader->type == RenderType_RenderLayer) {
+                        searchLayer = ((RenderLayer *)searchHeader)->layer;
+                    }
+                    else if(searchLayer == layerIndex) {
+                        void* copyDestination = PushSize(&renderTemporaryMemory, searchHeader->size);
+                        memcpy(copyDestination, (void *)searchHeader, searchHeader->size);
+                    }
+                    searchHeader = (RenderHeader *)((u8 *)searchHeader + searchHeader->size);
+                }
+            }
+        }
+
+        renderHeader = (RenderHeader *)sortedRenderStart;
+    }
+
     m44 view = gameState->camera.view;
     view._30 = -gameState->camera.size * 0.5f;
     view._31 = view._30;
@@ -712,29 +747,16 @@ static void GL_Render()
     while(renderHeader->id > 0 && (void*)renderHeader < (void*)(renderTemporaryMemory.arena->base + renderTemporaryMemory.used)) {
         m44 model = IdM44();
 
-        i32 size = 0;
-        // #TODO (Juan): More render types can be added line, spline, etc
         switch(renderHeader->type) {
             case RenderType_RenderClear: {
                 RenderClear *clear = (RenderClear *)renderHeader;
                 glClearColor(clear->color.r, clear->color.g, clear->color.b, clear->color.a);
                 glClear(GL_COLOR_BUFFER_BIT);
-
-                size = sizeof(RenderClear);
                 break;
             }
             case RenderType_RenderColor: {
                 RenderColor *color = (RenderColor *)renderHeader;
                 renderState.renderColor = color->color;
-
-                size = sizeof(RenderColor);
-                break;
-            }
-            case RenderType_RenderLineWidth: {
-                RenderLineWidth *line = (RenderLineWidth *)renderHeader;
-                glLineWidth(line->width);
-
-                size = sizeof(RenderLineWidth);
                 break;
             }
             case RenderType_RenderTransparent: {
@@ -749,8 +771,11 @@ static void GL_Render()
                     glDisable(GL_BLEND);
                     glEnable(GL_DEPTH_TEST);
                 }
-
-                size = sizeof(RenderTransparent);
+                break;
+            }
+            case RenderType_RenderLineWidth: {
+                RenderLineWidth *line = (RenderLineWidth *)renderHeader;
+                glLineWidth(line->width);
                 break;
             }
             case RenderType_RenderLine: {
@@ -780,8 +805,6 @@ static void GL_Render()
                 glEnableVertexAttribArray(0);
 
                 glDrawArrays(GL_LINES, 0, 2);
-
-                size = sizeof(RenderLine);
                 break;
             }
             case RenderType_RenderTriangle: {
@@ -812,8 +835,6 @@ static void GL_Render()
                 glEnableVertexAttribArray(0);
 
                 glDrawArrays(GL_TRIANGLES, 0, 3);
-
-                size = sizeof(RenderTriangle);
                 break;
             }
             case RenderType_RenderRectangle: {
@@ -833,8 +854,6 @@ static void GL_Render()
                 glEnableVertexAttribArray(0);
 
                 glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-
-                size = sizeof(RenderRectangle);
                 break;
             }
             case RenderType_RenderCircle: {
@@ -880,8 +899,6 @@ static void GL_Render()
                 glEnableVertexAttribArray(0);
 
                 glDrawElements(GL_TRIANGLES, (circle->segments + 1) * 3, GL_UNSIGNED_INT, 0);
-
-                size = sizeof(RenderRectangle);
                 break;
             }
             case RenderType_RenderTextureParameters: {
@@ -891,8 +908,6 @@ static void GL_Render()
                 renderState.wrapT = textureParameters->wrapT;
                 renderState.minFilter = textureParameters->minFilter;
                 renderState.magFilter = textureParameters->magFilter;
-
-                size = sizeof(RenderTextureParameters);
                 break;
             }
             case RenderType_RenderTexture: {
@@ -915,8 +930,6 @@ static void GL_Render()
                 glEnableVertexAttribArray(1);
 
                 glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-                
-                size = sizeof(RenderTexture);
                 break;
             }
             case RenderType_RenderImage: {
@@ -967,8 +980,6 @@ static void GL_Render()
                 glEnableVertexAttribArray(1);
 
                 glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-                
-                size = sizeof(RenderImage) + image->filepathSize;
                 break;
             }
             case RenderType_RenderImageUV: {
@@ -1002,8 +1013,6 @@ static void GL_Render()
                 glEnableVertexAttribArray(1);
 
                 glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-                
-                size = sizeof(RenderImageUV) + imageUV->filepathSize;
                 break;
             }
             case RenderType_RenderImage9Slice: {
@@ -1031,8 +1040,6 @@ static void GL_Render()
                 glEnableVertexAttribArray(1);
 
                 glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-                
-                size = sizeof(RenderImage9Slice) + image9Slice->filepathSize;
                 break;
             }
             case RenderType_RenderAtlasSprite: {
@@ -1070,15 +1077,11 @@ static void GL_Render()
                 glEnableVertexAttribArray(1);
 
                 glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-                
-                size = sizeof(RenderAtlasSprite) + atlas->filepathSize + atlas->atlasNameSize + atlas->spriteKeySize;
                 break;
             }
             case RenderType_RenderFont: {
                 RenderFont *font = (RenderFont *)renderHeader;
                 GL_LoadFont(font->fontID, &currentFont);
-
-                size = sizeof(RenderFont);
                 break;
             }
             case RenderType_RenderChar: {
@@ -1113,8 +1116,6 @@ static void GL_Render()
                 glEnableVertexAttribArray(1);
 
                 glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-                
-                size = sizeof(RenderChar);
                 break;
             }
             case RenderType_RenderText: {
@@ -1158,8 +1159,6 @@ static void GL_Render()
 
                     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
                 }
-                
-                size = sizeof(RenderText) + text->stringSize;
                 break;
             }
             case RenderType_RenderStyledText: {
@@ -1241,14 +1240,11 @@ static void GL_Render()
                         lastWordIndex = i + 1;
                     }
                 }
-                
-                size = sizeof(RenderStyledText) + styledText->stringSize;
                 break;
             }
             case RenderType_RenderSetUniform: {
                 RenderSetUniform *uniform = (RenderSetUniform *)renderHeader;
 
-                size = sizeof(RenderSetUniform);
                 if(uniform->type == UniformType_Float) {
                     glUniform1f(uniform->location, *((f32*)(uniform + 1)));
                 }
@@ -1256,8 +1252,6 @@ static void GL_Render()
                     v2 vector = *((v2*)(uniform + 1));
                     glUniform2f(uniform->location, vector.x, vector.y);
                 }
-                
-                size += uniform->parametersSize;
                 break;
             }
             case RenderType_RenderOverrideProgram: {
@@ -1266,8 +1260,6 @@ static void GL_Render()
                 renderState.overrideProgram = program->programID;
 
                 UseProgram(program->programID);
-
-                size = sizeof(RenderOverrideProgram);
                 break;
             }
             case RenderType_RenderOverrideVertices: {
@@ -1279,8 +1271,6 @@ static void GL_Render()
                     glBindBuffer(GL_ARRAY_BUFFER, overrideBuffer.vertexBuffer);
                     glBufferData(GL_ARRAY_BUFFER, vertices->size, vertices->vertices, GL_STATIC_DRAW);
                 }
-
-                size = sizeof(RenderOverrideVertices) + vertices->size;
                 break;
             }
             case RenderType_RenderOverrideIndices: {
@@ -1292,8 +1282,6 @@ static void GL_Render()
                     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, overrideBuffer.indexBuffer);
                     glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices->size, indices->indices, GL_STATIC_DRAW);
                 }
-
-                size = sizeof(RenderOverrideIndices) + indices->size;
                 break;
             }
             default: {
@@ -1302,11 +1290,11 @@ static void GL_Render()
             }
         }
 
-        Assert(size > 0);
+        Assert(renderHeader->size > 0);
         #ifdef GAME_EDITOR
         editorRenderDebugger.drawCount++;
         #endif
-        renderHeader = (RenderHeader *)((u8 *)renderHeader + size);
+        renderHeader = (RenderHeader *)((u8 *)renderHeader + renderHeader->size);
     }
 }
 
