@@ -244,6 +244,7 @@ static void ExecCommand(ConsoleWindow* console, const char* command_line)
     console->scrollToBottom = true;
 }
 
+static u32 GameInit();
 ConsoleLog *inspectedLog = 0;
 static void EditorDraw(ConsoleWindow* console)
 {
@@ -261,7 +262,20 @@ static void EditorDraw(ConsoleWindow* console)
     {
         if (ImGui::BeginMenu("File"))
         {
-            if (ImGui::MenuItem("WIP")) { }
+            if (!gameState->game.updateRunning && ImGui::MenuItem("Play")) { gameState->game.updateRunning = true; }
+            if (gameState->game.updateRunning && ImGui::MenuItem("Pause")) { gameState->game.updateRunning = false; }
+            if (ImGui::MenuItem("Reset")) {
+                ResetArena(&sceneState->arena);
+
+                shfree(textureCache);
+                shfree(atlasCache);
+                hmfree(fontCache);
+
+                gameState->time.gameTime = 0;
+                gameState->time.gameFrames = 0;
+
+                GameInit();
+            }
             ImGui::EndMenu();
         }
         if (ImGui::BeginMenu("Window"))
@@ -509,6 +523,10 @@ static void EditorDraw(RenderDebuggerWindow* debugger)
     ImGui::Text("Render memory size: %d", debugger->renderMemory);
     ImGui::Text("Draw count: %d", debugger->drawCount);
     ImGui::Text("Program changes: %d", debugger->programChanges);
+    
+    ImGui::Separator();
+
+    ImGui::Checkbox("Wireframe Mode", &debugger->wireframeMode);
     
     ImGui::End();
 }
@@ -840,13 +858,13 @@ static void EditorDrawAllOpen()
 static void EditorEnd()
 {
     SerializableTable* editorSave = 0;
-    TableSetBool(&permanentState->arena, editorSave, "editorConsoleOpen", editorConsole.open);
-    TableSetBool(&permanentState->arena, editorSave, "editorPreviewOpen", editorPreview.open);
-    TableSetBool(&permanentState->arena, editorSave, "editorRenderDebuggerOpen", editorRenderDebugger.open);
-    TableSetBool(&permanentState->arena, editorSave, "editorMemoryDebuggerOpen", editorMemoryDebugger.open);
-    TableSetBool(&permanentState->arena, editorSave, "editorTextureDebuggerOpen", editorTextureDebugger.open);
+    TableSetBool(&permanentState->arena, &editorSave, "editorConsoleOpen", editorConsole.open);
+    TableSetBool(&permanentState->arena, &editorSave, "editorPreviewOpen", editorPreview.open);
+    TableSetBool(&permanentState->arena, &editorSave, "editorRenderDebuggerOpen", editorRenderDebugger.open);
+    TableSetBool(&permanentState->arena, &editorSave, "editorMemoryDebuggerOpen", editorMemoryDebugger.open);
+    TableSetBool(&permanentState->arena, &editorSave, "editorTextureDebuggerOpen", editorTextureDebugger.open);
 #ifdef LUA_SCRIPTING_ENABLED
-    TableSetBool(&permanentState->arena, editorSave, "editorLUADebuggerOpen", editorLUADebugger.open);
+    TableSetBool(&permanentState->arena, &editorSave, "editorLUADebuggerOpen", editorLUADebugger.open);
 #endif
     SerializeTable(&editorSave, "editor.save");
 }

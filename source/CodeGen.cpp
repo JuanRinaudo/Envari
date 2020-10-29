@@ -110,20 +110,22 @@ static void WriteLine(ofstream* stream, const char* string)
     stream->write("\n", 1);
 }
 
-static void WriteConstant(ofstream* stream, const char* key, const char* value)
+static void WriteConstant(ofstream* stream, const char* key, const char* value, const char* valuePostfix = "")
 {
     Write(stream, "const char* ");
     Write(stream, key);
     Write(stream, " = \"");
     Write(stream, value);
+    Write(stream, valuePostfix);
     Write(stream, "\";\n");
 }
 
-static void WriteScriptingConstant(ofstream* stream, const char* key, const char* value)
+static void WriteScriptingConstant(ofstream* stream, const char* key, const char* value, const char* valuePostfix = "")
 {
     Write(stream, key);
     Write(stream, " = \"");
     Write(stream, value);
+    Write(stream, valuePostfix);
     Write(stream, "\";\n");
 }
 
@@ -189,8 +191,8 @@ i32 main()
 
     DataEntry* rootDefinitions = (DataEntry*)dataMemory;
 
-    InitializeArena(&stringArena, stringMemorySize, (u8*)stringMemory);
-    InitializeArena(&dataArena, dataMemorySize, (u8*)dataMemory);
+    InitializeArena(&stringArena, stringMemorySize, (u8*)stringMemory, 0);
+    InitializeArena(&dataArena, dataMemorySize, (u8*)dataMemory, 0);
 
     char workingDirectory[512];
     _getcwd(workingDirectory, 512);
@@ -295,8 +297,8 @@ i32 main()
         //     " | Entry type: " << definition->type << '\n';
 
         if(definition->type == EntryType_FOLDER) {
-            WriteConstant(&foldersCodegen, definition->mapKey, definition->path);
-            WriteScriptingConstant(&luaFoldersCodegen, definition->mapKey, definition->path);
+            WriteConstant(&foldersCodegen, definition->mapKey, definition->path, "/");
+            WriteScriptingConstant(&luaFoldersCodegen, definition->mapKey, definition->path, "/");
         } else {
             WriteConstant(&fileCodegen, definition->mapKey, definition->path);
             WriteScriptingConstant(&luaFileCodegen, definition->mapKey, definition->path);

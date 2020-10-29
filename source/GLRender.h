@@ -25,9 +25,7 @@ static u32 texturedProgram;
 static u32 textured9SliceProgram;
 
 static u32 colorLocation;
-static u32 modelLocation;
-static u32 viewLocation;
-static u32 projectionLocation;
+static u32 mvpLocation;
 
 static u32 textureSizeLocation;
 static u32 dimensionsLocation;
@@ -126,7 +124,7 @@ static GLTexture GL_LoadTexture(const char *textureKey)
         texture.width = width;
         texture.height = height;
         texture.channels = channels;
-        shput(textureCache, textureKey, texture);
+        shput(textureCache, PushString(&sceneState->arena, textureKey), texture);
 
         stbi_image_free(data);
     }
@@ -606,6 +604,16 @@ static v2 CalculateTextSize(FontAtlas *font, const char* string, i32 stringSize,
 
 static void UseProgram(u32 programID)
 {
+    #if GAME_EDITOR
+        if(editorRenderDebugger.wireframeMode) {
+            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+            programID = coloredProgram;
+        }
+        else {
+            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+        }
+    #endif
+
     if(renderState.overrideProgram) { programID = renderState.overrideProgram; }
 
     if(programID != renderState.currentProgram) {
@@ -616,9 +624,7 @@ static void UseProgram(u32 programID)
         glUseProgram(programID);
 
         colorLocation = glGetUniformLocation(programID, "color");
-        modelLocation = glGetUniformLocation(programID, "model");
-        viewLocation = glGetUniformLocation(programID, "view");
-        projectionLocation = glGetUniformLocation(programID, "projection");
+        mvpLocation = glGetUniformLocation(programID, "mvp");
 
         textureSizeLocation = glGetUniformLocation(programID, "textureSize");
 
@@ -643,9 +649,9 @@ static void SetupModelUniforms(u32 programID, v4 color, m44 model, m44 view, m44
 
     glUniform4f(colorLocation, renderState.renderColor.r, renderState.renderColor.g, renderState.renderColor.b, renderState.renderColor.a);
 
-    glUniformMatrix4fv(modelLocation, 1, false, model.e);    
-    glUniformMatrix4fv(viewLocation, 1, false, view.e);
-    glUniformMatrix4fv(projectionLocation, 1, false, projection.e);
+    m44 mvp = (projection * view) * model;
+
+    glUniformMatrix4fv(mvpLocation, 1, false, mvp.e);
 }
 
 static void BindBuffer()
@@ -748,6 +754,9 @@ static void GL_Render()
         m44 model = IdM44();
 
         switch(renderHeader->type) {
+            case RenderType_RenderTempData: {
+                break;
+            }
             case RenderType_RenderClear: {
                 RenderClear *clear = (RenderClear *)renderHeader;
                 glClearColor(clear->color.r, clear->color.g, clear->color.b, clear->color.a);

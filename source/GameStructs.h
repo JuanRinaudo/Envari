@@ -8,6 +8,7 @@ struct MemoryArena {
     size_t used;
 
     u32 tempCount;
+    size_t dataSize;
 };
 
 struct TemporaryMemory
@@ -85,6 +86,7 @@ enum ConsoleLogType
 
 enum RenderType
 {
+    RenderType_RenderTempData,
     RenderType_RenderClear,
     RenderType_RenderColor,
     RenderType_RenderLayer,
@@ -134,6 +136,11 @@ struct RenderHeader
     RenderType type;
     u32 renderFlags;
     u32 size;
+};
+
+struct RenderTempData
+{
+    RenderHeader header;
 };
 
 struct RenderClear
@@ -363,8 +370,10 @@ struct Camera {
 
 struct Time {
     f32 lastFrameGameTime;
+    f32 startTime;
     f32 gameTime;
     f32 deltaTime;
+    i64 gameFrames;
     i64 frames;
 };
 

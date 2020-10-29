@@ -45,6 +45,13 @@ static char *PushChar(MemoryArena *arena, char singleChar)
 
     return result;
 }
+static char *PushChar(TemporaryMemory *memory, char singleChar)
+{
+    char *result = PushChar(memory->arena, singleChar);
+    ++memory->used;
+
+    return result;
+}
 
 static char *PushString(MemoryArena *arena, const char *string, u32 *stringSize)
 {
@@ -70,7 +77,7 @@ static char *PushString(MemoryArena *arena, const char *string, u32 size)
 
     if(arena->used + size < arena->size) {
         result = (char*)PushSize(arena, size);
-        strcpy(result, string);
+        strncpy(result, string, size);
     }
     else {
         InvalidCodePath;
@@ -78,7 +85,7 @@ static char *PushString(MemoryArena *arena, const char *string, u32 size)
 
     return result;
 }
-static char *PushString(MemoryArena *arena, const char *string)
+char *PushString(MemoryArena *arena, const char *string)
 {
     return PushString(arena, string, strlen(string) + 1);
 }
@@ -91,11 +98,30 @@ static char *PushString(TemporaryMemory *memory, const char *string, u32 *string
     return result;
 }
 
-static void InitializeArena(MemoryArena *arena, size_t size, void *base)
+static char *PushString(TemporaryMemory *memory, const char *string, u32 size)
 {
-    arena->size = size;
-    arena->base = (u8*)base;
+    char *result = PushString(memory->arena, string, size);
+    memory->used += size;
+
+    return result;
+}
+static char *PushString(TemporaryMemory *arena, const char *string)
+{
+    return PushString(arena, string, strlen(string) + 1);
+}
+
+static void InitializeArena(MemoryArena *arena, size_t size, void *base, size_t dataSize)
+{
+    arena->size = size - dataSize;
+    arena->base = (u8*)base + dataSize;
     arena->used = 0;
+    arena->dataSize = dataSize;
+}
+
+static void ResetArena(MemoryArena *arena)
+{
+    arena->used = 0;
+    arena->tempCount = 0;
 }
 
 static TemporaryMemory BeginTemporaryMemory(MemoryArena *arena)

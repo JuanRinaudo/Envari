@@ -283,8 +283,8 @@ i32 CALLBACK WinMain(
         }
     }
 
-    TableSetV2(&temporalState->arena, configSave, "windowPosition", gameState->render.windowPosition);
-    TableSetV2(&temporalState->arena, configSave, "windowSize", gameState->render.windowSize);
+    TableSetV2(&permanentState->arena, configSave, "windowPosition", gameState->render.windowPosition);
+    TableSetV2(&permanentState->arena, configSave, "windowSize", gameState->render.windowSize);
     SerializeTable(&configSave, "config.save");
 
     SerializeTable(&saveData, "saveData.save");

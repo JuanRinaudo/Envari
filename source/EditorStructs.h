@@ -65,6 +65,8 @@ struct RenderDebuggerWindow
     i32 renderMemory;
     i32 drawCount;
     i32 programChanges;
+
+    bool wireframeMode;
 };
 
 struct MemoryDebuggerWindow

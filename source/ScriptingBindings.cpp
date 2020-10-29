@@ -35,11 +35,21 @@ extern void Log_(ConsoleLogType type, const char* fmt, ...);
 #define LogCommand(fmt, ...) Log_(ConsoleLogType_COMMAND, fmt, ##__VA_ARGS__)
 #endif
 
+#define LUASaveGetSet(POSTFIX, valueType) static valueType SaveGet##POSTFIX##(const char* key, valueType defaultValue) \
+{ \
+    return TableGet##POSTFIX##(&saveData, key, defaultValue); \
+} \
+static void SaveSet##POSTFIX##(const char* key, valueType value) \
+{ \
+    TableSet##POSTFIX##_(&permanentState->arena, &saveData, key, value); \
+}
+
 #define PushStruct(arena, type) (type *)PushSize_(arena, sizeof(type))
 #define PushArray(arena, count, type) (type *)PushSize_(arena, ((count)*sizeof(type)))
 #define PushSize(arena, size) PushSize_(arena, size)
-extern void* PushSize_(MemoryArena *arena, size_t size);
-extern void* PushSize_(TemporaryMemory *memory, size_t size);
+extern void *PushSize_(MemoryArena *arena, size_t size);
+extern void *PushSize_(TemporaryMemory *memory, size_t size);
+extern char *PushString(MemoryArena *arena, const char *string);
 
 // #NOTE(Juan): Engine
 extern Data *gameState;
@@ -48,10 +58,15 @@ extern SceneData *sceneState;
 extern TemporalData *temporalState;
 extern TemporaryMemory renderTemporaryMemory;
 
+extern SerializableTable* configSave;
+extern SerializableTable* saveData;
+
 extern void LoadScriptFile(char* filePath);
 extern void LoadLUALibrary(sol::lib library);
 
 // #NOTE (Juan): Bindings
+extern v2 V2(f32 x, f32 y);
+
 extern bool MouseOverRectangle(rectangle2 rectangle);
 extern bool ClickOverRectangle(rectangle2 rectangle, i32 button);
 extern bool ClickedOverRectangle(rectangle2 rectangle, i32 button);
@@ -82,12 +97,24 @@ extern void DrawChar(f32 posX, f32 posY, f32 scaleX, f32 scaleY, const char sing
 extern void DrawString(f32 posX, f32 posY, const char* string, u32 renderFlags);
 extern void DrawStyledString(f32 posX, f32 posY, f32 endX, f32 endY, const char* string, u32 renderFlags);
 extern bool DrawButton(f32 posX, f32 posY, f32 endX, f32 endY, f32 slice, const char* string, const char* buttonUp, const char* buttonDown);
+extern i32 DrawMultibutton(f32 posX, f32 posY, f32 endX, f32 height, f32 slice, f32 yPadding, const char* options, const char* buttonUp, const char* buttonDown);
 extern void DrawSetUniform(u32 locationID, UniformType type);
 extern void DrawOverrideProgram(u32 programID);
 extern void DrawOverrideVertices(f32* vertices, u32 count);
 extern void DrawOverrideIndices(u32* indices, u32 count);
 extern void End2D();
 extern v2 RenderToViewport(f32 screenX, f32 screenY, f32 size, f32 ratio);
+
+GenerateTableGetExtern(String, char*, "")
+GenerateTableSetExtern(String, const char*, SerializableType_STRING)
+GenerateTableGetExtern(Bool, bool, false)
+GenerateTableSetExtern(Bool, bool, SerializableType_BOOL)
+GenerateTableGetExtern(I32, i32, 0)
+GenerateTableSetExtern(I32, i32, SerializableType_I32)
+GenerateTableGetExtern(F32, f32, 0)
+GenerateTableSetExtern(F32, f32, SerializableType_F32)
+GenerateTableGetExtern(V2, v2, V2(0, 0))
+GenerateTableSetExtern(V2, v2, SerializableType_V2)
 
 extern f32* CreateQuadPosUV(f32 posStartX, f32 posStartY, f32 posEndX, f32 posEndY, f32 uvStartX, f32 uvStartY, f32 uvEndX, f32 uvEndY);
 extern i32 GL_GenerateFont(const char *filepath, f32 fontSize, u32 width, u32 height);
@@ -173,21 +200,33 @@ static void DrawDisableOverrideProgram()
     DrawOverrideProgram(0);
 }
 
-#define GenereateRenderTemporaryPush(PREFIX, type) static type* RenderTemporaryPush##PREFIX##(type value) \
-{ \
-    u32 size = sizeof(type); \
-    if(renderTemporaryMemory.arena->used + size < renderTemporaryMemory.arena->size) { \
-        type *valuePointer = (type*)PushSize(&renderTemporaryMemory, size); \
-        *valuePointer = value; \
-        return valuePointer; \
-    } \
-    else { \
-        InvalidCodePath; \
-        return 0; \
-    } \
+// #NOTE(Juan): Render
+
+static i32 DrawMultibuttonLUA(f32 posX, f32 posY, f32 endX, f32 height, f32 slice, f32 yPadding, const char* options, const char* buttonUp, const char* buttonDown)
+{
+    return DrawMultibutton(posX, posY, endX, height, slice, yPadding, options, buttonUp, buttonDown) + 1;
 }
-GenereateRenderTemporaryPush(Float, f32);
-GenereateRenderTemporaryPush(Vector2, v2);
+
+// #NOTE(Juan): Save
+// #TODO (Juan): Check strdup and see how to fix this
+static char* SaveGetString(const char* key, const char* defaultValue)
+{
+    char* temporalString = PushString(&temporalState->arena, defaultValue);
+    return TableGetString(&saveData, key, temporalString);
+}
+static void SaveSetString(const char* key, const char* value)
+{
+    char* permanentString = PushString(&permanentState->arena, value);
+    TableSetString_(&permanentState->arena, &saveData, key, permanentString);
+}
+
+LUASaveGetSet(Bool, bool)
+LUASaveGetSet(I32, i32)
+LUASaveGetSet(F32, f32)
+LUASaveGetSet(V2, v2)
+
+GenerateRenderTemporaryPush(Float, f32);
+GenerateRenderTemporaryPush(Vector2, v2);
 
 void ScriptingInitBindings()
 {
@@ -231,9 +270,11 @@ void ScriptingInitBindings()
     lua["screen"] = &gameState->render;
 
     sol::usertype<Time> time_usertype = lua.new_usertype<Time>("time");
+    time_usertype["startTime"] = &Time::startTime;
     time_usertype["gameTime"] = &Time::gameTime;
     time_usertype["deltaTime"] = &Time::deltaTime;
     time_usertype["lastFrameGameTime"] = &Time::lastFrameGameTime;
+    time_usertype["gameFrames"] = &Time::gameFrames;
     time_usertype["frames"] = &Time::frames;
     lua["time"] = &gameState->time;
         
@@ -280,6 +321,7 @@ void ScriptingInitBindings()
     lua["DrawString"] = DrawString;
     lua["DrawStyledString"] = DrawStyledString;
     lua["DrawButton"] = DrawButton;
+    lua["DrawMultibutton"] = DrawMultibuttonLUA;
     lua["DrawSetUniform"] = DrawSetUniform;
     lua["DrawOverrideProgram"] = DrawOverrideProgram;
     lua["DrawDisableOverrideProgram"] = DrawDisableOverrideProgram;
@@ -399,6 +441,18 @@ void ScriptingInitBindings()
     lua["LogConsole"] = LogConsole;
     lua["LogConsoleError"] = LogConsoleError;
     lua["LogConsoleCommand"] = LogConsoleCommand;
+
+    // #NOTE (Juan): Serialization
+    lua["SaveGetString"] = SaveGetString;
+    lua["SaveSetString"] = SaveSetString;
+    lua["SaveGetBool"] = SaveGetBool;
+    lua["SaveSetBool"] = SaveSetBool;
+    lua["SaveGetI32"] = SaveGetI32;
+    lua["SaveSetI32"] = SaveSetI32;
+    lua["SaveGetF32"] = SaveGetF32;
+    lua["SaveSetF32"] = SaveSetF32;
+    lua["SaveGetV2"] = SaveGetV2;
+    lua["SaveSetV2"] = SaveSetV2;
 }
 
 void ScriptingMathBindings()

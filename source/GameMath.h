@@ -362,7 +362,7 @@ rectangle2 Rectangle2MinMax(f32 minX, f32 minY, f32 maxX, f32 maxY)
     rectangle2 result;
 
     result.x = minX;
-    result.y = minX;
+    result.y = minY;
     result.width = maxX - minX;
     result.height = maxY - minY;
 
@@ -592,7 +592,7 @@ m44 ScaleM44(v3 vector)
     return ScaleM44(vector.x, vector.y, vector.z);
 }
 
-m44 operator * (m44 a, m44 b)
+m44 operator * (m44 b, m44 a)
 {
     m44 result;
 
@@ -613,7 +613,7 @@ m44 operator * (m44 a, m44 b)
 
 m44 &operator *= (m44 &a, m44 b)
 {
-    a = a * b;
+    a = b * a;
 
     return(a);
 }

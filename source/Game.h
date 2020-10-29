@@ -24,9 +24,8 @@ SceneData *sceneState;
 TemporalData *temporalState;
 TemporaryMemory renderTemporaryMemory;
 
-// NOTE(Juan): Temp test data, should be deleatedG
-b32 Running = false;
-b32 FullScreen = false;
+SerializableTable* configSave = 0;
+SerializableTable* saveData = 0;
 
 #ifdef LUA_SCRIPTING_ENABLED
 #include "LUA/sol.hpp"
@@ -91,7 +90,7 @@ static u32 GameLoop()
 {
     if(gameState->game.updateRunning) {
         f32 fps = (f32)(1 / gameState->time.deltaTime);
-        
+    
     #ifdef LUA_SCRIPTING_ENABLED
         sol::protected_function Update(lua["Update"]);
         if(Update.valid()) {
@@ -113,6 +112,21 @@ static u32 GameLoop()
 
 static u32 GameEnd()
 {
+    #ifdef LUA_SCRIPTING_ENABLED
+        sol::protected_function End(lua["End"]);
+        if(End.valid()) {
+            sol::protected_function_result result = End();
+            if (!result.valid()) {
+                sol::error error = result;
+                std::string what = error.what();
+                LogError("%s", what.c_str());
+            }
+        }
+        else {
+            LogError("Error on script 'End', not valid");
+        }
+    #endif
+
     return 0;
 }
 

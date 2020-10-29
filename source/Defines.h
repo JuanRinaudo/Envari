@@ -84,4 +84,54 @@ typedef double f64;
 
 #define ArrayCount(Array) (sizeof(Array) / sizeof((Array)[0]))
 
+#define GenerateTableGetExtern(POSTFIX, valueType, typeDefault) extern valueType TableGet##POSTFIX##(SerializableTable** table, const char* key, valueType defaultValue = typeDefault);
+#define GenerateTableGet(POSTFIX, valueType, typeDefault) valueType TableGet##POSTFIX##(SerializableTable** table, const char* key, valueType defaultValue = typeDefault) \
+{ \
+    SerializableValue* tableValue = shget(*table, key); \
+    if(tableValue) { \
+        return *((valueType*)tableValue->value); \
+    } \
+    else { \
+        return defaultValue; \
+    } \
+}
+
+#define GenerateTableSetExtern(POSTFIX, valueType, serializableType) extern void TableSet##POSTFIX##_(MemoryArena *arena, SerializableTable** table, const char* key, valueType value);
+#define GenerateTableSet(POSTFIX, valueType, serializableType) void TableSet##POSTFIX##_(MemoryArena *arena, SerializableTable** table, const char* key, valueType value) \
+{ \
+    SerializableValue* tableValue = shget(*table, key); \
+    if(tableValue) { \
+        *((valueType*)tableValue->value) = value; \
+    } \
+    else { \
+        char* keyPointer = PushString(arena, key); \
+        SerializableValue* tableValue = PushStruct(arena, SerializableValue); \
+        tableValue->value = PushSize(arena, sizeof(valueType)); \
+        *((valueType*)tableValue->value) = value; \
+        tableValue->type = serializableType; \
+        tableValue->count = 1; \
+        shput(*table, keyPointer, tableValue); \
+    } \
+}
+
+#define TableSetString(arena, table, key, value) TableSetString_(arena, table, key, value)
+#define TableSetBool(arena, table, key, value) TableSetBool_(arena, table, key, value)
+#define TableSetI32(arena, table, key, value) TableSetI32_(arena, table, key, value)
+#define TableSetF32(arena, table, key, value) TableSetF32_(arena, table, key, value)
+#define TableSetV2(arena, table, key, value) TableSetV2_(arena, table, key, value)
+
+#define GenerateRenderTemporaryPush(PREFIX, type) static type* RenderTemporaryPush##PREFIX##(type value) \
+{ \
+    u32 size = sizeof(type); \
+    if(renderTemporaryMemory.arena->used + size < renderTemporaryMemory.arena->size) { \
+        type *valuePointer = (type*)PushSize(&renderTemporaryMemory, size); \
+        *valuePointer = value; \
+        return valuePointer; \
+    } \
+    else { \
+        InvalidCodePath; \
+        return 0; \
+    } \
+}
+
 #endif
