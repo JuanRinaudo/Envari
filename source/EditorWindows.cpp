@@ -270,14 +270,21 @@ i32 CALLBACK WinMain(
         }
         gameState->time.lastFrameGameTime = startTime;
 
-        if(mouseOverPreview) {
-            gameState->input.mousePosition = RenderToViewport(editorPreview.cursorPosition.x, editorPreview.cursorPosition.y, gameState->camera.size, gameState->camera.ratio);
-        }
+        if(editorPreview.open) {
+            SDL_ShowCursor(editorPreview.cursorInsideWindow);
+            if(editorPreview.cursorInsideWindow) {
+                gameState->input.mousePosition = RenderToViewport(editorPreview.cursorPosition.x, editorPreview.cursorPosition.y, gameState->camera.size, gameState->camera.ratio);
 
-        SDL_ShowCursor(mouseOverPreview);
-        if(mouseOverPreview) {
-            ImGui::SetMouseCursor(ImGuiMouseCursor_None);
-            io.MouseDrawCursor = false;
+                ImGui::SetMouseCursor(ImGuiMouseCursor_None);
+                io.MouseDrawCursor = false;
+            }
+        }
+        else {
+            SDL_ShowCursor(mouseEnabled);
+            if(mouseEnabled) {
+                ImGui::SetMouseCursor(ImGuiMouseCursor_None);
+                io.MouseDrawCursor = false;
+            }
         }
 
         ImGui_ImplOpenGL3_NewFrame();
