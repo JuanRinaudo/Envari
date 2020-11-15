@@ -44,6 +44,11 @@ void LoadScriptFile(char* filePath)
     #endif
 }
 
+void LoadScriptFile(const char* filePath)
+{
+    LoadScriptFile((char*)filePath);
+}
+
 void ScriptingPanic(sol::optional<std::string> maybe_msg) {
     LogError("Lua is in a panic state and will now abort() the application");
 	if (maybe_msg) {

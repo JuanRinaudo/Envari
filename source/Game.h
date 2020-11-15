@@ -57,6 +57,7 @@ sol::state lua;
 #ifdef LUA_SCRIPTING_ENABLED
 #include "Scripting.h"
 #endif
+#include "Scene.h"
 
 #ifdef GAME_EDITOR
 #include "Editor.cpp"
@@ -64,6 +65,7 @@ sol::state lua;
 
 static u32 GameInit()
 {
+    gameState->game.version = 1;
     gameState->game.updateRunning = true;
 
 #ifdef LUA_SCRIPTING_ENABLED
@@ -106,6 +108,9 @@ static u32 GameLoop()
         }
     #endif
     }
+
+    DrawColor(1, 1, 1, 1);
+    DrawImage(gameState->input.mousePosition.x, gameState->input.mousePosition.y, 1, 1, IMAGES_CURSOR_POINTERFLAT_PNG);
 
     return 0;
 }

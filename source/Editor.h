@@ -22,6 +22,10 @@ PreviewWindow editorPreview;
 static void EditorInit(PreviewWindow* preview);
 static void EditorDraw(PreviewWindow* preview);
 
+static PerformanceDebuggerWindow editorPerformanceDebugger;
+static void EditorInit(PerformanceDebuggerWindow* debugger);
+static void EditorDraw(PerformanceDebuggerWindow* debugger);
+
 static RenderDebuggerWindow editorRenderDebugger;
 static void EditorInit(RenderDebuggerWindow* debugger);
 static void EditorDraw(RenderDebuggerWindow* debugger);

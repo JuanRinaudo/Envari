@@ -345,6 +345,8 @@ struct RenderState {
 struct Game {
     bool running;
     bool updateRunning;
+
+    i32 version;
 };
 
 struct Render {
@@ -391,6 +393,8 @@ struct Input
     v2 mousePosition;
     v2 mouseScreenPosition;
     i32 mouseWheel;
+    char textInputBuffer[TEXT_INPUT_BUFFER_COUNT];
+    i32 textInputIndex;
     u8 mouseState[MOUSE_COUNT];
     u8 keyState[KEY_COUNT];
 };

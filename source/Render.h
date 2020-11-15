@@ -204,6 +204,16 @@ void DrawString(f32 posX, f32 posY, const char* string, u32 renderFlags)
     text->header.size += text->stringSize;
 }
 
+void DrawStyledString(f32 posX, f32 posY, f32 endX, f32 endY, char* string, u32 renderFlags = 0)
+{    
+    RenderStyledText *text = RenderPushElement(&renderTemporaryMemory, RenderStyledText);
+    text->header.renderFlags = renderFlags;
+    text->position = V2(posX, posY);
+    text->endPosition = V2(endX, endY);
+    text->string = PushString(&renderTemporaryMemory, string, &text->stringSize);
+    text->header.size += text->stringSize;
+}
+
 void DrawStyledString(f32 posX, f32 posY, f32 endX, f32 endY, const char* string, u32 renderFlags = 0)
 {
     RenderStyledText *text = RenderPushElement(&renderTemporaryMemory, RenderStyledText);
@@ -212,6 +222,67 @@ void DrawStyledString(f32 posX, f32 posY, f32 endX, f32 endY, const char* string
     text->endPosition = V2(endX, endY);
     text->string = PushString(&renderTemporaryMemory, string, &text->stringSize);
     text->header.size += text->stringSize;
+}
+
+void ClearInputBuffer()
+{
+    gameState->input.textInputIndex = 0;
+    ZeroSize(TEXT_INPUT_BUFFER_COUNT, gameState->input.textInputBuffer);
+}
+
+bool DrawStringInput(f32 posX, f32 posY, f32 endX, f32 endY, const char* baseText, i32 maxSize = 0)
+{
+    if(maxSize == 0) {
+        maxSize = TEXT_INPUT_BUFFER_COUNT;
+    }
+
+    if(gameState->input.textInputBuffer[0] != 0) {
+        char* text = RenderPushString(&renderTemporaryMemory, gameState->input.textInputBuffer, maxSize);
+        DrawStyledString(posX, posY, endX, endY, text, 0);
+    }
+    else {
+        DrawColor(0.75f, 0.75f, 0.75f, 0.75f);
+        DrawStyledString(posX, posY, endX, endY, baseText, 0);
+    }
+
+    bool capsLock = (SDL_GetModState() & KMOD_CAPS) > 0;
+
+    char textShift = 0;
+    if(capsLock || gameState->input.keyState[SDL_SCANCODE_LSHIFT] > KEY_PRESSED || gameState->input.keyState[SDL_SCANCODE_RSHIFT] > KEY_PRESSED) {
+        textShift = -32;
+    }
+
+    int scancode = SDL_SCANCODE_A;
+    while(scancode <= SDL_SCANCODE_KP_PERIOD) {
+        if(gameState->input.keyState[scancode] == KEY_PRESSED) {
+            char keyCode = (char)SDL_GetKeyFromScancode((SDL_Scancode)scancode);
+            if(keyCode == '\b' && gameState->input.textInputIndex > 0) {
+                --gameState->input.textInputIndex;
+                gameState->input.textInputBuffer[gameState->input.textInputIndex] = 0;
+            }
+            else if(gameState->input.textInputIndex < maxSize && keyCode >= ' ' && keyCode <= '~') {
+                if(keyCode >= 'a' && keyCode <= 'z') {
+                    gameState->input.textInputBuffer[gameState->input.textInputIndex] = keyCode + textShift;
+                }
+                else {
+                    gameState->input.textInputBuffer[gameState->input.textInputIndex] = keyCode;
+                }
+                ++gameState->input.textInputIndex;
+            }
+        }
+
+        scancode++;
+        if(scancode == SDL_SCANCODE_SLASH) { // #NOTE (Juan): Jump after slash to KP_DIVIDE
+            scancode = SDL_SCANCODE_KP_DIVIDE;
+        }
+    }
+
+    if(gameState->input.keyState[SDL_SCANCODE_RETURN]) {
+        return true;
+    }
+    else {
+        return false;
+    }
 }
 
 void DrawSetUniform(u32 locationID, UniformType type)

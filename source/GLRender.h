@@ -1142,7 +1142,7 @@ static void GL_Render()
                 SetupModelUniforms(texturedProgram, renderState.renderColor, model, view, projection);
 
                 f32 posX = 0;
-                f32 posY = currentFont.fontSize;
+                f32 posY = currentFont.lineHeight;
                 stbtt_aligned_quad quad;
 
                 u32 lineCharacterCount = 0;
@@ -1191,7 +1191,7 @@ static void GL_Render()
                 SetupModelUniforms(texturedProgram, renderState.renderColor, model, view, projection);
 
                 f32 posX = 0;
-                f32 posY = currentFont.fontSize;
+                f32 posY = currentFont.lineHeight;
                 stbtt_aligned_quad quad;
 
                 bool letterWrap = (styledText->header.renderFlags & TextRenderFlag_LetterWrap) > 0;

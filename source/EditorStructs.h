@@ -58,6 +58,17 @@ enum TextureInspect
     TextureInspect_CACHE,
 };
 
+struct PerformanceDebuggerWindow
+{
+    bool open;
+
+    u32 updateTicks;
+    i64 updateCycles;
+    u32 luaUpdateTicks;
+    i64 luaUpdateCycles;
+    PROCESS_MEMORY_COUNTERS memoryCounters;
+};
+
 struct RenderDebuggerWindow
 {
     bool open;

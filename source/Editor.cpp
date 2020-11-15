@@ -56,6 +56,11 @@ static void EditorInit(PreviewWindow* preview)
     preview->open = true;
 }
 
+static void EditorInit(PerformanceDebuggerWindow* debugger)
+{
+    debugger->open = true;
+}
+
 static void EditorInit(RenderDebuggerWindow* debugger)
 {
     debugger->open = true;
@@ -285,6 +290,7 @@ static void EditorDraw(ConsoleWindow* console)
         }
         if (ImGui::BeginMenu("Debug"))
         {
+            if (ImGui::MenuItem("Performance")) { EditorInit(&editorPerformanceDebugger); }
             if (ImGui::MenuItem("Render")) { EditorInit(&editorRenderDebugger); }
             if (ImGui::MenuItem("Memory")) { EditorInit(&editorMemoryDebugger); }
             if (ImGui::MenuItem("Textures")) { EditorInit(&editorTextureDebugger); }
@@ -471,8 +477,7 @@ static void EditorDraw(PreviewWindow* preview)
     if(!preview->open) { return; };
     ImGui::SetNextWindowSize(ImVec2(400,300), ImGuiCond_FirstUseEver);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-    if (!ImGui::Begin("Preview", &preview->open))
-    {
+    if (!ImGui::Begin("Preview", &preview->open)) {
         ImGui::PopStyleVar();
         ImGui::End();
         return;
@@ -509,13 +514,43 @@ static void EditorDraw(PreviewWindow* preview)
     ImGui::End();
 }
 
+static void EditorDraw(PerformanceDebuggerWindow* debugger)
+{
+    if(!debugger->open) { return; };
+    ImGui::SetNextWindowSize(ImVec2(400,300), ImGuiCond_FirstUseEver);
+
+    if (!ImGui::Begin("Performance Debugger", &debugger->open)) {
+        ImGui::End();
+        return;
+    }
+    
+    ImGui::Text("Update: %d ticks %d cycles", debugger->updateTicks, debugger->updateCycles);
+    ImGui::Text("LUA Update: %d ticks %d cycles", debugger->luaUpdateTicks, debugger->luaUpdateCycles);
+
+    ImGui::Separator();
+
+    ImGui::Text("Memory: %d", debugger->memoryCounters.WorkingSetSize);
+    ImGui::Text("Peak memory: %d", debugger->memoryCounters.PeakWorkingSetSize);
+
+    if(ImGui::CollapsingHeader("Page Data")) {
+        ImGui::Text("Page faults: %d", debugger->memoryCounters.PageFaultCount);
+        ImGui::Text("Page file usage: %d", debugger->memoryCounters.PagefileUsage);
+        ImGui::Text("Peak page file usage: %d", debugger->memoryCounters.PeakPagefileUsage);
+        ImGui::Text("Quota page pool usage: %d", debugger->memoryCounters.QuotaPagedPoolUsage);
+        ImGui::Text("Quota non page pool usage: %d", debugger->memoryCounters.QuotaNonPagedPoolUsage);
+        ImGui::Text("Quota peak page pool usage: %d", debugger->memoryCounters.QuotaPeakPagedPoolUsage);
+        ImGui::Text("Quota peak non page pool usage: %d", debugger->memoryCounters.QuotaPeakNonPagedPoolUsage);
+    }
+    
+    ImGui::End();
+}
+
 static void EditorDraw(RenderDebuggerWindow* debugger)
 {
     if(!debugger->open) { return; };
     ImGui::SetNextWindowSize(ImVec2(400,300), ImGuiCond_FirstUseEver);
 
-    if (!ImGui::Begin("Render Debugger", &debugger->open))
-    {
+    if (!ImGui::Begin("Render Debugger", &debugger->open)) {
         ImGui::End();
         return;
     }
@@ -536,8 +571,7 @@ static void EditorDraw(MemoryDebuggerWindow* debugger)
     if(!debugger->open) { return; };
     ImGui::SetNextWindowSize(ImVec2(400,300), ImGuiCond_FirstUseEver);
 
-    if (!ImGui::Begin("Memory Debugger", &debugger->open))
-    {
+    if (!ImGui::Begin("Memory Debugger", &debugger->open)) {
         ImGui::End();
         return;
     }
@@ -562,8 +596,7 @@ static void EditorDraw(TextureDebuggerWindow* debugger)
     if(!debugger->open) { return; };
     ImGui::SetNextWindowSize(ImVec2(400,300), ImGuiCond_FirstUseEver);
 
-    if (!ImGui::Begin("Texture Debugger", &debugger->open))
-    {
+    if (!ImGui::Begin("Texture Debugger", &debugger->open)) {
         ImGui::End();
         return;
     }
@@ -827,6 +860,9 @@ static void EditorInit()
     editorPreview.open = TableGetBool(&editorSave, "editorPreviewOpen");
     if(editorPreview.open) { EditorInit(&editorPreview); }
 
+    editorPerformanceDebugger.open = TableGetBool(&editorSave, "editorPerformanceDebuggerOpen");
+    if(editorPerformanceDebugger.open) { EditorInit(&editorPerformanceDebugger); }
+
     editorRenderDebugger.open = TableGetBool(&editorSave, "editorRenderDebuggerOpen");
     if(editorRenderDebugger.open) { EditorInit(&editorRenderDebugger); }
 
@@ -846,6 +882,7 @@ static void EditorDrawAllOpen()
 {
     EditorDraw(&editorConsole);
     EditorDraw(&editorPreview);
+    EditorDraw(&editorPerformanceDebugger);
     EditorDraw(&editorRenderDebugger);
     EditorDraw(&editorMemoryDebugger);
     EditorDraw(&editorTextureDebugger);
@@ -860,6 +897,7 @@ static void EditorEnd()
     SerializableTable* editorSave = 0;
     TableSetBool(&permanentState->arena, &editorSave, "editorConsoleOpen", editorConsole.open);
     TableSetBool(&permanentState->arena, &editorSave, "editorPreviewOpen", editorPreview.open);
+    TableSetBool(&permanentState->arena, &editorSave, "editorPerformanceDebuggerOpen", editorPerformanceDebugger.open);
     TableSetBool(&permanentState->arena, &editorSave, "editorRenderDebuggerOpen", editorRenderDebugger.open);
     TableSetBool(&permanentState->arena, &editorSave, "editorMemoryDebuggerOpen", editorMemoryDebugger.open);
     TableSetBool(&permanentState->arena, &editorSave, "editorTextureDebuggerOpen", editorTextureDebugger.open);

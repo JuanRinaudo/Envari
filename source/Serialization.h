@@ -321,6 +321,12 @@ static void SerializeTable(SerializableTable** table, const char* filepath)
 
     if(file) {
         i32 tableSize = shlen(*table);
+        fputs("#version", file);
+        fputc(' ', file);
+        itoa(1, stringBuffer, 10);
+        fputs(stringBuffer, file);
+        fputs(";\n", file);
+
         for(i32 index = 0; index < tableSize; ++index) {
             SerializableTable data = (*table)[index];
             fputs(data.key, file);

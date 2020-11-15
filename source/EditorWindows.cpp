@@ -1,4 +1,5 @@
 #include <windows.h>
+#include <psapi.h>
 #include <chrono>
 #include <thread>
 
@@ -167,17 +168,22 @@ i32 CALLBACK WinMain(
     DeserializeTable(&permanentState->arena, &saveData, "saveData.save");
 
     EditorInit();
-    EditorInit(&editorConsole);
     
     GameInit();
 
     SoundInit();
 
+    HANDLE processHandle = GetCurrentProcess();
+
     gameState->game.running = true;
     auto start = std::chrono::steady_clock::now(); // #NOTE (Juan): Start timer for fps limit
     while (gameState->game.running)
     {
-        f32 startTime = SDL_GetTicks() / 1000.0f;
+        GetProcessMemoryInfo(processHandle , &editorPerformanceDebugger.memoryCounters, sizeof(PROCESS_MEMORY_COUNTERS));
+        i64 updateCyclesStart = __rdtsc();
+
+        u32 startTicks = SDL_GetTicks();
+        f32 startTime = startTicks / 1000.0f;
         gameState->time.startTime = startTime;
         gameState->time.deltaTime = startTime - gameState->time.lastFrameGameTime;
         gameState->time.frames++;
@@ -342,7 +348,7 @@ i32 CALLBACK WinMain(
                 
                 editorRenderDebugger.wireframeMode = tempWireframeMode;
 
-                gameState->camera.size = tempSize;
+            gameState->camera.size = tempSize;
                 gameState->camera.ratio = tempRatio;
                 gameState->camera.view = tempView;
                 gameState->camera.projection = tempProjection;
@@ -356,10 +362,13 @@ i32 CALLBACK WinMain(
 
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-        
-        SDL_GL_SwapWindow(sdlWindow);
 
         CheckInput();
+        
+        SDL_GL_SwapWindow(sdlWindow);
+        
+        editorPerformanceDebugger.updateTicks = SDL_GetTicks() - startTicks;
+        editorPerformanceDebugger.updateCycles = __rdtsc() - updateCyclesStart;
 
         if(fpsLimit > 0) {
             std::this_thread::sleep_until(end);

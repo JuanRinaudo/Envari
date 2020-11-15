@@ -96,6 +96,8 @@ extern void DrawSetFont(i32 fontID);
 extern void DrawChar(f32 posX, f32 posY, f32 scaleX, f32 scaleY, const char singleChar);
 extern void DrawString(f32 posX, f32 posY, const char* string, u32 renderFlags);
 extern void DrawStyledString(f32 posX, f32 posY, f32 endX, f32 endY, const char* string, u32 renderFlags);
+extern void ClearInputBuffer();
+extern bool DrawStringInput(f32 posX, f32 posY, f32 endX, f32 endY, const char* baseText, i32 maxSize);
 extern bool DrawButton(f32 posX, f32 posY, f32 endX, f32 endY, f32 slice, const char* string, const char* buttonUp, const char* buttonDown);
 extern i32 DrawMultibutton(f32 posX, f32 posY, f32 endX, f32 height, f32 slice, f32 yPadding, const char* options, const char* buttonUp, const char* buttonDown);
 extern void DrawSetUniform(u32 locationID, UniformType type);
@@ -115,6 +117,10 @@ GenerateTableGetExtern(F32, f32, 0)
 GenerateTableSetExtern(F32, f32, SerializableType_F32)
 GenerateTableGetExtern(V2, v2, V2(0, 0))
 GenerateTableSetExtern(V2, v2, SerializableType_V2)
+
+extern void LoadLUAScene(const char* luaFilepath);
+extern void UnloadLUAScene();
+extern void ClearLUAState();
 
 extern f32* CreateQuadPosUV(f32 posStartX, f32 posStartY, f32 posEndX, f32 posEndY, f32 uvStartX, f32 uvStartY, f32 uvEndX, f32 uvEndY);
 extern i32 GL_GenerateFont(const char *filepath, f32 fontSize, u32 width, u32 height);
@@ -253,6 +259,12 @@ void ScriptingInitBindings()
     lua["IntToChar"] = IntToChar;
 
     // #NOTE (Juan): Data
+    sol::usertype<Game> game_usertype = lua.new_usertype<Game>("game");
+    game_usertype["running"] = &Game::running;
+    game_usertype["updateRunning"] = &Game::updateRunning;
+    game_usertype["version"] = &Game::version;
+    lua["game"] = &gameState->game;
+
     sol::usertype<Camera> camera_usertype = lua.new_usertype<Camera>("camera");
     camera_usertype["size"] = &Camera::size;
     camera_usertype["ratio"] = &Camera::ratio;
@@ -281,10 +293,16 @@ void ScriptingInitBindings()
     sol::usertype<Input> input_usertype = lua.new_usertype<Input>("input");
     input_usertype["mousePosition"] = &Input::mousePosition;
     input_usertype["mouseScreenPosition"] = &Input::mouseScreenPosition;
+    input_usertype["mouseWheel"] = &Input::mouseWheel;
+    input_usertype["textInputBuffer"] = sol::property([](Input &input) { return input.textInputBuffer; });
     input_usertype["keyState"] = sol::property([](Input &input) { return &input.keyState; });
     input_usertype["mouseState"] = sol::property([](Input &input) { return &input.mouseState; });
     lua["input"] = &gameState->input;
 
+    lua["KEY_COUNT"] = KEY_COUNT;
+    lua["MOUSE_COUNT"] = MOUSE_COUNT;
+    lua["TEXT_INPUT_BUFFER_COUNT"] = TEXT_INPUT_BUFFER_COUNT;
+    
     lua["KEY_UP"] = KEY_UP;
     lua["KEY_RELEASED"] = KEY_RELEASED;
     lua["KEY_PRESSED"] = KEY_PRESSED;
@@ -320,6 +338,8 @@ void ScriptingInitBindings()
     lua["DrawChar"] = DrawChar;
     lua["DrawString"] = DrawString;
     lua["DrawStyledString"] = DrawStyledString;
+    lua["ClearInputBuffer"] = ClearInputBuffer;
+    lua["DrawStringInput"] = DrawStringInput;
     lua["DrawButton"] = DrawButton;
     lua["DrawMultibutton"] = DrawMultibuttonLUA;
     lua["DrawSetUniform"] = DrawSetUniform;
@@ -329,6 +349,10 @@ void ScriptingInitBindings()
     lua["DrawDisableOverrideVertices"] = DrawDisableOverrideVertices;
     lua["DrawOverrideIndices"] = DrawOverrideIndices;
     lua["DrawDisableOverrideIndices"] = DrawDisableOverrideIndices;
+    
+    lua["LoadLUAScene"] = LoadLUAScene;
+    lua["UnloadLUAScene"] = UnloadLUAScene;
+    lua["ClearLUAState"] = ClearLUAState;
 
     lua["RenderToViewport"] = RenderToViewport;
     

@@ -62,13 +62,12 @@ i32 CALLBACK WinMain(
     sceneState = (SceneData *)gameState->memory.sceneStorage;
     temporalState = (TemporalData *)gameState->memory.temporalStorage;
 
-    InitializeArena(&permanentState->arena, (size_t)(gameState->memory.permanentStorageSize - sizeof(PermanentData) - sizeof(Data)), (u8 *)gameState->memory.permanentStorage + sizeof(PermanentData) + sizeof(Data));
-    InitializeArena(&sceneState->arena, (size_t)(gameState->memory.sceneStorageSize - sizeof(SceneData)), (u8 *)gameState->memory.sceneStorage + sizeof(SceneData));
-    InitializeArena(&temporalState->arena, (size_t)(gameState->memory.temporalStorageSize - sizeof(TemporalData)), (u8 *)gameState->memory.temporalStorage + sizeof(TemporalData));
+    InitializeArena(&permanentState->arena, gameState->memory.permanentStorageSize, (u8 *)gameState->memory.permanentStorage, sizeof(PermanentData) + sizeof(Data));
+    InitializeArena(&sceneState->arena, gameState->memory.sceneStorageSize, (u8 *)gameState->memory.sceneStorage, sizeof(SceneData));
+    InitializeArena(&temporalState->arena, gameState->memory.temporalStorageSize, (u8 *)gameState->memory.temporalStorage, sizeof(TemporalData));
 
     DeserializeDataTable(&initialConfig, DATA_WINDOWSCONFIG_ENVT);
 
-    SerializableTable* configSave = 0;
     DeserializeTable(&permanentState->arena, &configSave, "config.save");
 
     // #TODO (Juan): Check this SDL_INIT_EVERYTHING, check what really needs to be init
@@ -147,10 +146,9 @@ i32 CALLBACK WinMain(
         gameState->render.frameBuffer = 0;
     }
     
-    GameInit();
-    
-    SerializableTable* saveData = 0;
     DeserializeTable(&permanentState->arena, &saveData, "saveData.save");
+    
+    GameInit();
 
     SoundInit();
 
@@ -160,10 +158,14 @@ i32 CALLBACK WinMain(
     auto start = std::chrono::steady_clock::now(); // #NOTE (Juan): Start timer for fps limit
     while (gameState->game.running)
     {
-        f32 gameTime = SDL_GetTicks() / 1000.0f;
-        gameState->time.gameTime = (f32)gameTime;
-        gameState->time.deltaTime = (f32)(gameTime - gameState->time.lastFrameGameTime);
+        f32 startTime = SDL_GetTicks() / 1000.0f;
+        gameState->time.startTime = startTime;
+        gameState->time.deltaTime = startTime - gameState->time.lastFrameGameTime;
         gameState->time.frames++;
+        if(gameState->game.updateRunning) {
+            gameState->time.gameTime += gameState->time.deltaTime;
+            gameState->time.gameFrames++;
+        }
 
         // #NOTE(Juan): Do a fps limit if enabled
         std::chrono::steady_clock::time_point end;
@@ -229,11 +231,7 @@ i32 CALLBACK WinMain(
                     break;
             }
         }
-        gameState->time.lastFrameGameTime = gameState->time.gameTime;
-
-#ifdef LUA_SCRIPTING_ENABLED
-        ScriptingWatchChanges();
-#endif
+        gameState->time.lastFrameGameTime = startTime;
 
         if(gameState->render.framebufferEnabled) {
             Begin2D(gameState->render.frameBuffer, (u32)gameState->render.bufferSize.x, (u32)gameState->render.bufferSize.y);
@@ -259,6 +257,7 @@ i32 CALLBACK WinMain(
             gameState->camera.ratio = (f32)gameState->render.size.x / (f32)gameState->render.size.y;
             gameState->camera.view = IdM44();
             gameState->camera.projection = OrtographicProjection(gameState->camera.size, gameState->camera.ratio, gameState->camera.nearPlane, gameState->camera.farPlane);
+
             Begin2D(0, (u32)gameState->render.size.x, (u32)gameState->render.size.y);
             DrawOverrideVertices(0, 0);
             DrawClear(0, 0, 0, 1);
@@ -283,19 +282,19 @@ i32 CALLBACK WinMain(
         }
     }
 
-    TableSetV2(&permanentState->arena, configSave, "windowPosition", gameState->render.windowPosition);
-    TableSetV2(&permanentState->arena, configSave, "windowSize", gameState->render.windowSize);
-    SerializeTable(&configSave, "config.save");
-
-    SerializeTable(&saveData, "saveData.save");
-
     GL_End();
     
-    SDL_GL_DeleteContext(glContext);  
+    SDL_GL_DeleteContext(glContext);
 
     GameEnd();
 
     ma_device_uninit(&soundDevice);
+
+    TableSetV2(&permanentState->arena, &configSave, "windowPosition", gameState->render.windowPosition);
+    TableSetV2(&permanentState->arena, &configSave, "windowSize", gameState->render.windowSize);
+    SerializeTable(&configSave, "config.save");
+
+    SerializeTable(&saveData, "saveData.save");
 
     return 0;
 }

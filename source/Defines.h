@@ -18,12 +18,14 @@
 #define MOD(a, m) ((a) % (m)) >= 0 ? ((a) % (m)) : (((a) % (m)) + (m))
 #define SQUARE(x) ((x) * (x))
 
-#define KEY_COUNT 500
+#define KEY_COUNT 512
 #define MOUSE_COUNT 8
 
 #define DATA_MAX_TOKEN_COUNT 256
 
 #define CONSOLE_INPUT_BUFFER_COUNT 256
+
+#define TEXT_INPUT_BUFFER_COUNT 256
 
 #define KEY_UP 0
 #define KEY_RELEASED 1
