@@ -75,7 +75,7 @@ static void EditorInit(TextureDebuggerWindow* debugger)
 {
     debugger->open = true;
 
-    debugger->textureID = 0;
+    debugger->textureIndex = 0;
     debugger->inspectMode = TextureInspect_CACHE;
 }
 
@@ -614,24 +614,25 @@ static void EditorDraw(TextureDebuggerWindow* debugger)
     i32 textureID = 0;
 
     i32 textureCacheSize = shlen(textureCache);
-    if(debugger->inspectMode == TextureInspect_CACHE && debugger->textureID < textureCacheSize)
+    if(debugger->inspectMode == TextureInspect_CACHE && debugger->textureIndex < textureCacheSize)
     {
-        ImGui::Text("Texture Cache ID: %d / %d", debugger->textureID + 1, textureCacheSize);
+        ImGui::Text("Texture Cache ID: %d / %d", debugger->textureIndex, textureCacheSize);
         
         ImGui::SameLine();
         if (ImGui::SmallButton("Prev")) {
-            debugger->textureID--;
+            debugger->textureIndex--;
         }
         ImGui::SameLine();
         if (ImGui::SmallButton("Next")) {
-            debugger->textureID++;
+            debugger->textureIndex++;
         }
 
-        if(debugger->textureID < 0) { debugger->textureID = textureCacheSize - 1; }
-        if(debugger->textureID >= textureCacheSize) { debugger->textureID = 0; }
+        if(debugger->textureIndex < 0) { debugger->textureIndex = textureCacheSize - 1; }
+        if(debugger->textureIndex >= textureCacheSize) { debugger->textureIndex = 0; }
 
-        GLTexture cachedTexture = textureCache[debugger->textureID].value;
+        GLTexture cachedTexture = textureCache[debugger->textureIndex].value;
 
+        ImGui::Text("Texture ID: %d", cachedTexture.textureID);
         ImGui::Text("Texture Size: %d x %d", cachedTexture.width, cachedTexture.height);
 
         ImGui::Separator();
@@ -642,11 +643,11 @@ static void EditorDraw(TextureDebuggerWindow* debugger)
         textureID = cachedTexture.textureID;
     }
     else if(debugger->inspectMode == TextureInspect_ALL) {
-        ImGui::InputInt("Texture ID", &debugger->textureID, 1, 1);
+        ImGui::InputInt("Texture ID", &debugger->textureIndex, 1, 1);
         ImGui::InputInt("Texture Width", &debugger->textureWidth, 1, 1);
         ImGui::InputInt("Texture Height", &debugger->textureHeight, 1, 1);
 
-        textureID = debugger->textureID;
+        textureID = debugger->textureIndex;
     }
 
     ImGui::BeginChild("Texture", ImVec2(0, 0), true, ImGuiWindowFlags_AlwaysVerticalScrollbar | ImGuiWindowFlags_AlwaysHorizontalScrollbar | ImGuiWindowFlags_NavFlattened);

@@ -16,6 +16,7 @@
 #include "GameStructs.h"
 
 #ifdef GAME_EDITOR
+#include <psapi.h>
 #include "IMGUI/imgui.h"
 #include "EditorStructs.h"
 extern ConsoleWindow editorConsole;
@@ -63,6 +64,9 @@ extern SerializableTable* saveData;
 
 extern void LoadScriptFile(char* filePath);
 extern void LoadLUALibrary(sol::lib library);
+
+// #NOTE (Juan): Input
+extern void SetCursorTexture(GLTexture texture); 
 
 // #NOTE (Juan): Bindings
 extern v2 V2(f32 x, f32 y);
@@ -123,6 +127,7 @@ extern void UnloadLUAScene();
 extern void ClearLUAState();
 
 extern f32* CreateQuadPosUV(f32 posStartX, f32 posStartY, f32 posEndX, f32 posEndY, f32 uvStartX, f32 uvStartY, f32 uvEndX, f32 uvEndY);
+extern GLTexture GL_LoadTextureFile(const char *texturePath);
 extern i32 GL_GenerateFont(const char *filepath, f32 fontSize, u32 width, u32 height);
 extern i32 GL_CompileProgram(const char *vertexShaderSource, const char *fragmentShaderSource);
 extern i32 GL_CompileProgramPlatform(const char *vertexShaderPlatform, const char *fragmentShaderPlatform);
@@ -206,8 +211,14 @@ static void DrawDisableOverrideProgram()
     DrawOverrideProgram(0);
 }
 
-// #NOTE(Juan): Render
+// #NOTE(Juan): GLRender
+GLTexture LoadTexture(const char* filePath)
+{
+    GLTexture texture = GL_LoadTextureFile(filePath);
+    return texture;
+}
 
+// #NOTE(Juan): Render
 static i32 DrawMultibuttonLUA(f32 posX, f32 posY, f32 endX, f32 height, f32 slice, f32 yPadding, const char* options, const char* buttonUp, const char* buttonDown)
 {
     return DrawMultibutton(posX, posY, endX, height, slice, yPadding, options, buttonUp, buttonDown) + 1;
@@ -291,6 +302,7 @@ void ScriptingInitBindings()
     lua["time"] = &gameState->time;
         
     sol::usertype<Input> input_usertype = lua.new_usertype<Input>("input");
+    input_usertype["mouseTextureID"] = &Input::mouseTextureID;
     input_usertype["mousePosition"] = &Input::mousePosition;
     input_usertype["mouseScreenPosition"] = &Input::mouseScreenPosition;
     input_usertype["mouseWheel"] = &Input::mouseWheel;
@@ -298,6 +310,8 @@ void ScriptingInitBindings()
     input_usertype["keyState"] = sol::property([](Input &input) { return &input.keyState; });
     input_usertype["mouseState"] = sol::property([](Input &input) { return &input.mouseState; });
     lua["input"] = &gameState->input;
+
+    lua["SetCursorTexture"] = SetCursorTexture;
 
     lua["KEY_COUNT"] = KEY_COUNT;
     lua["MOUSE_COUNT"] = MOUSE_COUNT;
@@ -367,8 +381,15 @@ void ScriptingInitBindings()
     lua["PerspectiveProjection"] = PerspectiveProjection;
     lua["OrtographicProjection"] = sol::resolve<m44(f32, f32, f32, f32)>(OrtographicProjection);
 
-    // #NOTE (Juan): GLRender
+    // #NOTE (Juan): GLRender    
+    sol::usertype<GLTexture> gltexture_usertype = lua.new_usertype<GLTexture>("gltexture");
+    gltexture_usertype["textureID"] = &GLTexture::textureID;
+    gltexture_usertype["width"] = &GLTexture::width;
+    gltexture_usertype["height"] = &GLTexture::height;
+    gltexture_usertype["channels"] = &GLTexture::channels;
+
     lua["CreateQuadPosUV"] = CreateQuadPosUV;
+    lua["LoadTexture"] = LoadTexture;
     lua["GenerateFont"] = GL_GenerateFont;
     lua["CompileProgram"] = GL_CompileProgram;
     lua["CompileProgramPlatform"] = GL_CompileProgramPlatform;

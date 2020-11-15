@@ -104,15 +104,28 @@ static i32 GL_AvailableGPUMemoryKB()
     return availableMemoryInKB;
 }
 
-static GLTexture GL_LoadTexture(const char *textureKey)
+static u32 GL_LoadTextureMemory(u8 *data, i32 width, i32 height)
 {
-    i32 index = (i32)shgeti(textureCache, textureKey);
+    u32 textureID;
+    glGenTextures(1, &textureID);
+    glBindTexture(GL_TEXTURE_2D, textureID);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+    glGenerateMipmap(GL_TEXTURE_2D);
+    
+    glBindTexture(GL_TEXTURE_2D, textureID);
+    
+    return textureID;
+}
+
+GLTexture GL_LoadTextureFile(const char *texturePath)
+{
+    i32 index = (i32)shgeti(textureCache, texturePath);
     GLTexture texture;
     if(index > -1) {
-        texture = shget(textureCache, textureKey);
+        texture = shget(textureCache, texturePath);
     } else {
         i32 width, height, channels;
-        unsigned char *data = stbi_load(textureKey, &width, &height, &channels, 0);
+        u8 *data = stbi_load(texturePath, &width, &height, &channels, 0);
 
         u32 textureID;
         glGenTextures(1, &textureID);
@@ -124,7 +137,7 @@ static GLTexture GL_LoadTexture(const char *textureKey)
         texture.width = width;
         texture.height = height;
         texture.channels = channels;
-        shput(textureCache, PushString(&sceneState->arena, textureKey), texture);
+        shput(textureCache, PushString(&sceneState->arena, texturePath), texture);
 
         stbi_image_free(data);
     }
@@ -929,6 +942,7 @@ static void GL_Render()
                 SetupModelUniforms(texturedProgram, renderState.renderColor, model, view, projection);
 
                 glBindTexture(GL_TEXTURE_2D, texture->textureID);
+                glUniform2f(textureSizeLocation, texture->scale.x, texture->scale.y);
                 SetupTextureParameters(GL_TEXTURE_2D);
 
                 BindBuffer();
@@ -946,7 +960,7 @@ static void GL_Render()
 
                 UseProgram(texturedProgram);
 
-                GLTexture texture = GL_LoadTexture(image->filepath);
+                GLTexture texture = GL_LoadTextureFile(image->filepath);
                 SetupTextureParameters(GL_TEXTURE_2D);
 
                 image->scale.x *= texture.width;
@@ -996,7 +1010,7 @@ static void GL_Render()
 
                 UseProgram(texturedProgram);
 
-                GLTexture texture = GL_LoadTexture(imageUV->filepath);
+                GLTexture texture = GL_LoadTextureFile(imageUV->filepath);
                 SetupTextureParameters(GL_TEXTURE_2D);
 
                 imageUV->scale.x *= texture.width;
@@ -1029,7 +1043,7 @@ static void GL_Render()
 
                 UseProgram(textured9SliceProgram);
 
-                GLTexture texture = GL_LoadTexture(image9Slice->filepath);
+                GLTexture texture = GL_LoadTextureFile(image9Slice->filepath);
                 SetupTextureParameters(GL_TEXTURE_2D);
 
                 v2 box = V2((f32)(image9Slice->endPosition.x - image9Slice->position.x), (f32)(image9Slice->endPosition.y - image9Slice->position.y));
@@ -1059,7 +1073,7 @@ static void GL_Render()
                 TextureAtlas textureAtlas = GL_LoadAtlas(atlas->atlasName);
                 rectangle2 spriteRect = shget(textureAtlas.sprites, atlas->spriteKey);
 
-                GLTexture texture = GL_LoadTexture(atlas->filepath);
+                GLTexture texture = GL_LoadTextureFile(atlas->filepath);
                 SetupTextureParameters(GL_TEXTURE_2D);
 
                 atlas->scale.x *= spriteRect.width;
@@ -1098,7 +1112,7 @@ static void GL_Render()
 
                 UseProgram(fontProgram);
 
-                GLTexture texture = GL_LoadTexture(currentFont.fontFilepath);
+                GLTexture texture = GL_LoadTextureFile(currentFont.fontFilepath);
                 SetupTextureParameters(GL_TEXTURE_2D);
 
                 model *= ScaleM44(renderChar->scale);
@@ -1132,7 +1146,7 @@ static void GL_Render()
 
                 UseProgram(fontProgram);
 
-                GLTexture texture = GL_LoadTexture(currentFont.fontFilepath);
+                GLTexture texture = GL_LoadTextureFile(currentFont.fontFilepath);
                 SetupTextureParameters(GL_TEXTURE_2D);
 
                 v2 textSize = CalculateTextSize(&currentFont, text->string, text->stringSize);
@@ -1175,7 +1189,7 @@ static void GL_Render()
 
                 UseProgram(fontProgram);
 
-                GLTexture texture = GL_LoadTexture(currentFont.fontFilepath);
+                GLTexture texture = GL_LoadTextureFile(currentFont.fontFilepath);
                 SetupTextureParameters(GL_TEXTURE_2D);
 
                 v2 containerSize = V2(styledText->endPosition.x - styledText->position.x, styledText->endPosition.y - styledText->position.y);
