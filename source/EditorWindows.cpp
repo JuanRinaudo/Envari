@@ -275,7 +275,7 @@ i32 CALLBACK WinMain(
             }
         }
         gameState->time.lastFrameGameTime = startTime;
-
+        
         if(editorPreview.open) {
             SDL_ShowCursor(editorPreview.cursorInsideWindow);
             if(editorPreview.cursorInsideWindow) {

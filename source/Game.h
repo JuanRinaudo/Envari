@@ -109,8 +109,10 @@ static u32 GameLoop()
     #endif
     }
 
-    DrawColor(1, 1, 1, 1);
-    DrawImage(gameState->input.mousePosition.x, gameState->input.mousePosition.y, 1, 1, IMAGES_CURSOR_POINTERFLAT_PNG);
+    if(gameState->input.mouseTextureID) {
+        DrawColor(1, 1, 1, 1);
+        DrawTexture(gameState->input.mousePosition.x, gameState->input.mousePosition.y, gameState->input.mouseTextureSize.x, gameState->input.mouseTextureSize.y, gameState->input.mouseTextureID);
+    }
 
     return 0;
 }

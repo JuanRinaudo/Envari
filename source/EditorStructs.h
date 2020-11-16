@@ -89,7 +89,7 @@ struct TextureDebuggerWindow
 {
     bool open;
 
-    i32 textureID;
+    i32 textureIndex;
     i32 textureWidth;
     i32 textureHeight;
     TextureInspect inspectMode;

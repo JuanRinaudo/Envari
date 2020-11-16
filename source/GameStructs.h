@@ -390,6 +390,8 @@ struct Memory {
 
 struct Input
 {
+    u32 mouseTextureID;
+    v2 mouseTextureSize;
     v2 mousePosition;
     v2 mouseScreenPosition;
     i32 mouseWheel;
