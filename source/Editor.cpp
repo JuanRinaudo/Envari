@@ -854,7 +854,8 @@ static void EditorInit()
     SerializableTable* editorSave = 0;
     DeserializeTable(&permanentState->arena, &editorSave, "editor.save");
     
-    editorConsole.open = TableGetBool(&editorSave, "editorConsoleOpen");
+    // editorConsole.open = TableGetBool(&editorSave, "editorConsoleOpen");
+    editorConsole.open = true;
     if(editorConsole.open) { EditorInit(&editorConsole); }
 
     editorPreview.open = TableGetBool(&editorSave, "editorPreviewOpen");
