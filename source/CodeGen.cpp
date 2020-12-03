@@ -1,3 +1,5 @@
+#include <windows.h>
+#include <psapi.h>
 #include <thread>
 #include <iostream>
 #include <fstream>

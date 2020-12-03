@@ -27,6 +27,7 @@ static u32 textured9SliceProgram;
 static u32 colorLocation;
 static u32 mvpLocation;
 
+static u32 bufferSizeLocation;
 static u32 textureSizeLocation;
 static u32 dimensionsLocation;
 static u32 borderLocation;
@@ -258,6 +259,24 @@ static void GL_InitFramebuffer(i32 bufferWidth, i32 bufferHeight)
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "STB/stb_image_write.h"
 
+void WritePNG(char *filename, int x, int y, int comp, void *data, int stride_bytes)
+{
+    stbi_write_png(filename, x, y, comp, data, stride_bytes);
+    free(filename);
+    free(data);
+}
+
+void GL_DumpTexture(const char *filepath, i32 textureID, u32 width, u32 height)
+{
+    u8* data = (u8*)malloc(width * height * 3);
+    glBindTexture(GL_TEXTURE_2D, textureID);
+    glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+    char* savePath = (char*)malloc(strlen(filepath));
+    strcpy(savePath, filepath);
+    std::thread saveImage(WritePNG, savePath, width, height, 3, data, width * 3);
+    saveImage.detach();
+}
+
 i32 GL_GenerateFont(const char *filepath, f32 fontSize, u32 width, u32 height)
 {
     FontAtlas result;
@@ -273,8 +292,6 @@ i32 GL_GenerateFont(const char *filepath, f32 fontSize, u32 width, u32 height)
 
     u8* tempBitmap = PushArray(&temporalState->arena, width * height, u8);
     stbtt_BakeFontBitmap((u8 *)data, 0, fontSize, tempBitmap, width, height, SPECIAL_ASCII_CHAR_OFFSET, FONT_CHAR_SIZE, result.charData); // no guarantee this fits!
-
-    // stbi_write_png("bakedFont.png", width, height, 1, tempBitmap, width);
 
     u32 textureID;
     glGenTextures(1, &textureID);
@@ -641,10 +658,16 @@ static void UseProgram(u32 programID)
 
         textureSizeLocation = glGetUniformLocation(programID, "textureSize");
 
+        bufferSizeLocation = glGetUniformLocation(programID, "bufferSize");
+        glUniform2f(bufferSizeLocation, gameState->render.bufferSize.x, gameState->render.bufferSize.y);
         timeLocation = glGetUniformLocation(programID, "time");
-        glUniform1f(timeLocation, gameState->time.gameTime);
 
         renderState.currentProgram = programID;
+    }
+
+    if(timeLocation != 0)
+    {
+        glUniform1f(timeLocation, gameState->time.gameTime);
     }
 }
 
@@ -874,6 +897,8 @@ static void GL_Render()
 
                 glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)0);
                 glEnableVertexAttribArray(0);
+                glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)(3 * sizeof(f32)));
+                glEnableVertexAttribArray(1);
 
                 glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
                 break;

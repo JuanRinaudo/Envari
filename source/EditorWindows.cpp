@@ -56,15 +56,15 @@ i32 CALLBACK WinMain(
     LPSTR CommandLine,
     i32 ShowCode)
 {
-    size_t permanentStorageSize = Megabytes(32);
+    size_t permanentStorageSize = Megabytes(64);
     void* permanentStorage = malloc(permanentStorageSize);
 
     gameState = (Data *)permanentStorage;
     gameState->memory.permanentStorageSize = permanentStorageSize;
     gameState->memory.permanentStorage = permanentStorage;
-    gameState->memory.sceneStorageSize = Megabytes(32);
+    gameState->memory.sceneStorageSize = Megabytes(64);
     gameState->memory.sceneStorage = malloc(gameState->memory.sceneStorageSize);
-    gameState->memory.temporalStorageSize = Megabytes(32);
+    gameState->memory.temporalStorageSize = Megabytes(64);
     gameState->memory.temporalStorage = malloc(gameState->memory.temporalStorageSize);
 
     permanentState = (PermanentData *)gameState->memory.permanentStorage + sizeof(Data);
@@ -137,7 +137,8 @@ i32 CALLBACK WinMain(
 	}
 
     i32 fpsLimit = TableGetInt(&initialConfig, EDITORCONFIG_FPSLIMIT);
-    i32 fpsDelta = 1000 / fpsLimit;
+    i32 fpsFixed = TableGetInt(&initialConfig, EDITORCONFIG_FPSFIXED);
+    f32 fpsDelta = 1000.0f / fpsLimit;
     i32 vsync = TableGetInt(&initialConfig, EDITORCONFIG_VSYNC);
     SDL_GL_SetSwapInterval(vsync);
 
@@ -168,12 +169,17 @@ i32 CALLBACK WinMain(
     DeserializeTable(&permanentState->arena, &saveData, "saveData.save");
 
     EditorInit();
+
+    gameState->time.gameFrames = -1;
+    gameState->time.frames = -1;
     
     GameInit();
 
     SoundInit();
 
     HANDLE processHandle = GetCurrentProcess();
+
+    editorRenderDebugger.recording = false;
 
     gameState->game.running = true;
     auto start = std::chrono::steady_clock::now(); // #NOTE (Juan): Start timer for fps limit
@@ -182,23 +188,34 @@ i32 CALLBACK WinMain(
         GetProcessMemoryInfo(processHandle , &editorPerformanceDebugger.memoryCounters, sizeof(PROCESS_MEMORY_COUNTERS));
         i64 updateCyclesStart = __rdtsc();
 
-        u32 startTicks = SDL_GetTicks();
-        f32 startTime = startTicks / 1000.0f;
-        gameState->time.startTime = startTime;
-        gameState->time.deltaTime = startTime - gameState->time.lastFrameGameTime;
-        gameState->time.frames++;
-        if(gameState->game.updateRunning) {
-            gameState->time.gameTime += gameState->time.deltaTime;
-            gameState->time.gameFrames++;
+        u32 startTicks = 0;
+        f32 startTime = 0;
+        if(fpsFixed > 0)
+        {
+            gameState->time.deltaTime = 1.0f / fpsFixed;
+            gameState->time.startTime += gameState->time.deltaTime;
+            startTicks = (u32)(gameState->time.startTime * 1000);
+            startTime = gameState->time.startTime;
         }
+        else
+        {
+            startTicks = SDL_GetTicks();
+            startTime = startTicks / 1000.0f;
+            gameState->time.startTime = startTime;
+            gameState->time.deltaTime = startTime - gameState->time.lastFrameGameTime;
+        }
+
+        gameState->time.frames++;
 
         // #NOTE(Juan): Do a fps limit if enabled
         std::chrono::steady_clock::time_point end;
         if(fpsLimit > 0) {
             auto now = std::chrono::steady_clock::now();
-            i64 epochTime = now.time_since_epoch().count() / 1000000;
+            i64 epochTime = now.time_since_epoch().count();
+            i64 deltaFPSNanoseconds = (u32)(fpsDelta * 1000000);
+            end = now + std::chrono::nanoseconds(deltaFPSNanoseconds - epochTime % deltaFPSNanoseconds);
+
             auto diff = now - start;
-            end = now + std::chrono::milliseconds(fpsDelta - epochTime % fpsDelta);
             if(diff >= std::chrono::seconds(1))
             {
                 start = now;
@@ -275,7 +292,20 @@ i32 CALLBACK WinMain(
             }
         }
         gameState->time.lastFrameGameTime = startTime;
-        
+     
+        if(editorRenderDebugger.recording) {
+            char test[256] = "dump/frame_001.png";
+            test[11] = (gameState->time.gameFrames / 100) % 10 + 48;
+            test[12] = (gameState->time.gameFrames / 10) % 10 + 48;
+            test[13] = (gameState->time.gameFrames) % 10 + 48;
+            GL_DumpTexture(test, 1, 512, 512);
+        }
+
+        if(gameState->game.updateRunning) {
+            gameState->time.gameTime += gameState->time.deltaTime;
+            gameState->time.gameFrames++;
+        }
+
         if(editorPreview.open) {
             SDL_ShowCursor(editorPreview.cursorInsideWindow);
             if(editorPreview.cursorInsideWindow) {
@@ -348,13 +378,13 @@ i32 CALLBACK WinMain(
                 
                 editorRenderDebugger.wireframeMode = tempWireframeMode;
 
-            gameState->camera.size = tempSize;
+                gameState->camera.size = tempSize;
                 gameState->camera.ratio = tempRatio;
                 gameState->camera.view = tempView;
                 gameState->camera.projection = tempProjection;
             }
             else {
-                glViewport(0,0, (u32)gameState->render.size.x, (u32)gameState->render.size.y);
+                glViewport(0, 0, (u32)gameState->render.size.x, (u32)gameState->render.size.y);
                 glClearColor(0, 0, 0, 1);
                 glClear(GL_COLOR_BUFFER_BIT);
             }
@@ -367,7 +397,10 @@ i32 CALLBACK WinMain(
         
         SDL_GL_SwapWindow(sdlWindow);
         
-        editorPerformanceDebugger.updateTicks = SDL_GetTicks() - startTicks;
+        if(fpsFixed == 0)
+        {
+            editorPerformanceDebugger.updateTicks = SDL_GetTicks() - startTicks;
+        }
         editorPerformanceDebugger.updateCycles = __rdtsc() - updateCyclesStart;
 
         if(fpsLimit > 0) {

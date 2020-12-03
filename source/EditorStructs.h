@@ -73,6 +73,7 @@ struct RenderDebuggerWindow
 {
     bool open;
 
+    bool recording;
     i32 renderMemory;
     i32 drawCount;
     i32 programChanges;

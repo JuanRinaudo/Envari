@@ -563,6 +563,10 @@ static void EditorDraw(RenderDebuggerWindow* debugger)
 
     ImGui::Checkbox("Wireframe Mode", &debugger->wireframeMode);
     
+    ImGui::Separator();
+
+    ImGui::Checkbox("Recording", &debugger->recording);
+    
     ImGui::End();
 }
 
