@@ -1346,15 +1346,4 @@ static void GL_Render()
     }
 }
 
-static void GL_End()
-{
-    glDeleteVertexArrays(1, &quadBuffer.vertexArray);
-    glDeleteBuffers(1, &quadBuffer.vertexBuffer);
-    glDeleteBuffers(1, &quadBuffer.indexBuffer);
-    
-    glDeleteVertexArrays(1, &customBuffer.vertexArray);
-    glDeleteBuffers(1, &customBuffer.vertexBuffer);
-    glDeleteBuffers(1, &customBuffer.indexBuffer);
-}
-
 #endif

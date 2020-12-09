@@ -1,22 +1,6 @@
 #ifndef GAMESTRUCTS_H
 #define GAMESTRUCTS_H
 
-// #NOTE (Juan): Memory
-struct MemoryArena {
-    size_t size;
-    u8 *base;
-    size_t used;
-
-    u32 tempCount;
-    size_t dataSize;
-};
-
-struct TemporaryMemory
-{
-    MemoryArena *arena;
-    size_t used;
-};
-
 // #NOTE (Juan): Render
 struct GLRenderBuffer {
     u32 vertexArray;

@@ -2,6 +2,7 @@
 #define GAME_H
 
 #include "Defines.h"
+#include "Memory.h"
 
 #include "IMGUI/imgui.h"
 
@@ -40,7 +41,6 @@ sol::state lua;
 #include "IMGUI/imgui.h"
 
 #include "GameMath.h"
-#include "Memory.h"
 #include "File.h"
 #ifdef GAME_EDITOR
 #include "Editor.h"
@@ -85,14 +85,11 @@ static u32 GameInit()
     }
 #endif
     
-    return 0;
+    return 1;
 }
 
-static u32 GameLoop()
+static u32 ScriptingUpdate()
 {
-    if(gameState->game.updateRunning) {
-        f32 fps = (f32)(1 / gameState->time.deltaTime);
-    
     #ifdef LUA_SCRIPTING_ENABLED
         sol::protected_function Update(lua["Update"]);
         if(Update.valid()) {
@@ -107,6 +104,14 @@ static u32 GameLoop()
             LogError("Error on script 'Update', not valid");
         }
     #endif
+
+    return 1;
+}
+
+static u32 GameUpdate()
+{
+    if(gameState->game.updateRunning) {
+        f32 fps = (f32)(1 / gameState->time.deltaTime);
     }
 
     if(gameState->input.mouseTextureID) {
@@ -114,7 +119,7 @@ static u32 GameLoop()
         DrawTexture(gameState->input.mousePosition.x, gameState->input.mousePosition.y, gameState->input.mouseTextureSize.x, gameState->input.mouseTextureSize.y, gameState->input.mouseTextureID);
     }
 
-    return 0;
+    return 1;
 }
 
 static u32 GameEnd()
@@ -134,7 +139,7 @@ static u32 GameEnd()
         }
     #endif
 
-    return 0;
+    return 1;
 }
 
 #endif

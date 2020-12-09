@@ -10,6 +10,15 @@ union v2
     f32 e[2];
 };
 
+union v2i
+{
+    struct
+    {
+        i32 x, y;
+    };
+    i32 e[2];
+};
+
 union v3
 {
     struct
@@ -19,11 +28,6 @@ union v3
     struct
     {
         f32 r, g, b;
-    };
-    struct
-    {
-        v2 xy;
-        f32 IgnoredZ_;
     };
     f32 e[3];
 };

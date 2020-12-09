@@ -261,7 +261,8 @@ static void main_loop()
             Begin2D(0, (u32)gameState->render.width, (u32)gameState->render.height);
         }
 
-        GameLoop();
+        ScriptingUpdate();
+        GameUpdate();
 
         GL_Render();
 
@@ -310,14 +311,5 @@ static void main_loop()
 
 static void main_end()
 {
-    GL_End();
-    
-    SDL_GL_DeleteContext(glContext);
-
-    ImGui_ImplOpenGL3_Shutdown();
-    ImGui_ImplSDL2_Shutdown();
-
     GameEnd();
-
-    ma_device_uninit(&soundDevice);
 }

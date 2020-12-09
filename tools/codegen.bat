@@ -12,16 +12,19 @@ set CommonLinkerFlags=-incremental:no -opt:ref user32.lib gdi32.lib kernel32.lib
 
 if not exist build mkdir build
 pushd build
+if not exist tools mkdir tools
+pushd tools
 if not exist codegen mkdir codegen
 pushd codegen
 
 del /F *.pdb >NUL 2>NUL
 
-cl -MD %CommonCompilerFlags% ..\..\Envari\source\CodeGen.cpp -FmCodeGen.map -EHsc -Bt -std:c++17 -I ..\..\Envari\LUA\include -link -LIBPATH:"..\..\Envari\LUA\lib\x86" %CommonLinkerFlags% -PDB:CodeGen_%random%.pdb
+cl -MD %CommonCompilerFlags% ..\..\..\Envari\source\Tools\CodeGen.cpp -FmCodeGen.map -EHsc -Bt -std:c++17 -I ..\..\..\Envari\LUA\include -link -LIBPATH:"..\..\..\Envari\LUA\lib\x86" %CommonLinkerFlags% -PDB:CodeGen_%random%.pdb
 
+popd
 popd
 popd
 
 pushd data
-"..\build\codegen\CodeGen.exe"
+"..\build\tools\codegen\CodeGen.exe"
 popd

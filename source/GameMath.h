@@ -13,6 +13,16 @@ v2 V2(f32 x, f32 y)
     return(result);
 }
 
+v2i V2I(i32 x, i32 y)
+{
+    v2i result;
+
+    result.x = x;
+    result.y = y;
+
+    return(result);
+}
+
 v3 V3(f32 x, f32 y, f32 z)
 {
     v3 result;

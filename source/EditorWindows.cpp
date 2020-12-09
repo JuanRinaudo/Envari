@@ -15,6 +15,8 @@
 #include "GL3W/gl3w.c"
 #define IMGUI_IMPL_OPENGL_LOADER_GL3W
 
+#define ENVARI_PLATFORM "Editor"
+
 #define INITLUASCRIPT EDITORCONFIG_INITLUASCRIPT
 
 #include <SDL.h>
@@ -186,21 +188,21 @@ i32 CALLBACK WinMain(
     while (gameState->game.running)
     {
         GetProcessMemoryInfo(processHandle , &editorPerformanceDebugger.memoryCounters, sizeof(PROCESS_MEMORY_COUNTERS));
+
+        LARGE_INTEGER performanceStart;
+        QueryPerformanceCounter(&performanceStart);
         i64 updateCyclesStart = __rdtsc();
 
-        u32 startTicks = 0;
         f32 startTime = 0;
         if(fpsFixed > 0)
         {
             gameState->time.deltaTime = 1.0f / fpsFixed;
             gameState->time.startTime += gameState->time.deltaTime;
-            startTicks = (u32)(gameState->time.startTime * 1000);
             startTime = gameState->time.startTime;
         }
         else
         {
-            startTicks = SDL_GetTicks();
-            startTime = startTicks / 1000.0f;
+            startTime = SDL_GetTicks() / 1000.0f;
             gameState->time.startTime = startTime;
             gameState->time.deltaTime = startTime - gameState->time.lastFrameGameTime;
         }
@@ -341,7 +343,15 @@ i32 CALLBACK WinMain(
             Begin2D(0, (u32)gameState->render.size.x, (u32)gameState->render.size.y);
         }
 
-        GameLoop();
+        i64 luaUpdateCyclesStart = __rdtsc();
+        LARGE_INTEGER luaPerformanceStart;
+        QueryPerformanceCounter(&luaPerformanceStart);
+        ScriptingUpdate();
+        LARGE_INTEGER luaPerformanceEnd;
+        QueryPerformanceCounter(&luaPerformanceEnd);
+        i64 luaUpdateCyclesEnd = __rdtsc();
+
+        GameUpdate();
 
         GL_Render();
 
@@ -397,29 +407,23 @@ i32 CALLBACK WinMain(
         
         SDL_GL_SwapWindow(sdlWindow);
         
-        if(fpsFixed == 0)
-        {
-            editorPerformanceDebugger.updateTicks = SDL_GetTicks() - startTicks;
-        }
-        editorPerformanceDebugger.updateCycles = __rdtsc() - updateCyclesStart;
+        LARGE_INTEGER performanceEnd;
+        QueryPerformanceCounter(&performanceEnd);
+        i64 updateCyclesEnd = __rdtsc();
+        editorPerformanceDebugger.updateTime = performanceEnd.QuadPart - performanceStart.QuadPart;
+        editorPerformanceDebugger.luaUpdateTime = luaPerformanceEnd.QuadPart - luaPerformanceStart.QuadPart;
+        editorPerformanceDebugger.updateCycles = updateCyclesEnd - updateCyclesStart;
+        editorPerformanceDebugger.luaUpdateCycles = luaUpdateCyclesEnd - luaUpdateCyclesStart;
 
         if(fpsLimit > 0) {
             std::this_thread::sleep_until(end);
         }
     }
-
-    GL_End();
     
-    SDL_GL_DeleteContext(glContext);  
-
-    ImGui_ImplOpenGL3_Shutdown();
-    ImGui_ImplSDL2_Shutdown();
     ImGui::DestroyContext();
 
     EditorEnd();
     GameEnd();
-
-    ma_device_uninit(&soundDevice);
 
     TableSetV2(&permanentState->arena, &configSave, "windowPosition", gameState->render.windowPosition);
     TableSetV2(&permanentState->arena, &configSave, "windowSize", gameState->render.windowSize);

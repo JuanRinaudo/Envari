@@ -10,20 +10,20 @@
 #define Log printf
 
 #define STB_DS_IMPLEMENTATION
-#include "STB/stb_ds.h"
+#include "../STB/stb_ds.h"
 
-#include "IMGUI/imgui.h"
-#include "STB/stb_truetype.h"
+#include "../IMGUI/imgui.h"
+#include "../STB/stb_truetype.h"
 
-#include "Defines.h"
-#include "MathStructs.h"
-#include "GameMath.h"
-#include "GameStructs.h"
-#include "EditorStructs.h"
+#include "../Defines.h"
+#include "../Memory.h"
+#include "../MathStructs.h"
+#include "../GameMath.h"
+#include "../GameStructs.h"
+#include "../EditorStructs.h"
 
-#include "Memory.h"
-#include "File.h"
-#include "Data.h"
+#include "../File.h"
+#include "../Data.h"
 
 using namespace std;
 
@@ -213,8 +213,8 @@ i32 main()
         return -1;
     }
     endString[0] = 0;
-    const char* folderName = "CodeGen/";
-    strncat(filePath, folderName, 8);
+    const char* folderName = "../CodeGen/";
+    strncat(filePath, folderName, 11);
     const char* folderPath = filePath;
     i32 folderPathSize = strlen(folderPath);
     cout << "Codegen folder path: " << folderPath << '\n';

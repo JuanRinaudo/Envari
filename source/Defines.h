@@ -10,6 +10,10 @@
 #include <stddef.h>
 #include <float.h>
 
+#define ENVARI_MAYOR_VERSION 0
+#define ENVARI_MINOR_VERSION 1
+#define ENVARI_MICRO_VERSION 0
+
 #define PI32 3.14159265359f
 
 #define MIN(a, b) (a) > (b) ? (b) : (a)

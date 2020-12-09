@@ -16,6 +16,11 @@ struct DataTokenizer {
     bool parsingString;
 };
 
+enum PreviewMenuAction {
+    PreviewMenuAction_NONE,
+    PreviewMenuAction_CHANGE_SIZE,
+};
+
 enum DebugMenuAction {
     DebugMenuAction_NONE,
     DebugMenuAction_GO_TO_FUNCTION,
@@ -36,6 +41,8 @@ struct PreviewWindow
 
     bool cursorInsideWindow;
     v2 cursorPosition;
+    v2i changeSize;
+    bool showData;
 };
 
 struct ConsoleWindow
@@ -62,10 +69,10 @@ struct PerformanceDebuggerWindow
 {
     bool open;
 
-    u32 updateTicks;
-    i64 updateCycles;
-    u32 luaUpdateTicks;
-    i64 luaUpdateCycles;
+    u64 updateTime;
+    u64 updateCycles;
+    u64 luaUpdateTime;
+    u64 luaUpdateCycles;
     PROCESS_MEMORY_COUNTERS memoryCounters;
 };
 
@@ -91,6 +98,7 @@ struct TextureDebuggerWindow
     bool open;
 
     i32 textureIndex;
+    i32 textureLevel;
     i32 textureWidth;
     i32 textureHeight;
     TextureInspect inspectMode;

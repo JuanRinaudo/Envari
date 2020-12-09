@@ -240,7 +240,8 @@ i32 CALLBACK WinMain(
             Begin2D(0, (u32)gameState->render.size.x, (u32)gameState->render.size.y);
         }
 
-        GameLoop();
+        ScriptingUpdate();
+        GameUpdate();
 
         GL_Render();
 
@@ -282,13 +283,7 @@ i32 CALLBACK WinMain(
         }
     }
 
-    GL_End();
-    
-    SDL_GL_DeleteContext(glContext);
-
     GameEnd();
-
-    ma_device_uninit(&soundDevice);
 
     TableSetV2(&permanentState->arena, &configSave, "windowPosition", gameState->render.windowPosition);
     TableSetV2(&permanentState->arena, &configSave, "windowSize", gameState->render.windowSize);

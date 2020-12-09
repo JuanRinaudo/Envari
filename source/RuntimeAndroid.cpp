@@ -251,7 +251,8 @@ int main(int argc, char *argv[])
 //             Begin2D(0, (u32)gameState->render.width, (u32)gameState->render.height);
 //         }
 
-        GameLoop();
+        ScriptingUpdate();
+        GameUpdate();
 //         GL_Render();
 
 //         EditorDrawAllOpen();
@@ -300,17 +301,7 @@ int main(int argc, char *argv[])
 //         }
     }
 
-//     GL_End();
-    
-    SDL_GL_DeleteContext(glContext);  
-
-    ImGui_ImplOpenGL3_Shutdown();
-    ImGui_ImplSDL2_Shutdown();
-    ImGui::DestroyContext();
-
     GameEnd();
-
-    ma_device_uninit(&soundDevice);
 
     return 0;
 }

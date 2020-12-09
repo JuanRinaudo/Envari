@@ -306,15 +306,6 @@ static void EditorDraw(ConsoleWindow* console)
         }
         ImGui::EndMenuBar();
     }
-    
-    if (ImGui::BeginPopupContextItem())
-    {
-        if (ImGui::MenuItem("Close Console"))
-            console->open = false;
-        ImGui::EndPopup();
-
-        ImGui::OpenPopup("GoToFunction");
-    }
 
     if (ImGui::SmallButton("Clear")) {
         ClearLog(console);
@@ -477,7 +468,7 @@ static void EditorDraw(PreviewWindow* preview)
     if(!preview->open) { return; };
     ImGui::SetNextWindowSize(ImVec2(400,300), ImGuiCond_FirstUseEver);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-    if (!ImGui::Begin("Preview", &preview->open)) {
+    if (!ImGui::Begin("Preview", &preview->open, ImGuiWindowFlags_MenuBar)) {
         ImGui::PopStyleVar();
         ImGui::End();
         return;
@@ -486,11 +477,32 @@ static void EditorDraw(PreviewWindow* preview)
 
     ImVec2 size = ImGui::GetWindowSize();
     
+    f32 height = ImGui::GetFrameHeight();
+
     ImVec2 contentStart = ImGui::GetWindowContentRegionMin();
     size.y -= contentStart.y;
 
     gameState->render.size.y = size.y;
     gameState->render.size.x = size.y * gameState->camera.ratio;
+    
+    PreviewMenuAction menuAction = PreviewMenuAction_NONE;
+    if (ImGui::BeginMenuBar()) {
+        if (ImGui::BeginMenu("Menu")) {
+            if(ImGui::Checkbox("Preview Data", &preview->showData)){
+                ImGui::CloseCurrentPopup();
+            }
+            if (ImGui::MenuItem("Set Size")) {
+                preview->changeSize = V2I((i32)size.x, (i32)size.y);
+                menuAction = PreviewMenuAction_CHANGE_SIZE;
+            }
+            ImGui::EndMenu();
+        }
+
+        ImVec2 newSize = ImGui::GetWindowSize();
+        height = newSize.y - size.y;
+
+        ImGui::EndMenuBar();
+    }
     
     f32 offsetX = (size.x - gameState->render.size.x) * 0.5f;
 
@@ -499,17 +511,49 @@ static void EditorDraw(PreviewWindow* preview)
     ImVec2 cursorPosition = ImGui::GetMousePos();
     ImVec2 previewMin = ImGui::GetWindowPos();
     previewMin.x += offsetX;
+    previewMin.y += height;
     ImVec2 previewMax = previewMin + ImGui::GetWindowSize();
     previewMax.x -= offsetX * 2;
+    previewMax.y -= height;
+
     preview->cursorInsideWindow = cursorPosition.x > previewMin.x && cursorPosition.x < previewMax.x && cursorPosition.y > previewMin.y && cursorPosition.y < previewMax.y;
     preview->cursorPosition = V2(Clamp(cursorPosition.x - previewMin.x, 0, gameState->render.size.x), Clamp(cursorPosition.y - previewMin.y - contentStart.y, 0, gameState->render.size.y));
+
+    if(menuAction == PreviewMenuAction_CHANGE_SIZE) { ImGui::OpenPopup("ChangeSize"); }
     
+    if (ImGui::BeginPopup("ChangeSize")) {
+        preview->cursorInsideWindow = false;
+        
+        ImGui::Text("Go to function");
+
+        ImGui::InputInt("X", &preview->changeSize.x);
+        ImGui::InputInt("Y", &preview->changeSize.y);
+        if (ImGui::Button("Set")) {
+            ImGui::SetWindowSize("Preview", ImVec2((f32)preview->changeSize.x, (f32)preview->changeSize.y + height), ImGuiCond_Always);
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::EndPopup();
+    }
+
     ImGui::Image((ImTextureID)gameState->render.frameBuffer, ImVec2((f32)gameState->render.size.x, (f32)gameState->render.size.y), ImVec2(0, 1), ImVec2(1, 0));
 
-    ImGui::SetCursorPos(ImVec2(5, 20));
-    ImGui::Text("Render Size: %d, %d", (i32)gameState->render.size.x, (i32)gameState->render.size.y);
-    ImGui::SetCursorPos(ImVec2(5, 40));
-    ImGui::Text("Buffer Size: %d, %d", (i32)gameState->render.bufferSize.x, (i32)gameState->render.bufferSize.y);
+    if(preview->showData) {
+        previewMin = ImGui::GetWindowPos();
+        previewMin.y += height;
+        ImDrawList* draw_list = ImGui::GetWindowDrawList();
+        draw_list->AddRectFilled(previewMin, previewMin + ImVec2(200, 70), IM_COL32(0, 0, 0, 200), 0.0f, 1);
+
+        ImGui::SetCursorPos(ImVec2(5, height + 3));
+        ImGui::Text("Render Size: %d, %d", (i32)gameState->render.size.x, (i32)gameState->render.size.y);
+        ImGui::SetCursorPos(ImVec2(5, height + 23));
+        ImGui::Text("Buffer Size: %d, %d", (i32)gameState->render.bufferSize.x, (i32)gameState->render.bufferSize.y);
+    }
+
+    if(!preview->open) {        
+        gameState->render.size.x = gameState->render.windowSize.x;
+        gameState->render.size.y = gameState->render.windowSize.y;
+    }
 
     ImGui::End();
 }
@@ -524,8 +568,8 @@ static void EditorDraw(PerformanceDebuggerWindow* debugger)
         return;
     }
     
-    ImGui::Text("Update: %d ticks %d cycles", debugger->updateTicks, debugger->updateCycles);
-    ImGui::Text("LUA Update: %d ticks %d cycles", debugger->luaUpdateTicks, debugger->luaUpdateCycles);
+    ImGui::Text("Update: %f ms %d cycles", debugger->updateTime / 10000.0f, debugger->updateCycles);
+    ImGui::Text("LUA Update: %f ms %d cycles", debugger->luaUpdateTime / 10000.0f, debugger->luaUpdateCycles);
 
     ImGui::Separator();
 
@@ -620,7 +664,7 @@ static void EditorDraw(TextureDebuggerWindow* debugger)
     i32 textureCacheSize = shlen(textureCache);
     if(debugger->inspectMode == TextureInspect_CACHE && debugger->textureIndex < textureCacheSize)
     {
-        ImGui::Text("Texture Cache ID: %d / %d", debugger->textureIndex, textureCacheSize);
+        ImGui::Text("Texture Cache ID: %d / %d", debugger->textureIndex + 1, textureCacheSize);
         
         ImGui::SameLine();
         if (ImGui::SmallButton("Prev")) {
@@ -647,7 +691,27 @@ static void EditorDraw(TextureDebuggerWindow* debugger)
         textureID = cachedTexture.textureID;
     }
     else if(debugger->inspectMode == TextureInspect_ALL) {
-        ImGui::InputInt("Texture ID", &debugger->textureIndex, 1, 1);
+        bool textureChanged = false;
+        if(ImGui::InputInt("Texture ID", &debugger->textureIndex, 1, 1)) {
+            debugger->textureLevel = 0;
+            textureChanged = true;
+        }
+        if(ImGui::InputInt("Texture Level", &debugger->textureLevel, 1, 1)) {
+            if(debugger->textureLevel < 0) {
+                debugger->textureLevel = 0;
+            }
+            textureChanged = true;
+        }
+
+        if(textureChanged) {
+            glBindTexture(GL_TEXTURE_2D, debugger->textureIndex);
+            f32 width, height;
+            glGetTexLevelParameterfv(GL_TEXTURE_2D, debugger->textureLevel, GL_TEXTURE_WIDTH, &width);
+            glGetTexLevelParameterfv(GL_TEXTURE_2D, debugger->textureLevel, GL_TEXTURE_HEIGHT, &height);
+            debugger->textureWidth = (i32)width;
+            debugger->textureHeight = (i32)height;
+        }
+        
         ImGui::InputInt("Texture Width", &debugger->textureWidth, 1, 1);
         ImGui::InputInt("Texture Height", &debugger->textureHeight, 1, 1);
 
@@ -837,7 +901,7 @@ static void EditorDraw(HelpWindow* help)
 {    
     if(!help->open) { return; };
     ImGui::SetNextWindowSizeConstraints(ImVec2(300, 300), ImVec2(FLT_MAX, FLT_MAX));
-    ImGui::SetNextWindowSize(ImVec2(600,600), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(500,300), ImGuiCond_FirstUseEver);
     
     if (!ImGui::Begin("Help", &help->open, ImGuiWindowFlags_NoResize))
     {
@@ -846,10 +910,16 @@ static void EditorDraw(HelpWindow* help)
     }
 
     ImGui::Separator();
-        
+    
     ImGui::Text("Envari help");
 
     ImGui::Separator();
+
+    ImGui::Text("Version: %d.%d.%d (%s)", ENVARI_MAYOR_VERSION, ENVARI_MINOR_VERSION, ENVARI_MICRO_VERSION, ENVARI_PLATFORM);
+#ifdef LUA_SCRIPTING_ENABLED
+    ImGui::Text("LUA Version: %s.%s.%s", LUA_VERSION_MAJOR, LUA_VERSION_MINOR, LUA_VERSION_RELEASE);
+#endif
+    ImGui::Text("OpenGL Version: %s", glGetString(GL_VERSION));
 
     ImGui::End();
 }

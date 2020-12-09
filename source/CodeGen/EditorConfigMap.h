@@ -7,5 +7,6 @@ const char* EDITORCONFIG_BUFFERSIZE = "bufferSize";
 const char* EDITORCONFIG_WINDOWTITLE = "windowTitle";
 const char* EDITORCONFIG_VSYNC = "vsync";
 const char* EDITORCONFIG_FPSLIMIT = "fpsLimit";
+const char* EDITORCONFIG_FPSFIXED = "fpsFixed";
 
 #endif
