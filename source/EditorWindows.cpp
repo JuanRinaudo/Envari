@@ -164,6 +164,12 @@ i32 CALLBACK WinMain(
     else {
         gameState->render.frameBuffer = 0;
     }
+
+    ImGui_ImplOpenGL3_NewFrame();
+    ImGui_ImplSDL2_NewFrame(sdlWindow);
+    ImGui::NewFrame();
+    ImGui::Render();
+    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
     
     DeserializeTable(&permanentState->arena, &saveData, "saveData.save");
 
@@ -179,7 +185,7 @@ i32 CALLBACK WinMain(
     auto start = std::chrono::steady_clock::now(); // #NOTE (Juan): Start timer for fps limit
     while (gameState->game.running)
     {
-        GetProcessMemoryInfo(processHandle , &editorPerformanceDebugger.memoryCounters, sizeof(PROCESS_MEMORY_COUNTERS));
+        GetProcessMemoryInfo(processHandle , &editorMemoryDebugger.memoryCounters, sizeof(PROCESS_MEMORY_COUNTERS));
         i64 updateCyclesStart = __rdtsc();
 
         u32 startTicks = SDL_GetTicks();
@@ -276,20 +282,22 @@ i32 CALLBACK WinMain(
         }
         gameState->time.lastFrameGameTime = startTime;
         
-        if(editorPreview.open) {
-            SDL_ShowCursor(editorPreview.cursorInsideWindow);
-            if(editorPreview.cursorInsideWindow) {
-                gameState->input.mousePosition = RenderToViewport(editorPreview.cursorPosition.x, editorPreview.cursorPosition.y, gameState->camera.size, gameState->camera.ratio);
+        if(gameState->input.mouseTextureID > 0) {
+            if(editorPreview.open) {
+                SDL_ShowCursor(editorPreview.cursorInsideWindow);
+                if(editorPreview.cursorInsideWindow) {
+                    gameState->input.mousePosition = RenderToViewport(editorPreview.cursorPosition.x, editorPreview.cursorPosition.y, gameState->camera.size, gameState->camera.ratio);
 
-                ImGui::SetMouseCursor(ImGuiMouseCursor_None);
-                io.MouseDrawCursor = false;
+                    ImGui::SetMouseCursor(ImGuiMouseCursor_None);
+                    io.MouseDrawCursor = false;
+                }
             }
-        }
-        else {
-            SDL_ShowCursor(mouseEnabled);
-            if(mouseEnabled) {
-                ImGui::SetMouseCursor(ImGuiMouseCursor_None);
-                io.MouseDrawCursor = false;
+            else {
+                SDL_ShowCursor(mouseEnabled);
+                if(mouseEnabled) {
+                    ImGui::SetMouseCursor(ImGuiMouseCursor_None);
+                    io.MouseDrawCursor = false;
+                }
             }
         }
 

@@ -269,12 +269,10 @@ static void EditorDraw(ConsoleWindow* console)
         {
             if (!gameState->game.updateRunning && ImGui::MenuItem("Play")) { gameState->game.updateRunning = true; }
             if (gameState->game.updateRunning && ImGui::MenuItem("Pause")) { gameState->game.updateRunning = false; }
-            if (ImGui::MenuItem("Reset")) {
+            if (ImGui::MenuItem("Reset", "CTRL+R")) {
+                GL_CleanCache();
+                
                 ResetArena(&sceneState->arena);
-
-                shfree(textureCache);
-                shfree(atlasCache);
-                hmfree(fontCache);
 
                 gameState->time.gameTime = 0;
                 gameState->time.gameFrames = 0;
@@ -526,21 +524,6 @@ static void EditorDraw(PerformanceDebuggerWindow* debugger)
     
     ImGui::Text("Update: %d ticks %d cycles", debugger->updateTicks, debugger->updateCycles);
     ImGui::Text("LUA Update: %d ticks %d cycles", debugger->luaUpdateTicks, debugger->luaUpdateCycles);
-
-    ImGui::Separator();
-
-    ImGui::Text("Memory: %d", debugger->memoryCounters.WorkingSetSize);
-    ImGui::Text("Peak memory: %d", debugger->memoryCounters.PeakWorkingSetSize);
-
-    if(ImGui::CollapsingHeader("Page Data")) {
-        ImGui::Text("Page faults: %d", debugger->memoryCounters.PageFaultCount);
-        ImGui::Text("Page file usage: %d", debugger->memoryCounters.PagefileUsage);
-        ImGui::Text("Peak page file usage: %d", debugger->memoryCounters.PeakPagefileUsage);
-        ImGui::Text("Quota page pool usage: %d", debugger->memoryCounters.QuotaPagedPoolUsage);
-        ImGui::Text("Quota non page pool usage: %d", debugger->memoryCounters.QuotaNonPagedPoolUsage);
-        ImGui::Text("Quota peak page pool usage: %d", debugger->memoryCounters.QuotaPeakPagedPoolUsage);
-        ImGui::Text("Quota peak non page pool usage: %d", debugger->memoryCounters.QuotaPeakNonPagedPoolUsage);
-    }
     
     ImGui::End();
 }
@@ -558,6 +541,11 @@ static void EditorDraw(RenderDebuggerWindow* debugger)
     ImGui::Text("Render memory size: %d", debugger->renderMemory);
     ImGui::Text("Draw count: %d", debugger->drawCount);
     ImGui::Text("Program changes: %d", debugger->programChanges);
+    
+    ImGui::Separator();
+
+    i32 total = TotalGPUMemoryKB();
+    ImGui::Text("GPU memory: %d / %d", total - AvailableGPUMemoryKB(), total);
     
     ImGui::Separator();
 
@@ -579,6 +567,21 @@ static void EditorDraw(MemoryDebuggerWindow* debugger)
     ImGui::Text("Permanent memory: %d / %d", permanentState->arena.used, permanentState->arena.size);
     ImGui::Text("Scene memory: %d / %d", sceneState->arena.used, sceneState->arena.size);
     ImGui::Text("Temporal memory: %d / %d", temporalState->arena.used, temporalState->arena.size);
+
+    ImGui::Separator();
+
+    ImGui::Text("Memory: %d", debugger->memoryCounters.WorkingSetSize);
+    ImGui::Text("Peak memory: %d", debugger->memoryCounters.PeakWorkingSetSize);
+
+    if(ImGui::CollapsingHeader("Page Data")) {
+        ImGui::Text("Page faults: %d", debugger->memoryCounters.PageFaultCount);
+        ImGui::Text("Page file usage: %d", debugger->memoryCounters.PagefileUsage);
+        ImGui::Text("Peak page file usage: %d", debugger->memoryCounters.PeakPagefileUsage);
+        ImGui::Text("Quota page pool usage: %d", debugger->memoryCounters.QuotaPagedPoolUsage);
+        ImGui::Text("Quota non page pool usage: %d", debugger->memoryCounters.QuotaNonPagedPoolUsage);
+        ImGui::Text("Quota peak page pool usage: %d", debugger->memoryCounters.QuotaPeakPagedPoolUsage);
+        ImGui::Text("Quota peak non page pool usage: %d", debugger->memoryCounters.QuotaPeakNonPagedPoolUsage);
+    }
 
 #if LUA_SCRIPTING_ENABLED
     ImGui::Separator();
@@ -614,9 +617,9 @@ static void EditorDraw(TextureDebuggerWindow* debugger)
     i32 textureID = 0;
 
     i32 textureCacheSize = shlen(textureCache);
-    if(debugger->inspectMode == TextureInspect_CACHE && debugger->textureIndex < textureCacheSize)
+    if(debugger->inspectMode == TextureInspect_CACHE)
     {
-        ImGui::Text("Texture Cache ID: %d / %d", debugger->textureIndex, textureCacheSize);
+        ImGui::Text("Texture Cache ID: %d / %d", debugger->textureIndex, textureCacheSize - 1);
         
         ImGui::SameLine();
         if (ImGui::SmallButton("Prev")) {

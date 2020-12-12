@@ -66,7 +66,8 @@ extern void LoadScriptFile(char* filePath);
 extern void LoadLUALibrary(sol::lib library);
 
 // #NOTE (Juan): Input
-extern void SetCursorTexture(GLTexture texture); 
+extern void SetCustomCursor(GLTexture texture);
+extern void DisableCustomCursor();
 
 // #NOTE (Juan): Bindings
 extern v2 V2(f32 x, f32 y);
@@ -123,8 +124,6 @@ GenerateTableGetExtern(V2, v2, V2(0, 0))
 GenerateTableSetExtern(V2, v2, SerializableType_V2)
 
 extern void LoadLUAScene(const char* luaFilepath);
-extern void UnloadLUAScene();
-extern void ClearLUAState();
 
 extern f32* CreateQuadPosUV(f32 posStartX, f32 posStartY, f32 posEndX, f32 posEndY, f32 uvStartX, f32 uvStartY, f32 uvEndX, f32 uvEndY);
 extern GLTexture GL_LoadTextureFile(const char *texturePath);
@@ -311,7 +310,8 @@ void ScriptingInitBindings()
     input_usertype["mouseState"] = sol::property([](Input &input) { return &input.mouseState; });
     lua["input"] = &gameState->input;
 
-    lua["SetCursorTexture"] = SetCursorTexture;
+    lua["SetCustomCursor"] = SetCustomCursor;
+    lua["DisableCustomCursor"] = DisableCustomCursor;
 
     lua["KEY_COUNT"] = KEY_COUNT;
     lua["MOUSE_COUNT"] = MOUSE_COUNT;
@@ -365,8 +365,6 @@ void ScriptingInitBindings()
     lua["DrawDisableOverrideIndices"] = DrawDisableOverrideIndices;
     
     lua["LoadLUAScene"] = LoadLUAScene;
-    lua["UnloadLUAScene"] = UnloadLUAScene;
-    lua["ClearLUAState"] = ClearLUAState;
 
     lua["RenderToViewport"] = RenderToViewport;
     

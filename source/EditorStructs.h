@@ -66,7 +66,6 @@ struct PerformanceDebuggerWindow
     i64 updateCycles;
     u32 luaUpdateTicks;
     i64 luaUpdateCycles;
-    PROCESS_MEMORY_COUNTERS memoryCounters;
 };
 
 struct RenderDebuggerWindow
@@ -83,6 +82,7 @@ struct RenderDebuggerWindow
 struct MemoryDebuggerWindow
 {
     bool open;
+    PROCESS_MEMORY_COUNTERS memoryCounters;
 };
 
 struct TextureDebuggerWindow

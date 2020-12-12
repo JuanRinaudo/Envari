@@ -4,6 +4,15 @@
 #ifdef LUA_SCRIPTING_ENABLED
 void LoadLUAScene(const char* luaFilepath)
 {
+    GL_CleanCache();
+
+    ResetArena(&sceneState->arena);
+
+    lua["Init"] = sol::function();
+    lua["Update"] = sol::function();
+    lua["Unload"] = sol::function();
+    lua["End"] = sol::function();
+
     LoadScriptFile(luaFilepath);
 
     sol::protected_function Init(lua["Init"]);
@@ -18,19 +27,6 @@ void LoadLUAScene(const char* luaFilepath)
     else {
         LogError("Error on script 'Init', not valid");
     }
-}
-
-void UnloadLUAScene()
-{
-    lua["Init"] = sol::function();
-    lua["Update"] = sol::function();
-    lua["Unload"] = sol::function();
-    lua["End"] = sol::function();
-}
-
-void ClearLUAState()
-{
-    
 }
 #endif
 

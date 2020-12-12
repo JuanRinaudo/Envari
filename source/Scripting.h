@@ -1,11 +1,6 @@
 #ifndef SCRIPTING_H
 #define SCRIPTING_H
 
-extern "C" {
-    #include "luasocket.h"
-    #include "mime.h"
-}
-
 #ifdef GAME_EDITOR
 char watchList[200];
 std::filesystem::file_time_type watchListTimes[20];
@@ -13,8 +8,15 @@ u32 watchListSize = 0;
 u32 watchFiles = 0;
 #endif
 
+#ifdef LUA_SCRIPTING_ENABLED
+extern "C" {
+    #include "luasocket.h"
+    #include "mime.h"
+}
+
 extern void ScriptingInitBindings();
 extern void ScriptingMathBindings();
+#endif
 
 void LoadScriptFile(char* filePath)
 {
@@ -110,7 +112,7 @@ void LoadLUALibrary(sol::lib library)
 }
 
 void ScriptingInit()
-{    
+{
     lua.set_panic(sol::c_call<decltype(&ScriptingPanic), &ScriptingPanic>);
 	lua.set_exception_handler(&ScriptingExceptionHandler);
 

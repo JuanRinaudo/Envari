@@ -3,14 +3,8 @@
 
 #ifdef GL_PROFILE_GLES3
 #include <GLES3/gl3.h>
-
-const char* shaderPath = "shaders/gles";
-
 #else
 #include <gl/gl.h>
-
-const char* shaderPath = "shaders/glcore";
-
 #endif
 
 static GLRenderBuffer quadBuffer;
@@ -33,12 +27,10 @@ static u32 borderLocation;
 
 static u32 timeLocation;
 
-static GLTextureCache* textureCache = NULL;
-
-static GLTextureAtlasReference* atlasCache = NULL;
-
 static FontAtlas currentFont;
 
+static GLTextureCache* textureCache = NULL;
+static GLTextureAtlasReference* atlasCache = NULL;
 static GLFontReference* fontCache = NULL;
 
 enum TextStyle {
@@ -72,26 +64,26 @@ static i32 watchedProgramsCount = 0;
 static WatchedProgram watchedPrograms[50];
 #endif
 
+static void GL_CleanCache()
+{
+    i32 textureCacheSize = shlen(textureCache);
+    for(int i = 0; i < textureCacheSize; ++i) {
+        GLTexture cachedTexture = textureCache[i].value;
+        glDeleteTextures(1, &cachedTexture.textureID);
+    }
+
+    shfree(textureCache);
+    shfree(atlasCache);
+    hmfree(fontCache);
+}
+
 static bool GL_CheckVendor(const char* vendor)
 {
     const char* glVendor = (char*)glGetString(GL_VENDOR);
     return strcmp(glVendor, vendor) == 0;
 }
 
-static i32 GL_TotalGPUMemoryKB()
-{
-    i32 totalMemoryInKB = 0;
-    if(currentVendor == GL_VENDOR_NVIDIA) {
-        glGetIntegerv( GL_GPU_MEM_INFO_TOTAL_AVAILABLE_MEM_NVX, &totalMemoryInKB);
-    }
-    else if(currentVendor == GL_VENDOR_ATI) {
-        // #TODO(Juan): Implement
-        // wglGetGPUInfoAMD( uGPUIDs[0], WGL_GPU_RAM_AMD, GL_UNSIGNED_INT, sizeof( GLuint ), &uTotalMemoryInMB );
-    }
-    return totalMemoryInKB;
-}
-
-static i32 GL_AvailableGPUMemoryKB()
+static i32 AvailableGPUMemoryKB()
 {
     i32 availableMemoryInKB = 0;    
     if(currentVendor == GL_VENDOR_NVIDIA) {
@@ -102,6 +94,19 @@ static i32 GL_AvailableGPUMemoryKB()
         // glGetIntegerv( GL_TEXTURE_FREE_MEMORY_ATI, &availableMemoryInKB);
     }
     return availableMemoryInKB;
+}
+
+static i32 TotalGPUMemoryKB()
+{
+    i32 totalMemoryInKB = 0;
+    if(currentVendor == GL_VENDOR_NVIDIA) {
+        glGetIntegerv( GL_GPU_MEM_INFO_TOTAL_AVAILABLE_MEM_NVX, &totalMemoryInKB);
+    }
+    else if(currentVendor == GL_VENDOR_ATI) {
+        // #TODO(Juan): Implement
+        // wglGetGPUInfoAMD( uGPUIDs[0], WGL_GPU_RAM_AMD, GL_UNSIGNED_INT, sizeof( GLuint ), &uTotalMemoryInMB );
+    }
+    return totalMemoryInKB;
 }
 
 static u32 GL_LoadTextureMemory(u8 *data, i32 width, i32 height)
