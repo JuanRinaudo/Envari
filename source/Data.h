@@ -1,6 +1,21 @@
 #ifndef DATA_H
 #define DATA_H
 
+struct DataTokenizer {
+    bool active;
+    void* memory;
+    u32 memorySize;
+    char* dataString;
+    u32 dataIndex;
+    char currentChar;
+    char tokenBuffer[DATA_MAX_TOKEN_COUNT];
+    u32 tokenBufferIndex;
+    u32 currentLine;
+    i32 tokenLineCount;
+    bool onComment;
+    bool parsingString;
+};
+
 // #TODO (Juan): For now this works only with the ASCII and extended ASCII codes, add more support later
 
 // #NOTE #PERFORMANCE (Juan): This could be changed for a function that returns the correct type and checks the string only once 

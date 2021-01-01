@@ -16,6 +16,7 @@
 #include "../STB/stb_truetype.h"
 
 #include "../Defines.h"
+#include "../MemoryStructs.h"
 #include "../Memory.h"
 #include "../MathStructs.h"
 #include "../GameMath.h"
@@ -214,7 +215,7 @@ i32 main()
     }
     endString[0] = 0;
     const char* folderName = "../CodeGen/";
-    strncat(filePath, folderName, 11);
+    strncat(filePath, folderName, strlen(folderName));
     const char* folderPath = filePath;
     i32 folderPathSize = strlen(folderPath);
     cout << "Codegen folder path: " << folderPath << '\n';

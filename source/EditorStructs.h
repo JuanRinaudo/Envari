@@ -1,21 +1,6 @@
 #ifndef EDITORSTRUCTS_H
 #define EDITORSTRUCTS_H
 
-struct DataTokenizer {
-    bool active;
-    void* memory;
-    u32 memorySize;
-    char* dataString;
-    u32 dataIndex;
-    char currentChar;
-    char tokenBuffer[DATA_MAX_TOKEN_COUNT];
-    u32 tokenBufferIndex;
-    u32 currentLine;
-    i32 tokenLineCount;
-    bool onComment;
-    bool parsingString;
-};
-
 enum PreviewMenuAction {
     PreviewMenuAction_NONE,
     PreviewMenuAction_CHANGE_SIZE,
@@ -38,6 +23,7 @@ struct ConsoleLog
 struct PreviewWindow
 {
     bool open;
+    bool focused;
 
     bool cursorInsideWindow;
     v2 cursorPosition;

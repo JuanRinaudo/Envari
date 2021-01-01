@@ -475,6 +475,8 @@ static void EditorDraw(PreviewWindow* preview)
     }
     ImGui::PopStyleVar();
 
+    preview->focused = ImGui::IsWindowFocused();
+
     ImVec2 size = ImGui::GetWindowSize();
     
     f32 height = ImGui::GetFrameHeight();
@@ -915,10 +917,17 @@ static void EditorDraw(HelpWindow* help)
 
     ImGui::Separator();
 
+    SDL_version compiled;
+    SDL_version linked;
+    SDL_VERSION(&compiled);
+    SDL_GetVersion(&linked);
+
     ImGui::Text("Version: %d.%d.%d (%s)", ENVARI_MAYOR_VERSION, ENVARI_MINOR_VERSION, ENVARI_MICRO_VERSION, ENVARI_PLATFORM);
 #ifdef LUA_SCRIPTING_ENABLED
     ImGui::Text("LUA Version: %s.%s.%s", LUA_VERSION_MAJOR, LUA_VERSION_MINOR, LUA_VERSION_RELEASE);
 #endif
+    ImGui::Text("SDL Compile Version: %d.%d.%d", compiled.major, compiled.minor, compiled.patch);
+    ImGui::Text("SDL Link Version: %d.%d.%d", linked.major, linked.minor, linked.patch);
     ImGui::Text("OpenGL Version: %s", glGetString(GL_VERSION));
 
     ImGui::End();

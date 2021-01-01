@@ -12,6 +12,7 @@
 #include "LUA/sol.hpp"
 #include "Miniaudio/miniaudio.h"
 
+#include "MemoryStructs.h"
 #include "MathStructs.h"
 #include "GameStructs.h"
 
@@ -82,6 +83,7 @@ extern m44 OrtographicProjection(f32 size, f32 aspect, f32 nearPlane, f32 farPla
 extern void Begin2D(u32 frameBufferID, u32 width, u32 height);
 extern void DrawClear(f32 red, f32 green, f32 blue, f32 alpha);
 extern void DrawColor(f32 red, f32 green, f32 blue, f32 alpha);
+extern void DrawTransparent();
 extern void DrawTransparent(u32 modeRGB, u32 modeAlpha, u32 srcRGB, u32 dstRGB, u32 srcAlpha, u32 dstAlpha);
 extern void DrawTransparentDisable();
 extern void DrawSetLayer(u32 targetLayer, bool transparent);
@@ -126,11 +128,14 @@ extern void LoadLUAScene(const char* luaFilepath);
 extern void UnloadLUAScene();
 extern void ClearLUAState();
 
+extern u32 defaultFontID;
+
 extern f32* CreateQuadPosUV(f32 posStartX, f32 posStartY, f32 posEndX, f32 posEndY, f32 uvStartX, f32 uvStartY, f32 uvEndX, f32 uvEndY);
+extern void GL_LoadTextureID(u32 textureID, f32 width, f32 height);
 extern GLTexture GL_LoadTextureFile(const char *texturePath);
-extern i32 GL_GenerateFont(const char *filepath, f32 fontSize, u32 width, u32 height);
-extern i32 GL_CompileProgram(const char *vertexShaderSource, const char *fragmentShaderSource);
-extern i32 GL_CompileProgramPlatform(const char *vertexShaderPlatform, const char *fragmentShaderPlatform);
+extern u32 GL_GenerateFont(const char *filepath, f32 fontSize, u32 width, u32 height);
+extern u32 GL_CompileProgram(const char *vertexShaderSource, const char *fragmentShaderSource);
+extern u32 GL_CompileProgramPlatform(const char *vertexShaderPlatform, const char *fragmentShaderPlatform);
 
 extern ma_decoder* SoundLoad(const char* soundKey);
 extern void SoundPlay(const char* filepath, f32 volume);
@@ -346,7 +351,8 @@ void ScriptingInitBindings()
     lua["DrawImageUV"] = DrawImageUV;
     lua["DrawImage9Slice"] = DrawImage9Slice;
     lua["DrawAtlasSprite"] = DrawAtlasSprite;
-    lua["DrawTransparent"] = DrawTransparent;
+    lua["DrawDefaultTransparent"] = sol::resolve<void()>(DrawTransparent);
+    lua["DrawTransparent"] = sol::resolve<void(u32, u32, u32, u32, u32, u32)>(DrawTransparent);
     lua["DrawTransparentDisable"] = DrawTransparentDisable;
     lua["DrawSetFont"] = DrawSetFont;
     lua["DrawChar"] = DrawChar;
@@ -388,7 +394,10 @@ void ScriptingInitBindings()
     gltexture_usertype["height"] = &GLTexture::height;
     gltexture_usertype["channels"] = &GLTexture::channels;
 
+    lua["defaultFontID"] = defaultFontID;
+
     lua["CreateQuadPosUV"] = CreateQuadPosUV;
+    lua["LoadTextureID"] = GL_LoadTextureID;
     lua["LoadTexture"] = LoadTexture;
     lua["GenerateFont"] = GL_GenerateFont;
     lua["CompileProgram"] = GL_CompileProgram;

@@ -62,7 +62,6 @@ int main(int argc, char *argv[])
 
 //     DeserializeDataTable(&initialConfig, DATA_ANDROIDCONFIG_ENVT);
 
-    // #TODO (Juan): Check this SDL_INIT_EVERYTHING, check what really needs to be init
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         return -1;
     }

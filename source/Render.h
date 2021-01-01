@@ -54,6 +54,18 @@ void DrawColor(f32 red = 0, f32 green = 0, f32 blue = 0, f32 alpha = 1)
     color->color = V4(red, green, blue, alpha);
 }
 
+void DrawTransparent()
+{
+    RenderTransparent *transparent = RenderPushElement(&renderTemporaryMemory, RenderTransparent);
+    transparent->enabled = true;
+    transparent->modeRGB = GL_FUNC_ADD;
+    transparent->modeAlpha = GL_FUNC_ADD;
+    transparent->srcRGB = GL_SRC_ALPHA;
+    transparent->dstRGB = GL_ONE_MINUS_SRC_ALPHA;
+    transparent->srcAlpha = GL_ONE;
+    transparent->dstAlpha = GL_ONE_MINUS_SRC_ALPHA;
+}
+
 void DrawTransparent(u32 modeRGB, u32 modeAlpha, u32 srcRGB, u32 dstRGB, u32 srcAlpha, u32 dstAlpha)
 {
     RenderTransparent *transparent = RenderPushElement(&renderTemporaryMemory, RenderTransparent);
@@ -392,8 +404,8 @@ void Begin2D(u32 frameBufferID, u32 width, u32 height)
 	glBindFramebuffer(GL_FRAMEBUFFER, frameBufferID);
 	glViewport(0,0, width, height);
     
-    DrawTransparent(GL_FUNC_ADD, GL_FUNC_ADD, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
     DrawTextureParameters(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR_MIPMAP_LINEAR);
+    DrawSetLayer(0, true);
 }
 
 void End2D()

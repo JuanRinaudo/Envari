@@ -34,8 +34,7 @@ struct GLTextureAtlasReference {
 };
 
 struct FontAtlas {
-    char* fontFilepath;
-    u32 fontFilepathSize;
+    u32 fontTextureID;
     f32 fontSize;
     f32 lineHeight;
     i32 tabSize;

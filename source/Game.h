@@ -2,6 +2,7 @@
 #define GAME_H
 
 #include "Defines.h"
+#include "MemoryStructs.h"
 #include "Memory.h"
 
 #include "IMGUI/imgui.h"
@@ -11,7 +12,6 @@
 
 #include "MathStructs.h"
 #include "GameStructs.h"
-#include "EditorStructs.h"
 
 #define SOL_ALL_SAFETIES_ON 1
 
@@ -43,6 +43,7 @@ sol::state lua;
 #include "GameMath.h"
 #include "File.h"
 #ifdef GAME_EDITOR
+#include "EditorStructs.h"
 #include "Editor.h"
 #else
 #include "Runtime.h"

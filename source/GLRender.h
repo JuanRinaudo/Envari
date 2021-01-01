@@ -13,6 +13,10 @@ const char* shaderPath = "shaders/glcore";
 
 #endif
 
+#ifndef NO_DEFAULT_FONT
+#include "Default/Font.h"
+#endif
+
 static GLRenderBuffer quadBuffer;
 static GLRenderBuffer overrideBuffer;
 static GLRenderBuffer customBuffer;
@@ -33,6 +37,8 @@ static u32 dimensionsLocation;
 static u32 borderLocation;
 
 static u32 timeLocation;
+
+u32 defaultFontID;
 
 static GLTextureCache* textureCache = NULL;
 
@@ -118,6 +124,12 @@ static u32 GL_LoadTextureMemory(u8 *data, i32 width, i32 height)
     return textureID;
 }
 
+void GL_LoadTextureID(u32 textureID, f32 width, f32 height)
+{
+    glBindTexture(GL_TEXTURE_2D, textureID);
+    glUniform2f(textureSizeLocation, width, height);
+} 
+
 GLTexture GL_LoadTextureFile(const char *texturePath)
 {
     i32 index = (i32)shgeti(textureCache, texturePath);
@@ -184,7 +196,7 @@ static TextureAtlas GL_LoadAtlas(const char *atlasKey)
     }
 }
 
-static i32 GL_LoadFont(i32 fontID, FontAtlas *atlas)
+static u32 GL_LoadFont(u32 fontID, FontAtlas *atlas)
 {
     i32 index = (i32)hmgeti(fontCache, fontID);
     if(index > -1) {
@@ -277,40 +289,36 @@ void GL_DumpTexture(const char *filepath, i32 textureID, u32 width, u32 height)
     saveImage.detach();
 }
 
-i32 GL_GenerateFont(const char *filepath, f32 fontSize, u32 width, u32 height)
+i32 GL_GenerateFont(void* data, u32 data_size, const char *filepath, f32 fontSize, u32 width, u32 height)
 {
     FontAtlas result;
-    result.fontFilepath = PushString(&sceneState->arena, filepath, &result.fontFilepathSize);
-    result.fontSize = fontSize;
     result.lineHeight = fontSize;
     result.tabSize = (i32)fontSize * 2;
     result.width = width;
     result.height = height;
 
-    u32 data_size = 0;
-    void* data = LoadFileToMemory(filepath, FILE_MODE_READ_BINARY, &data_size);
-
     u8* tempBitmap = PushArray(&temporalState->arena, width * height, u8);
     stbtt_BakeFontBitmap((u8 *)data, 0, fontSize, tempBitmap, width, height, SPECIAL_ASCII_CHAR_OFFSET, FONT_CHAR_SIZE, result.charData); // no guarantee this fits!
 
-    u32 textureID;
-    glGenTextures(1, &textureID);
-    glBindTexture(GL_TEXTURE_2D, textureID);
+    glGenTextures(1, &result.fontTextureID);
+    glBindTexture(GL_TEXTURE_2D, result.fontTextureID);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, width, height, 0, GL_ALPHA, GL_UNSIGNED_BYTE, tempBitmap);
     glGenerateMipmap(GL_TEXTURE_2D);
 
-    GLTexture texture;
-    texture.textureID = textureID;
-    texture.width = width;
-    texture.height = height;
-    texture.channels = 4;
-    shput(textureCache, filepath, texture);
-    hmput(fontCache, textureID, result);
+    hmput(fontCache, result.fontTextureID, result);
 
-    return textureID;
+    return result.fontTextureID;
 }
 
-i32 GL_CompileProgram(const char *vertexShaderPath, const char *fragmentShaderPath)
+u32 GL_GenerateFont(const char *filepath, f32 fontSize, u32 width, u32 height)
+{
+    u32 data_size = 0;
+    void* data = LoadFileToMemory(filepath, FILE_MODE_READ_BINARY, &data_size);
+
+    return GL_GenerateFont(data, data_size, filepath, fontSize, width, height);
+}
+
+u32 GL_CompileProgram(const char *vertexShaderPath, const char *fragmentShaderPath)
 {
     // NOTE(Juan): Shaders
     u32 vertexShader;
@@ -397,7 +405,7 @@ i32 GL_CompileProgram(const char *vertexShaderPath, const char *fragmentShaderPa
     return shaderProgram;
 }
 
-i32 GL_CompileProgramPlatform(const char *vertexShaderPlatform, const char *fragmentShaderPlatform)
+u32 GL_CompileProgramPlatform(const char *vertexShaderPlatform, const char *fragmentShaderPlatform)
 {
     char* vertexShaderPath = PushString(&temporalState->arena, SHADER_PREFIX, sizeof(SHADER_PREFIX) - 1);
     PushString(&temporalState->arena, vertexShaderPlatform);
@@ -752,6 +760,13 @@ static void GL_Init()
     }
 }
 
+static void GL_DefaultAssets()
+{
+#ifndef NO_DEFAULT_FONT
+    defaultFontID = GL_GenerateFont(defaultFont, sizeof(defaultFont), "defaultFont", 64, 512, 512);
+#endif
+}
+
 static void GL_Render()
 {
     RenderHeader *renderHeader = (RenderHeader *)renderTemporaryMemory.arena->base;
@@ -761,7 +776,13 @@ static void GL_Render()
         void *sortedRenderStart = renderTemporaryMemory.arena->base + renderTemporaryMemory.arena->used;
         
         for(u32 layerIndex = 31; layerIndex < 32; --layerIndex) {
-            if((renderState.usedLayers & 1 << layerIndex) > 0) {
+            if((renderState.usedLayers & (1 << layerIndex)) > 0) {
+                if((renderState.transparentLayers & (1 << layerIndex)) > 0) {
+                    DrawTransparent();
+                } else {
+                    DrawTransparentDisable();
+                }
+
                 RenderHeader *searchHeader = (RenderHeader *)renderTemporaryMemory.arena->base;
                 u32 searchLayer = 0;
                 while(searchHeader->id > 0 && (void*)searchHeader < sortedRenderStart) {
@@ -815,6 +836,8 @@ static void GL_Render()
                 else {
                     glDisable(GL_BLEND);
                     glEnable(GL_DEPTH_TEST);
+                    glBlendEquationSeparate(GL_FUNC_ADD, GL_FUNC_ADD);
+                    glBlendFuncSeparate(GL_ONE, GL_ZERO, GL_ONE, GL_ZERO);
                 }
                 break;
             }
@@ -1137,7 +1160,7 @@ static void GL_Render()
 
                 UseProgram(fontProgram);
 
-                GLTexture texture = GL_LoadTextureFile(currentFont.fontFilepath);
+                GL_LoadTextureID(currentFont.fontTextureID, (f32)currentFont.width, (f32)currentFont.height);
                 SetupTextureParameters(GL_TEXTURE_2D);
 
                 model *= ScaleM44(renderChar->scale);
@@ -1171,7 +1194,7 @@ static void GL_Render()
 
                 UseProgram(fontProgram);
 
-                GLTexture texture = GL_LoadTextureFile(currentFont.fontFilepath);
+                GL_LoadTextureID(currentFont.fontTextureID, (f32)currentFont.width, (f32)currentFont.height);
                 SetupTextureParameters(GL_TEXTURE_2D);
 
                 v2 textSize = CalculateTextSize(&currentFont, text->string, text->stringSize);
@@ -1214,7 +1237,7 @@ static void GL_Render()
 
                 UseProgram(fontProgram);
 
-                GLTexture texture = GL_LoadTextureFile(currentFont.fontFilepath);
+                GL_LoadTextureID(currentFont.fontTextureID, (f32)currentFont.width, (f32)currentFont.height);
                 SetupTextureParameters(GL_TEXTURE_2D);
 
                 v2 containerSize = V2(styledText->endPosition.x - styledText->position.x, styledText->endPosition.y - styledText->position.y);
