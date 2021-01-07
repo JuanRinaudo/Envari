@@ -79,6 +79,11 @@ static void EditorInit(TextureDebuggerWindow* debugger)
     debugger->inspectMode = TextureInspect_CACHE;
 }
 
+static void EditorInit(SoundDebuggerWindow* debugger)
+{
+    debugger->open = true;
+}
+
 #ifdef LUA_SCRIPTING_ENABLED
 static void EditorInit(LUADebuggerWindow* debugger)
 {
@@ -294,6 +299,7 @@ static void EditorDraw(ConsoleWindow* console)
             if (ImGui::MenuItem("Render")) { EditorInit(&editorRenderDebugger); }
             if (ImGui::MenuItem("Memory")) { EditorInit(&editorMemoryDebugger); }
             if (ImGui::MenuItem("Textures")) { EditorInit(&editorTextureDebugger); }
+            if (ImGui::MenuItem("Sound")) { EditorInit(&editorSoundDebugger); }
 #ifdef LUA_SCRIPTING_ENABLED
             if (ImGui::MenuItem("LUA")) { EditorInit(&editorLUADebugger); }
 #endif
@@ -727,6 +733,64 @@ static void EditorDraw(TextureDebuggerWindow* debugger)
     ImGui::End();
 }
 
+static void EditorDraw(SoundDebuggerWindow* debugger)
+{
+    if(!debugger->open) { return; };
+    ImGui::SetNextWindowSize(ImVec2(400,300), ImGuiCond_FirstUseEver);
+
+    if (!ImGui::Begin("Sound debugger", &debugger->open)) {
+        ImGui::End();
+        return;
+    }
+
+    ImGui::Text("Sound mix pool: %d / %d", soundMixIndex + 1, SOUND_MIX_SIZE);
+
+    ImGui::Separator();
+
+    ImVec2 contentMin = ImGui::GetWindowContentRegionMin();
+    ImVec2 contentMax = ImGui::GetWindowContentRegionMax();
+    float width = contentMax.x - contentMin.x;
+
+    char title[32];
+    for(i32 channelIndex = 0; channelIndex < SOUND_CHANNELS; ++channelIndex) {
+        sprintf(title, "Master Channel %d", channelIndex);
+
+        ImGui::Text("Master Min: %f Max: %f (%f - %f)", bufferToShowMin[channelIndex], bufferToShowMax[channelIndex], soundRangeMin, soundRangeMax);
+        ImGui::PlotLines("", bufferToShow + channelIndex * BUFFER_CHANNEL_TO_SHOW_SIZE, BUFFER_CHANNEL_TO_SHOW_SIZE, 0, title, soundRangeMin, soundRangeMax, ImVec2(width, 80));
+    }
+    
+    if(ImGui::CollapsingHeader("Sound cache")) {
+        i32 soundCacheSize = shlen(soundCache);
+        ImGui::Text("Sound Cache ID: %d / %d", debugger->cacheIndex + 1, soundCacheSize);
+
+        if(debugger->cacheIndex < soundCacheSize) {
+            ImGui::SameLine();
+            if (ImGui::SmallButton("Prev")) {
+                debugger->cacheIndex--;
+            }
+            ImGui::SameLine();
+            if (ImGui::SmallButton("Next")) {
+                debugger->cacheIndex++;
+            }
+
+            if(debugger->cacheIndex < 0) { debugger->cacheIndex = soundCacheSize - 1; }
+            if(debugger->cacheIndex >= soundCacheSize) { debugger->cacheIndex = 0; }
+
+            MASoundCache cacheItem = soundCache[debugger->cacheIndex];
+            
+            ImGui::Separator();
+
+            ImGui::Text("Name: %s", cacheItem.key);
+            ImGui::Text("Format: %d", cacheItem.value->internalFormat);
+            ImGui::Text("Channels: %d", cacheItem.value->internalChannels);
+            ImGui::Text("ChannelMap: %d", cacheItem.value->internalChannelMap);
+            ImGui::Text("SampleRate: %d", cacheItem.value->internalSampleRate);
+        }
+    }
+
+    ImGui::End();
+}
+
 #ifdef LUA_SCRIPTING_ENABLED
 static void EditorDraw(LUADebuggerWindow* debugger)
 {
@@ -956,6 +1020,9 @@ static void EditorInit()
     editorTextureDebugger.open = TableGetBool(&editorSave, "editorTextureDebuggerOpen");
     if(editorTextureDebugger.open) { EditorInit(&editorTextureDebugger); }
 
+    editorSoundDebugger.open = TableGetBool(&editorSave, "editorSoundDebuggerOpen");
+    if(editorSoundDebugger.open) { EditorInit(&editorSoundDebugger); }
+
 #ifdef LUA_SCRIPTING_ENABLED
     editorLUADebugger.open = TableGetBool(&editorSave, "editorLUADebuggerOpen");
     if(editorLUADebugger.open) { EditorInit(&editorLUADebugger); }
@@ -970,6 +1037,7 @@ static void EditorDrawAllOpen()
     EditorDraw(&editorRenderDebugger);
     EditorDraw(&editorMemoryDebugger);
     EditorDraw(&editorTextureDebugger);
+    EditorDraw(&editorSoundDebugger);
 #ifdef LUA_SCRIPTING_ENABLED
     EditorDraw(&editorLUADebugger);
 #endif
@@ -985,6 +1053,7 @@ static void EditorEnd()
     TableSetBool(&permanentState->arena, &editorSave, "editorRenderDebuggerOpen", editorRenderDebugger.open);
     TableSetBool(&permanentState->arena, &editorSave, "editorMemoryDebuggerOpen", editorMemoryDebugger.open);
     TableSetBool(&permanentState->arena, &editorSave, "editorTextureDebuggerOpen", editorTextureDebugger.open);
+    TableSetBool(&permanentState->arena, &editorSave, "editorSoundDebuggerOpen", editorSoundDebugger.open);
 #ifdef LUA_SCRIPTING_ENABLED
     TableSetBool(&permanentState->arena, &editorSave, "editorLUADebuggerOpen", editorLUADebugger.open);
 #endif

@@ -38,6 +38,10 @@ static TextureDebuggerWindow editorTextureDebugger;
 static void EditorInit(TextureDebuggerWindow* debugger);
 static void EditorDraw(TextureDebuggerWindow* debugger);
 
+static SoundDebuggerWindow editorSoundDebugger;
+static void EditorInit(SoundDebuggerWindow* debugger);
+static void EditorDraw(SoundDebuggerWindow* debugger);
+
 #ifdef LUA_SCRIPTING_ENABLED
 static LUADebuggerWindow editorLUADebugger;
 static void EditorInit(LUADebuggerWindow* debugger);

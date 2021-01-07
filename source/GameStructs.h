@@ -367,6 +367,10 @@ struct Memory {
     void *permanentStorage;
     size_t sceneStorageSize;
     void *sceneStorage;
+#ifdef GAME_EDITOR
+    size_t editorStorageSize;
+    void *editorStorage;
+#endif
     size_t temporalStorageSize;
     void *temporalStorage;
 };
@@ -389,8 +393,8 @@ struct Data {
     Camera camera;
     Render render;
     Time time;
-    Memory memory;
     Input input;
+    Memory memory;
 };
 
 struct PermanentData {
@@ -407,6 +411,13 @@ struct TemporalData {
     b32 initialized;
     MemoryArena arena;
 };
+
+#ifdef GAME_EDITOR
+struct EditorData {
+    b32 initialized;
+    MemoryArena arena;
+};
+#endif
 
 enum DataType {
     data_Int,

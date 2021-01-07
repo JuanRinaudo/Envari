@@ -44,20 +44,26 @@ i32 CALLBACK WinMain(
     size_t permanentStorageSize = Megabytes(64);
     void* permanentStorage = malloc(permanentStorageSize);
 
-    gameState = (Data *)permanentStorage;
+    permanentState = (PermanentData *)permanentStorage;
+
+    gameState = (Data *)(permanentState + 1);
     gameState->memory.permanentStorageSize = permanentStorageSize;
     gameState->memory.permanentStorage = permanentStorage;
     gameState->memory.sceneStorageSize = Megabytes(64);
     gameState->memory.sceneStorage = malloc(gameState->memory.sceneStorageSize);
+    gameState->memory.editorStorageSize = Megabytes(64);
+    gameState->memory.editorStorage = malloc(gameState->memory.editorStorageSize);
     gameState->memory.temporalStorageSize = Megabytes(64);
     gameState->memory.temporalStorage = malloc(gameState->memory.temporalStorageSize);
 
-    permanentState = (PermanentData *)gameState->memory.permanentStorage + sizeof(Data);
+    gameState->memory.permanentStorage = permanentStorage;
     sceneState = (SceneData *)gameState->memory.sceneStorage;
+    editorState = (EditorData *)gameState->memory.editorStorage;
     temporalState = (TemporalData *)gameState->memory.temporalStorage;
 
     InitializeArena(&permanentState->arena, gameState->memory.permanentStorageSize, (u8 *)gameState->memory.permanentStorage, sizeof(PermanentData) + sizeof(Data));
     InitializeArena(&sceneState->arena, gameState->memory.sceneStorageSize, (u8 *)gameState->memory.sceneStorage, sizeof(SceneData));
+    InitializeArena(&editorState->arena, gameState->memory.editorStorageSize, (u8 *)gameState->memory.editorStorage, sizeof(EditorData));
     InitializeArena(&temporalState->arena, gameState->memory.temporalStorageSize, (u8 *)gameState->memory.temporalStorage, sizeof(TemporalData));
 
     DeserializeDataTable(&initialConfig, DATA_EDITORCONFIG_ENVT);
@@ -92,8 +98,6 @@ i32 CALLBACK WinMain(
 #ifdef LUA_SCRIPTING_ENABLED
     ScriptingInit();
 #endif
-    
-    DeserializeTable(&permanentState->arena, &saveData, "saveData.save");
 
     EditorInit();
     

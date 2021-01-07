@@ -66,6 +66,15 @@ static void StringToKey(char* string)
         else if(singleChar == '\\') {
             singleChar = '_';
         }
+        else if(singleChar == '(') {
+            singleChar = '_';
+        }
+        else if(singleChar == ')') {
+            singleChar = '_';
+        }
+        else if(singleChar == '#') {
+            singleChar = '_';
+        }
         else {
             singleChar = (char)toupper(*string);
         }

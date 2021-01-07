@@ -138,7 +138,8 @@ extern u32 GL_CompileProgram(const char *vertexShaderSource, const char *fragmen
 extern u32 GL_CompileProgramPlatform(const char *vertexShaderPlatform, const char *fragmentShaderPlatform);
 
 extern ma_decoder* SoundLoad(const char* soundKey);
-extern void SoundPlay(const char* filepath, f32 volume);
+extern void SoundPlay(const char* filepath, f32 volume, bool loop);
+extern void SoundStop(const char* filepath);
 extern void SetMasterVolume(float value);
 extern float dbToVolume(float db);
 extern float volumeToDB(float volume);
@@ -240,6 +241,11 @@ static void SaveSetString(const char* key, const char* value)
 {
     char* permanentString = PushString(&permanentState->arena, value);
     TableSetString_(&permanentState->arena, &saveData, key, permanentString);
+}
+
+// #NOTE(Juan): Sound
+static void SoundPlaySimple(const char* filepath, f32 volume, bool loop) {
+    SoundPlay(filepath, volume, false);
 }
 
 LUASaveGetSet(Bool, bool)
@@ -486,7 +492,9 @@ void ScriptingInitBindings()
 
     // #NOTE (Juan): Sound
     lua["SoundLoad"] = SoundLoad;
-    lua["SoundPlay"] = SoundPlay;
+    lua["SoundPlay"] = SoundPlaySimple;
+    lua["SoundPlayLoop"] = SoundPlay;
+    lua["SoundStop"] = SoundStop;
     lua["SetMasterVolume"] = SetMasterVolume;
     lua["dbToVolume"] = dbToVolume;
     lua["volumeToDB"] = volumeToDB;

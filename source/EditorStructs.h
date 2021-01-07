@@ -90,6 +90,13 @@ struct TextureDebuggerWindow
     TextureInspect inspectMode;
 };
 
+struct SoundDebuggerWindow
+{
+    bool open;
+
+    i32 cacheIndex;
+};
+
 #ifdef LUA_SCRIPTING_ENABLED
 struct LUADebuggerWindow
 {

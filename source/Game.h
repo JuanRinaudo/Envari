@@ -24,6 +24,9 @@ PermanentData *permanentState;
 SceneData *sceneState;
 TemporalData *temporalState;
 TemporaryMemory renderTemporaryMemory;
+#ifdef GAME_EDITOR
+EditorData *editorState;
+#endif
 
 SerializableTable* configSave = 0;
 SerializableTable* saveData = 0;

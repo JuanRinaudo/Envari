@@ -195,7 +195,7 @@ static i32 ProcessEvent(const SDL_Event* event)
             if(mouseEnabled || mouseOverWindow) {
                 gameState->input.mouseState[event->button.button] = KEY_PRESSED;
             }
-            break;
+           break;
         }
         case SDL_MOUSEBUTTONUP: {
             if(mouseEnabled || mouseOverWindow) {
