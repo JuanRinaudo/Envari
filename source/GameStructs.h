@@ -342,6 +342,7 @@ struct Render {
     v2 bufferSize;
     v2 windowPosition;
     v2 windowSize;
+    u32 defaultFontID;
 };
 
 struct Camera {

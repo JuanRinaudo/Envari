@@ -406,6 +406,9 @@ void Begin2D(u32 frameBufferID, u32 width, u32 height)
     
     DrawTextureParameters(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR_MIPMAP_LINEAR);
     DrawSetLayer(0, true);
+    if(gameState->render.defaultFontID != 0) {
+        DrawSetFont(gameState->render.defaultFontID);
+    }
 }
 
 void End2D()

@@ -121,6 +121,7 @@ static i32 SetupTime()
     vsync = TableGetInt(&initialConfig, "vsync");
     SDL_GL_SetSwapInterval(vsync);
 
+    gameState->game.updateRunning = true;
     gameState->time.gameFrames = -1;
     gameState->time.frames = -1;
 

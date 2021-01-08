@@ -301,6 +301,7 @@ void ScriptingInitBindings()
     screen_usertype["size"] = &Render::size;
     screen_usertype["bufferSize"] = &Render::bufferSize;
     screen_usertype["windowSize"] = &Render::windowSize;
+    screen_usertype["defaultFontID"] = &Render::defaultFontID;
     lua["screen"] = &gameState->render;
 
     sol::usertype<Time> time_usertype = lua.new_usertype<Time>("time");
@@ -399,8 +400,6 @@ void ScriptingInitBindings()
     gltexture_usertype["width"] = &GLTexture::width;
     gltexture_usertype["height"] = &GLTexture::height;
     gltexture_usertype["channels"] = &GLTexture::channels;
-
-    lua["defaultFontID"] = defaultFontID;
 
     lua["CreateQuadPosUV"] = CreateQuadPosUV;
     lua["LoadTextureID"] = GL_LoadTextureID;

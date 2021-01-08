@@ -38,8 +38,6 @@ static u32 borderLocation;
 
 static u32 timeLocation;
 
-u32 defaultFontID;
-
 static GLTextureCache* textureCache = NULL;
 
 static GLTextureAtlasReference* atlasCache = NULL;
@@ -365,9 +363,10 @@ u32 GL_CompileProgram(const char *vertexShaderPath, const char *fragmentShaderPa
 
     UnloadFileFromMemory(data);
 
+    glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
     if (!success)
     {
-        glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
+        glGetShaderInfoLog(fragmentShader, 512, NULL, infoLog);
         LogError("ERROR::FRAGMENT::COMPILATION_FAILED %s", fragmentShaderPath);
         LogError(infoLog);
     }
@@ -763,7 +762,7 @@ static void GL_Init()
 static void GL_DefaultAssets()
 {
 #ifndef NO_DEFAULT_FONT
-    defaultFontID = GL_GenerateFont(defaultFont, sizeof(defaultFont), "defaultFont", 64, 512, 512);
+    gameState->render.defaultFontID = GL_GenerateFont(defaultFont, sizeof(defaultFont), "defaultFont", 64, 512, 512);
 #endif
 }
 
