@@ -1,16 +1,16 @@
 #ifndef GLRENDER_H
 #define GLRENDER_H
 
+#define DEFAULT_FONT_ATLAS_WIDTH 512
+#define DEFAULT_FONT_ATLAS_HEIGHT 512
+#define INFO_LOG_BUFFER_SIZE 512
+
 #ifdef GL_PROFILE_GLES3
 #include <GLES3/gl3.h>
-
 const char* shaderPath = "shaders/gles";
-
 #else
 #include <gl/gl.h>
-
 const char* shaderPath = "shaders/glcore";
-
 #endif
 
 #ifndef NO_DEFAULT_FONT
@@ -316,60 +316,48 @@ u32 GL_GenerateFont(const char *filepath, f32 fontSize, u32 width, u32 height)
     return GL_GenerateFont(data, data_size, filepath, fontSize, width, height);
 }
 
+//GL_VERTEX_SHADER GL_FRAGMENT_SHADER
+static bool GL_LoadShader(u32 shaderType, const char* filepath, u32* shaderID, size_t* sourceSize)
+{
+    *shaderID = glCreateShader(shaderType);
+            
+    *sourceSize = 0;
+    void* data = LoadFileToMemory(filepath, FILE_MODE_READ_BINARY, sourceSize);
+    SOURCE_TYPE source = static_cast<SOURCE_TYPE>(data);
+
+    i32 size = (i32)*sourceSize;
+    glShaderSource(*shaderID, 1, &source, &size);
+    glCompileShader(*shaderID);
+    
+    i32 success;
+    char infoLog[INFO_LOG_BUFFER_SIZE];
+    glGetShaderiv(*shaderID, GL_COMPILE_STATUS, &success);
+
+    if (!success)
+    {
+        glGetShaderInfoLog(*shaderID, INFO_LOG_BUFFER_SIZE, NULL, infoLog);
+        if(shaderType == GL_VERTEX_SHADER) {
+            LogError("ERROR::VERTEX::COMPILATION_FAILED %s\n", filepath);
+        }
+        else if(shaderType == GL_FRAGMENT_SHADER) {
+            LogError("ERROR::FRAGMENT::COMPILATION_FAILED %s\n", filepath);
+        }
+        LogError(infoLog);
+        return 0;
+    }
+
+    UnloadFileFromMemory(data);
+
+    return success;
+}
+
 u32 GL_CompileProgram(const char *vertexShaderPath, const char *fragmentShaderPath)
 {
     // NOTE(Juan): Shaders
-    u32 vertexShader;
-    vertexShader = glCreateShader(GL_VERTEX_SHADER);
-    
-    u32 data_size = 0;
-    void* data = LoadFileToMemory(vertexShaderPath, FILE_MODE_READ_BINARY, &data_size);
-    if(data == 0) {
-        LogError("ERROR::VERTEX::FileLoad failed %s", vertexShaderPath);
-        return 0;
-    }
-    SOURCE_TYPE vertexSource = static_cast<SOURCE_TYPE>(data);
-    
-    i32 size = (i32)data_size;
-    glShaderSource(vertexShader, 1, &vertexSource, &size);
-    glCompileShader(vertexShader);
-
-    UnloadFileFromMemory(data);
-
-    i32 success;
-    char infoLog[512];
-    glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
-
-    if (!success)
-    {
-        glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
-        LogError("ERROR::VERTEX::COMPILATION_FAILED %s", vertexShaderPath);
-        LogError(infoLog);
-    }
-
-    u32 fragmentShader;
-    fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-
-    data = LoadFileToMemory(fragmentShaderPath, FILE_MODE_READ_BINARY, &data_size);
-    if(data == 0) {
-        LogError("ERROR::FRAGMENT::FileLoad failed %s", fragmentShaderPath);
-        return 0;
-    }
-    SOURCE_TYPE fragmentSource = static_cast<SOURCE_TYPE>(data);
-
-    size = (i32)data_size;
-    glShaderSource(fragmentShader, 1, &fragmentSource, &size);
-    glCompileShader(fragmentShader);
-
-    UnloadFileFromMemory(data);
-
-    glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
-    if (!success)
-    {
-        glGetShaderInfoLog(fragmentShader, 512, NULL, infoLog);
-        LogError("ERROR::FRAGMENT::COMPILATION_FAILED %s", fragmentShaderPath);
-        LogError(infoLog);
-    }
+    u32 vertexShader, fragmentShader;
+    size_t vertexShaderSize, fragmentShaderSize;
+    GL_LoadShader(GL_VERTEX_SHADER, vertexShaderPath, &vertexShader, &vertexShaderSize);
+    GL_LoadShader(GL_FRAGMENT_SHADER, fragmentShaderPath, &fragmentShader, &fragmentShaderSize);
 
     i32 shaderProgram = glCreateProgram();
 
@@ -377,9 +365,11 @@ u32 GL_CompileProgram(const char *vertexShaderPath, const char *fragmentShaderPa
     glAttachShader(shaderProgram, fragmentShader);
     glLinkProgram(shaderProgram);
 
+    i32 success;
+    char infoLog[INFO_LOG_BUFFER_SIZE];
     glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
     if (!success) {
-        glGetProgramInfoLog(shaderProgram, 512, NULL, infoLog);
+        glGetProgramInfoLog(shaderProgram, INFO_LOG_BUFFER_SIZE, NULL, infoLog);
         LogError("ERROR::PROGRAM::LINK_FAILED");
         LogError(infoLog);
     }
@@ -425,69 +415,43 @@ static void GL_WatchChanges()
         std::filesystem::file_time_type fragmentTime = std::filesystem::last_write_time(watched.fragmentFilepath);
 
         if(vertexTime != watched.vertexTime || fragmentTime != watched.fragmentTime) {
-            Log("Started to reload program %d, vertex %s, fragment %s", watched.shaderProgram, watched.vertexFilepath, watched.fragmentFilepath);
+            watched.vertexTime = vertexTime;
+            watched.fragmentTime = fragmentTime;
+            watchedPrograms[i] = watched;
+
+            Log("Started to reload program %d, vertex %s (%d), fragment %s (%d)", watched.shaderProgram, watched.vertexFilepath, watched.vertexShader, watched.fragmentFilepath, watched.fragmentShader);
             glDetachShader(watched.shaderProgram, watched.vertexShader);
             glDetachShader(watched.shaderProgram, watched.fragmentShader);
             
-            watched.vertexShader = glCreateShader(GL_VERTEX_SHADER);
+            size_t vertexSouceSize, fragmentSouceSize;
             
-            size_t vertexSouceSize = 0;
-            void* data = LoadFileToMemory(watched.vertexFilepath, FILE_MODE_READ_BINARY, &vertexSouceSize);
-            SOURCE_TYPE vertexSource = static_cast<SOURCE_TYPE>(data);
-
-            i32 size = (i32)vertexSouceSize;
-            glShaderSource(watched.vertexShader, 1, &vertexSource, &size);
-            glCompileShader(watched.vertexShader);
-
-            UnloadFileFromMemory(data);
-
             i32 success;
-            char infoLog[512];
-            glGetShaderiv(watched.vertexShader, GL_COMPILE_STATUS, &success);
 
-            if (!success)
-            {
-                glGetShaderInfoLog(watched.vertexShader, 512, NULL, infoLog);
-                LogError("ERROR::VERTEX::COMPILATION_FAILED %s\n", watched.vertexFilepath);
-                LogError(infoLog);
+            success = GL_LoadShader(GL_VERTEX_SHADER, watched.vertexFilepath, &watched.vertexShader, &vertexSouceSize);
+
+            if(success) {
+                success = GL_LoadShader(GL_FRAGMENT_SHADER, watched.fragmentFilepath, &watched.fragmentShader, &fragmentSouceSize);
             }
 
-            watched.fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-
-            size_t fragmentSouceSize = 0;
-            data = LoadFileToMemory(watched.fragmentFilepath, FILE_MODE_READ_BINARY, &fragmentSouceSize);
-            SOURCE_TYPE fragmentSource = static_cast<SOURCE_TYPE>(data);
-
-            size = (i32)fragmentSouceSize;
-            glShaderSource(watched.fragmentShader, 1, &fragmentSource, &size);
-            glCompileShader(watched.fragmentShader);
-
-            UnloadFileFromMemory(data);
-
-            if (!success)
-            {
-                glGetShaderInfoLog(watched.vertexShader, 512, NULL, infoLog);
-                LogError("ERROR::FRAGMENT::COMPILATION_FAILED %s\n", watched.fragmentFilepath);
-                LogError(infoLog);
+            if(success) {
+                glAttachShader(watched.shaderProgram, watched.vertexShader);
+                glAttachShader(watched.shaderProgram, watched.fragmentShader);
+                glLinkProgram(watched.shaderProgram);
             }
 
-            glAttachShader(watched.shaderProgram, watched.vertexShader);
-            glAttachShader(watched.shaderProgram, watched.fragmentShader);
-            glLinkProgram(watched.shaderProgram);
-
+            char infoLog[INFO_LOG_BUFFER_SIZE];
             glGetProgramiv(watched.shaderProgram, GL_LINK_STATUS, &success);
             if (!success) {
-                glGetProgramInfoLog(watched.shaderProgram, 512, NULL, infoLog);
-                LogError("ERROR::PROGRAM::COMPILATION_FAILED\n");
+                glDeleteShader(watched.vertexShader);
+                glDeleteShader(watched.fragmentShader);
+                glGetProgramInfoLog(watched.shaderProgram, INFO_LOG_BUFFER_SIZE, NULL, infoLog);
+                LogError("ERROR::PROGRAM::LINK_FAILED\n");
                 LogError(infoLog);
+                return;
             }
 
             glDeleteShader(watched.vertexShader);
             glDeleteShader(watched.fragmentShader);
-
-            watched.vertexTime = vertexTime;
-            watched.fragmentTime = fragmentTime;
-            watchedPrograms[i] = watched;
         }
     }
     #endif
@@ -762,7 +726,7 @@ static void GL_Init()
 static void GL_DefaultAssets()
 {
 #ifndef NO_DEFAULT_FONT
-    gameState->render.defaultFontID = GL_GenerateFont(defaultFont, sizeof(defaultFont), "defaultFont", 64, 512, 512);
+    gameState->render.defaultFontID = GL_GenerateFont(defaultFont, sizeof(defaultFont), "defaultFont", 64, DEFAULT_FONT_ATLAS_WIDTH, DEFAULT_FONT_ATLAS_HEIGHT);
 #endif
 }
 

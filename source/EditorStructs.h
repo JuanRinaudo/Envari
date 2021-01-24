@@ -15,7 +15,10 @@ enum DebugMenuAction {
 struct ConsoleLog
 {
     char* log;
-    size_t size;
+    size_t logSize;
+    char* file;
+    size_t fileSize;
+    u32 line;
     u32 count;
     ConsoleLogType type;
 };

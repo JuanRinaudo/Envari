@@ -6,7 +6,7 @@ static void ClearLog(ConsoleWindow* console)
     console->items.clear();
 }
 
-static void LogString(ConsoleWindow* console, const char* log, ConsoleLogType type = ConsoleLogType_NORMAL)
+static void LogString(ConsoleWindow* console, const char* log, ConsoleLogType type = ConsoleLogType_NORMAL, u32 line = 0, const char* file = "")
 {
     ConsoleLog* lastLog = console->items.Size > 0 ? &console->items.back() : 0;
     if(lastLog && strcmp(log, lastLog->log) == 0) {
@@ -14,14 +14,16 @@ static void LogString(ConsoleWindow* console, const char* log, ConsoleLogType ty
     }
     else {
         ConsoleLog newLog;
-        newLog.log = Strdup(log, &newLog.size);
+        newLog.log = Strdup(log, &newLog.logSize);
         newLog.count = 1;
+        newLog.file = Strdup(file, &newLog.fileSize);
+        newLog.line = line;
         newLog.type = type;
         console->items.push_back(newLog);
     }
 }
 
-void Log_(ConsoleWindow* console, ConsoleLogType type, const char* fmt, ...)
+void Log_(ConsoleWindow* console, ConsoleLogType type, const char* file, u32 line, const char* fmt, ...)
 {
     char buffer[1024];
     va_list args;
@@ -29,7 +31,7 @@ void Log_(ConsoleWindow* console, ConsoleLogType type, const char* fmt, ...)
     vsnprintf(buffer, ArrayCount(buffer), fmt, args);
     va_end(args);
     buffer[ArrayCount(buffer)-1] = 0;
-    LogString(console, buffer, type);
+    LogString(console, buffer, type, line, file);
 }
 
 static void EditorInit(ConsoleWindow* console)
@@ -211,7 +213,7 @@ static void ExecCommand(ConsoleWindow* console, const char* command_line)
     }
     command[argumentStart] = 0;
 
-    LogString(console, command, ConsoleLogType_COMMAND);
+    LogString(console, command, ConsoleLogType_COMMAND, __LINE__);
 
     // Insert into history. First find match and delete it so it can be pushed to the back. This isn't trying to be smart or optimal.
     console->historyPos = -1;
@@ -351,7 +353,7 @@ static void EditorDraw(ConsoleWindow* console)
     // ImGui::PopTextWrapPos();
 
     ImGui::BeginColumns("Logs", 2);
-    ImGui::SetColumnWidth(0, ImGui::GetWindowSize().x * 0.92f);
+    ImGui::SetColumnWidth(0, ImGui::GetWindowSize().x * 0.87f);
 
     for (i32 i = 0; i < console->items.Size; i++) {
         ConsoleLog* currentLog = &console->items[i];
@@ -373,7 +375,7 @@ static void EditorDraw(ConsoleWindow* console)
 
         i32 lastIndex = 0;
         i32 index = 0;
-        while(index < currentLog->size) {
+        while(index < currentLog->logSize) {
             if(currentLog->log[index] == '\n') {
                 if(lastIndex != 0) {
                     ImGui::SameLine();
@@ -388,7 +390,7 @@ static void EditorDraw(ConsoleWindow* console)
         if(lastIndex != 0) {
             ImGui::SameLine();
         }
-        ImGui::TextUnformatted(currentLog->log + lastIndex, currentLog->log + currentLog->size - 1);
+        ImGui::TextUnformatted(currentLog->log + lastIndex, currentLog->log + currentLog->logSize - 1);
         
         if (currentLog->type != ConsoleLogType_NORMAL) {
             ImGui::PopStyleColor();
@@ -428,6 +430,8 @@ static void EditorDraw(ConsoleWindow* console)
     }
 
     if (inspectedLog && ImGui::BeginPopup("LogDetails")) {
+        ImGui::Text("%s:%d", inspectedLog->file, inspectedLog->line);
+        ImGui::Spacing();
         ImGui::TextUnformatted(inspectedLog->log);
         ImGui::EndPopup();
     } else {

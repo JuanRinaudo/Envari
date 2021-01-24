@@ -9,10 +9,10 @@ static void  Strtrim(char* str)                                  { char* str_end
 static void ClearLog(ConsoleWindow* console);
 
 static void LogString(ConsoleWindow* console, const char* log, ConsoleLogType type);
-void Log_(ConsoleWindow* console, ConsoleLogType type, const char* fmt, ...);
-#define Log(fmt, ...) Log_(&editorConsole, ConsoleLogType_NORMAL, fmt, ##__VA_ARGS__)
-#define LogError(fmt, ...) Log_(&editorConsole, ConsoleLogType_ERROR, fmt, ##__VA_ARGS__)
-#define LogCommand(fmt, ...) Log_(&editorConsole, ConsoleLogType_COMMAND, fmt, ##__VA_ARGS__)
+extern void Log_(ConsoleWindow* console, ConsoleLogType type, const char* file, u32 line, const char* fmt, ...);
+#define Log(fmt, ...) Log_(&editorConsole, ConsoleLogType_NORMAL, __FILE__, __LINE__, fmt, ##__VA_ARGS__)
+#define LogError(fmt, ...) Log_(&editorConsole, ConsoleLogType_ERROR, __FILE__, __LINE__, fmt, ##__VA_ARGS__)
+#define LogCommand(fmt, ...) Log_(&editorConsole, ConsoleLogType_COMMAND, __FILE__, __LINE__, fmt, ##__VA_ARGS__)
 
 ConsoleWindow editorConsole;
 static void EditorInit(ConsoleWindow* console);
