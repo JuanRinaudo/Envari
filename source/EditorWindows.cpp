@@ -99,6 +99,8 @@ i32 CALLBACK WinMain(
     ScriptingInit();
 #endif
 
+    DeserializeTable(&permanentState->arena, &saveData, "saveData.save");
+    
     EditorInit();
     
     GameInit();

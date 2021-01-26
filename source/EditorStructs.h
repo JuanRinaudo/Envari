@@ -80,6 +80,7 @@ struct RenderDebuggerWindow
 struct MemoryDebuggerWindow
 {
     bool open;
+    PROCESS_MEMORY_COUNTERS memoryCounters;
 };
 
 struct TextureDebuggerWindow

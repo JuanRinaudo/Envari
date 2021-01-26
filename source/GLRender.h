@@ -83,6 +83,11 @@ static bool GL_CheckVendor(const char* vendor)
     return strcmp(glVendor, vendor) == 0;
 }
 
+static void GL_CleanCache()
+{
+    // #TODO (Juan): Implement
+}
+
 static i32 GL_TotalGPUMemoryKB()
 {
     i32 totalMemoryInKB = 0;
