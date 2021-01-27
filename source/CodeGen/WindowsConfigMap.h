@@ -7,6 +7,5 @@ const char* WINDOWSCONFIG_BUFFERSIZE = "bufferSize";
 const char* WINDOWSCONFIG_WINDOWTITLE = "windowTitle";
 const char* WINDOWSCONFIG_VSYNC = "vsync";
 const char* WINDOWSCONFIG_FPSLIMIT = "fpsLimit";
-const char* WINDOWSCONFIG_FPSFIXED = "fpsFixed";
 
 #endif

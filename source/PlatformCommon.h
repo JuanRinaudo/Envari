@@ -29,6 +29,8 @@ static void CheckInput() {
         if(mouseState == KEY_PRESSED) { gameState->input.mouseState[key] = KEY_DOWN; }
         else if(mouseState == KEY_RELEASED) { gameState->input.mouseState[key] = KEY_UP; }
     }
+
+    gameState->input.mouseWheel = 0;
 }
 
 static i32 InitSDL()

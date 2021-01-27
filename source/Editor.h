@@ -42,6 +42,10 @@ static SoundDebuggerWindow editorSoundDebugger;
 static void EditorInit(SoundDebuggerWindow* debugger);
 static void EditorDraw(SoundDebuggerWindow* debugger);
 
+static InputDebuggerWindow editorInputDebugger;
+static void EditorInit(InputDebuggerWindow* debugger);
+static void EditorDraw(InputDebuggerWindow* debugger);
+
 #ifdef LUA_SCRIPTING_ENABLED
 static LUADebuggerWindow editorLUADebugger;
 static void EditorInit(LUADebuggerWindow* debugger);

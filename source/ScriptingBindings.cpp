@@ -167,6 +167,8 @@ extern m44 M44(
     f32 _30, f32 _31, f32 _32, f32 _33);
 extern m44 IdM44();
 
+extern f32 Lerp(f32 a, f32 b, f32 t);
+
 extern transform2D Transform2D(f32 posX, f32 posY, f32 scaleX, f32 scaleY);
 
 extern f32 Length(v2 a);
@@ -586,6 +588,7 @@ void ScriptingMathBindings()
     // lua["math"]["rotRight"] = RotateRight;
     // lua["math"]["sqr"] = Square;
     // lua["math"]["floorV2"] = sol::resolve<v2(v2)>(Floor);
+    lua["math"]["lerp"] = Lerp;
 }
 
 #endif

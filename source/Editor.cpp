@@ -86,6 +86,11 @@ static void EditorInit(SoundDebuggerWindow* debugger)
     debugger->open = true;
 }
 
+static void EditorInit(InputDebuggerWindow* debugger)
+{
+    debugger->open = true;
+}
+
 #ifdef LUA_SCRIPTING_ENABLED
 static void EditorInit(LUADebuggerWindow* debugger)
 {
@@ -299,6 +304,7 @@ static void EditorDraw(ConsoleWindow* console)
             if (ImGui::MenuItem("Render")) { EditorInit(&editorRenderDebugger); }
             if (ImGui::MenuItem("Memory")) { EditorInit(&editorMemoryDebugger); }
             if (ImGui::MenuItem("Textures")) { EditorInit(&editorTextureDebugger); }
+            if (ImGui::MenuItem("Input")) { EditorInit(&editorInputDebugger); }
             if (ImGui::MenuItem("Sound")) { EditorInit(&editorSoundDebugger); }
 #ifdef LUA_SCRIPTING_ENABLED
             if (ImGui::MenuItem("LUA")) { EditorInit(&editorLUADebugger); }
@@ -798,6 +804,54 @@ static void EditorDraw(SoundDebuggerWindow* debugger)
     ImGui::End();
 }
 
+static void EditorDraw(InputDebuggerWindow* debugger)
+{
+    if(!debugger->open) { return; };
+    ImGui::SetNextWindowSize(ImVec2(400,300), ImGuiCond_FirstUseEver);
+
+    if (!ImGui::Begin("Input debugger", &debugger->open)) {
+        ImGui::End();
+        return;
+    }
+
+    ImGui::Text("Mouse texture ID: %d", gameState->input.mouseTextureID);
+    ImGui::Text("Mouse position\tX: %f\tY: %f", gameState->input.mousePosition.x, gameState->input.mousePosition.y);
+    ImGui::Text("Mouse screen  \tX: %f\tY: %f", gameState->input.mouseScreenPosition.x, gameState->input.mouseScreenPosition.y);
+    ImGui::Text("Mouse wheel:  \t%d", gameState->input.mouseWheel);
+
+    ImGui::Text("Text input buffer: %s", gameState->input.textInputBuffer);
+
+    float elementSize = 50;
+
+    ImGui::TextUnformatted("Mouse");
+    ImGui::PushItemWidth(elementSize);
+    for(int i = 0; i < MOUSE_COUNT; ++i) {
+        if(i > 0 && i < MOUSE_COUNT && i % 10 != 0) {
+            ImGui::SameLine();
+        }
+        else {
+            ImGui::Text("%03d ->", (i32)(Floor(i / 10.0f) * 10));
+            ImGui::SameLine();
+        }
+        ImGui::Text("%d", gameState->input.mouseState[i]);
+    }
+
+    ImGui::TextUnformatted("Keyboard");
+    for(int i = 0; i < KEY_COUNT; ++i) {
+        if(i > 0 && i < KEY_COUNT &&  i % 10 != 0) {
+            ImGui::SameLine();
+        }
+        else {
+            ImGui::Text("%03d ->", (i32)(Floor(i / 10.0f) * 10));
+            ImGui::SameLine();
+        }
+        ImGui::Text("%d", gameState->input.keyState[i]);
+    }
+    ImGui::PopItemWidth();
+
+    ImGui::End();
+}
+
 #ifdef LUA_SCRIPTING_ENABLED
 static void EditorDraw(LUADebuggerWindow* debugger)
 {
@@ -1028,6 +1082,9 @@ static void EditorInit()
     editorTextureDebugger.open = TableGetBool(&editorSave, "editorTextureDebuggerOpen");
     if(editorTextureDebugger.open) { EditorInit(&editorTextureDebugger); }
 
+    editorInputDebugger.open = TableGetBool(&editorSave, "editorInputDebuggerOpen");
+    if(editorInputDebugger.open) { EditorInit(&editorInputDebugger); }
+
     editorSoundDebugger.open = TableGetBool(&editorSave, "editorSoundDebuggerOpen");
     if(editorSoundDebugger.open) { EditorInit(&editorSoundDebugger); }
 
@@ -1045,6 +1102,7 @@ static void EditorDrawAllOpen()
     EditorDraw(&editorRenderDebugger);
     EditorDraw(&editorMemoryDebugger);
     EditorDraw(&editorTextureDebugger);
+    EditorDraw(&editorInputDebugger);
     EditorDraw(&editorSoundDebugger);
 #ifdef LUA_SCRIPTING_ENABLED
     EditorDraw(&editorLUADebugger);
@@ -1061,6 +1119,7 @@ static void EditorEnd()
     TableSetBool(&permanentState->arena, &editorSave, "editorRenderDebuggerOpen", editorRenderDebugger.open);
     TableSetBool(&permanentState->arena, &editorSave, "editorMemoryDebuggerOpen", editorMemoryDebugger.open);
     TableSetBool(&permanentState->arena, &editorSave, "editorTextureDebuggerOpen", editorTextureDebugger.open);
+    TableSetBool(&permanentState->arena, &editorSave, "editorInputDebuggerOpen", editorInputDebugger.open);
     TableSetBool(&permanentState->arena, &editorSave, "editorSoundDebuggerOpen", editorSoundDebugger.open);
 #ifdef LUA_SCRIPTING_ENABLED
     TableSetBool(&permanentState->arena, &editorSave, "editorLUADebuggerOpen", editorLUADebugger.open);

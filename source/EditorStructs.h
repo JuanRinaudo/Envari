@@ -101,6 +101,11 @@ struct SoundDebuggerWindow
     i32 cacheIndex;
 };
 
+struct InputDebuggerWindow
+{
+    bool open;
+};
+
 #ifdef LUA_SCRIPTING_ENABLED
 struct LUADebuggerWindow
 {
