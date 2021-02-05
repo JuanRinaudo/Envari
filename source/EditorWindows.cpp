@@ -5,6 +5,9 @@
 
 #include <string>
 
+#define PLATFORM_WINDOWS
+#define PLATFORM_EDITOR
+
 #include "CodeGen/FileMap.h"
 #include "CodeGen/ShaderMap.h"
 #include "CodeGen/EditorConfigMap.h"
@@ -76,6 +79,10 @@ i32 CALLBACK WinMain(
         return -1;
     }
 
+	if (gl3wInit()) {
+		return -1;
+	}
+
     if(!SetupTime()) {
         return -1;
     }
@@ -107,6 +114,11 @@ i32 CALLBACK WinMain(
 
     SoundInit();
 
+    editorTimeDebugger.frameTimeBuffer = (f32*)malloc(sizeof(f32) * TIME_BUFFER_SIZE);
+    editorTimeDebugger.frameTimeMax = 1;
+    editorTimeDebugger.fpsBuffer = (f32*)malloc(sizeof(f32) * TIME_BUFFER_SIZE);
+    editorTimeDebugger.fpsMax = 1;
+
     HANDLE processHandle = GetCurrentProcess();
 
     editorRenderDebugger.recording = false;
@@ -126,6 +138,16 @@ i32 CALLBACK WinMain(
         mouseOverWindow = editorPreview.open && editorPreview.cursorInsideWindow;
         mouseEnabled = !imguiIO.WantCaptureMouse && !editorPreview.open;
         keyboardEnabled = !imguiIO.WantCaptureKeyboard;
+
+        editorTimeDebugger.frameTimeBuffer[editorTimeDebugger.debuggerOffset] = 1000.0f / imguiIO.Framerate;
+        if(gameState->time.gameTime > 2 && editorTimeDebugger.frameTimeBuffer[editorTimeDebugger.debuggerOffset] > editorTimeDebugger.frameTimeMax) {
+            editorTimeDebugger.frameTimeMax = editorTimeDebugger.frameTimeBuffer[editorTimeDebugger.debuggerOffset] * 2;
+        }
+        editorTimeDebugger.fpsBuffer[editorTimeDebugger.debuggerOffset] = imguiIO.Framerate;
+        if(gameState->time.gameTime > 2 && editorTimeDebugger.fpsBuffer[editorTimeDebugger.debuggerOffset] > editorTimeDebugger.fpsMax) {
+            editorTimeDebugger.fpsMax = editorTimeDebugger.fpsBuffer[editorTimeDebugger.debuggerOffset] * 2;
+        }
+        editorTimeDebugger.debuggerOffset = (editorTimeDebugger.debuggerOffset + 1) % TIME_BUFFER_SIZE;
 
         SDL_Event event;
         while(SDL_PollEvent(&event)) {

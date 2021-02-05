@@ -72,6 +72,19 @@ static u32 GameInit()
     gameState->game.version = 1;
     gameState->game.updateRunning = true;
 
+    if(gameState->render.bufferSize.x > 0) {
+        gameState->camera.size = gameState->render.bufferSize.y;
+        gameState->camera.ratio = gameState->render.bufferSize.x / gameState->render.bufferSize.y;
+    }
+    else {
+        gameState->camera.size = gameState->render.size.y;
+        gameState->camera.ratio = gameState->render.size.x / gameState->render.size.y;
+    }
+    gameState->camera.nearPlane = 0.01;
+    gameState->camera.farPlane = 100.0;
+    gameState->camera.view = IdM44();
+    gameState->camera.projection = OrtographicProjection(gameState->camera.size, gameState->camera.ratio, gameState->camera.nearPlane, gameState->camera.farPlane);
+
 #ifdef LUA_SCRIPTING_ENABLED
     LoadScriptFile(TableGetString(&initialConfig, INITLUASCRIPT));
 

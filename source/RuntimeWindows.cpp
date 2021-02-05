@@ -5,6 +5,8 @@
 
 #include <string>
 
+#define PLATFORM_WINDOWS
+
 #include "CodeGen/FileMap.h"
 #include "CodeGen/ShaderMap.h"
 #include "CodeGen/WindowsConfigMap.h"
@@ -59,6 +61,10 @@ i32 CALLBACK WinMain(
     if(!SetupWindow()) {
         return -1;
     }
+
+	if (gl3wInit()) {
+		return -1;
+	}
 
     if(!SetupTime()) {
         return -1;

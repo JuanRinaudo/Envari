@@ -1,19 +1,6 @@
 #ifndef SOUND_H
 #define SOUND_H
 
-#ifndef SOUND_MIX_SIZE
-#define SOUND_MIX_SIZE       32
-#endif
-#ifndef SOUND_FORMAT
-#define SOUND_FORMAT         ma_format_f32
-#endif
-#ifndef SOUND_CHANNELS
-#define SOUND_CHANNELS       2
-#endif
-#ifndef SOUND_SAMPLE_RATE
-#define SOUND_SAMPLE_RATE    48000
-#endif
-
 #define STB_VORBIS_HEADER_ONLY
 #include "STB/stb_vorbis.c"
 
@@ -45,26 +32,9 @@ SoundInstance soundMix[SOUND_MIX_SIZE];
 f32 soundRangeMin;
 f32 soundRangeMax;
 
-#if GAME_EDITOR
-#define BUFFER_CHANNEL_TO_SHOW_SIZE SOUND_SAMPLE_RATE * 1
-#define BUFFER_TO_SHOW_SIZE BUFFER_CHANNEL_TO_SHOW_SIZE * SOUND_CHANNELS
-f32* bufferToShow;
-f32 bufferToShowMin[SOUND_CHANNELS];
-f32 bufferToShowMax[SOUND_CHANNELS];
-#endif
-
 static void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount)
 {
     f32* pOutputFormatted = (f32*)pOutput;
-
-#if GAME_EDITOR
-    for(i32 channelIndex = 0; channelIndex < SOUND_CHANNELS; ++channelIndex) {
-        f32* channelBufferToShow = bufferToShow + channelIndex * BUFFER_CHANNEL_TO_SHOW_SIZE;
-        for(i32 i = BUFFER_CHANNEL_TO_SHOW_SIZE; i > frameCount; --i) {
-            channelBufferToShow[i] = channelBufferToShow[i - frameCount];
-        }
-    }
-#endif
 
     for(i32 i = 0; i <= soundMixIndex; ++i) {
         f32 buffer[4096];
@@ -105,13 +75,14 @@ static void data_callback(ma_device* pDevice, void* pOutput, const void* pInput,
 
 #if GAME_EDITOR
     for(i32 channelIndex = 0; channelIndex < SOUND_CHANNELS; ++channelIndex) {
-        f32* channelBufferToShow = bufferToShow + channelIndex * BUFFER_CHANNEL_TO_SHOW_SIZE;
+        f32* channelBufferToShow = editorSoundDebugger.bufferToShow + channelIndex * BUFFER_CHANNEL_TO_SHOW_SIZE;
         for(i32 i = 0; i < frameCount; ++i) {
-            channelBufferToShow[i] = pOutputFormatted[i * SOUND_CHANNELS + channelIndex];
-            bufferToShowMin[channelIndex] = MIN(bufferToShowMin[channelIndex], pOutputFormatted[i * SOUND_CHANNELS + channelIndex]);
-            bufferToShowMax[channelIndex] = MAX(bufferToShowMax[channelIndex], pOutputFormatted[i * SOUND_CHANNELS + channelIndex]);
+            channelBufferToShow[editorSoundDebugger.bufferOffset + i] = pOutputFormatted[i * SOUND_CHANNELS + channelIndex];
+            editorSoundDebugger.bufferToShowMin[channelIndex] = MIN(editorSoundDebugger.bufferToShowMin[channelIndex], pOutputFormatted[i * SOUND_CHANNELS + channelIndex]);
+            editorSoundDebugger.bufferToShowMax[channelIndex] = MAX(editorSoundDebugger.bufferToShowMax[channelIndex], pOutputFormatted[i * SOUND_CHANNELS + channelIndex]);
         }
     }
+    editorSoundDebugger.bufferOffset = (editorSoundDebugger.bufferOffset + frameCount) % BUFFER_CHANNEL_TO_SHOW_SIZE;
 #endif
 }
 
@@ -125,7 +96,8 @@ static void SoundInit()
     deviceConfig.dataCallback      = data_callback;
 
 #if GAME_EDITOR
-    bufferToShow = (f32*)malloc(sizeof(f32) * BUFFER_TO_SHOW_SIZE);
+    editorSoundDebugger.bufferOffset = 0;
+    editorSoundDebugger.bufferToShow = (f32*)malloc(sizeof(f32) * BUFFER_TO_SHOW_SIZE);
 #endif
 
     if (ma_device_init(NULL, &deviceConfig, &soundDevice) != MA_SUCCESS) {

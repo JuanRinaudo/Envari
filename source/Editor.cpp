@@ -91,6 +91,11 @@ static void EditorInit(InputDebuggerWindow* debugger)
     debugger->open = true;
 }
 
+static void EditorInit(TimeDebuggerWindow* debugger)
+{
+    debugger->open = true;
+}
+
 #ifdef LUA_SCRIPTING_ENABLED
 static void EditorInit(LUADebuggerWindow* debugger)
 {
@@ -305,6 +310,7 @@ static void EditorDraw(ConsoleWindow* console)
             if (ImGui::MenuItem("Memory")) { EditorInit(&editorMemoryDebugger); }
             if (ImGui::MenuItem("Textures")) { EditorInit(&editorTextureDebugger); }
             if (ImGui::MenuItem("Input")) { EditorInit(&editorInputDebugger); }
+            if (ImGui::MenuItem("Time")) { EditorInit(&editorTimeDebugger); }
             if (ImGui::MenuItem("Sound")) { EditorInit(&editorSoundDebugger); }
 #ifdef LUA_SCRIPTING_ENABLED
             if (ImGui::MenuItem("LUA")) { EditorInit(&editorLUADebugger); }
@@ -327,7 +333,8 @@ static void EditorDraw(ConsoleWindow* console)
     bool copy_to_clipboard = ImGui::SmallButton("Copy");
     
     ImGui::SameLine();
-    ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+    ImGuiIO imguiIO = ImGui::GetIO();
+    ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f / imguiIO.Framerate, imguiIO.Framerate);
 
     ImGui::Separator();
 
@@ -683,7 +690,7 @@ static void EditorDraw(TextureDebuggerWindow* debugger)
     i32 textureID = 0;
 
     i32 textureCacheSize = shlen(textureCache);
-    if(debugger->inspectMode == TextureInspect_CACHE)
+    if(debugger->inspectMode == TextureInspect_CACHE && textureCacheSize > 0)
     {
         ImGui::Text("Texture Cache ID: %d / %d", debugger->textureIndex + 1, textureCacheSize);
         
@@ -768,8 +775,8 @@ static void EditorDraw(SoundDebuggerWindow* debugger)
     for(i32 channelIndex = 0; channelIndex < SOUND_CHANNELS; ++channelIndex) {
         sprintf(title, "Master Channel %d", channelIndex);
 
-        ImGui::Text("Master Min: %f Max: %f (%f - %f)", bufferToShowMin[channelIndex], bufferToShowMax[channelIndex], soundRangeMin, soundRangeMax);
-        ImGui::PlotLines("", bufferToShow + channelIndex * BUFFER_CHANNEL_TO_SHOW_SIZE, BUFFER_CHANNEL_TO_SHOW_SIZE, 0, title, soundRangeMin, soundRangeMax, ImVec2(width, 80));
+        ImGui::Text("Master Min: %f Max: %f (%f - %f)", debugger->bufferToShowMin[channelIndex], debugger->bufferToShowMax[channelIndex], soundRangeMin, soundRangeMax);
+        ImGui::PlotLines("", debugger->bufferToShow + channelIndex * BUFFER_CHANNEL_TO_SHOW_SIZE, BUFFER_CHANNEL_TO_SHOW_SIZE, editorSoundDebugger.bufferOffset, title, soundRangeMin, soundRangeMax, ImVec2(width, 80));
     }
     
     if(ImGui::CollapsingHeader("Sound cache")) {
@@ -848,6 +855,41 @@ static void EditorDraw(InputDebuggerWindow* debugger)
         ImGui::Text("%d", gameState->input.keyState[i]);
     }
     ImGui::PopItemWidth();
+
+    ImGui::End();
+}
+
+static void EditorDraw(TimeDebuggerWindow* debugger)
+{
+    if(!debugger->open) { return; };
+    ImGui::SetNextWindowSize(ImVec2(400,300), ImGuiCond_FirstUseEver);
+
+    if (!ImGui::Begin("Time debugger", &debugger->open)) {
+        ImGui::End();
+        return;
+    }
+
+    ImVec2 contentMin = ImGui::GetWindowContentRegionMin();
+    ImVec2 contentMax = ImGui::GetWindowContentRegionMax();
+    float width = contentMax.x - contentMin.x;
+
+    ImGui::Text("Start time: %f", gameState->time.startTime);
+    ImGui::Text("Delta time: %f", gameState->time.deltaTime);
+    ImGui::Text("Game time: %f", gameState->time.gameTime);
+    ImGui::Text("Last frame game time: %f", gameState->time.lastFrameGameTime);
+
+    ImGui::Separator();
+    
+    ImGui::Text("Frames: %d", gameState->time.frames);
+    ImGui::Text("Game frames: %d", gameState->time.gameFrames);
+
+    ImGui::Separator();
+
+    ImGui::Text("Frame Time Min: %f Max: %f", debugger->frameTimeMin, debugger->frameTimeMax);
+    ImGui::PlotLines("", debugger->frameTimeBuffer, TIME_BUFFER_SIZE, editorTimeDebugger.debuggerOffset, "Frame time", debugger->frameTimeMin, debugger->frameTimeMax, ImVec2(width, 80));
+
+    ImGui::Text("FPS Min: %f Max: %f", debugger->fpsMin, debugger->fpsMax);
+    ImGui::PlotLines("", debugger->fpsBuffer, TIME_BUFFER_SIZE, editorTimeDebugger.debuggerOffset, "FPS", debugger->fpsMin, debugger->fpsMax, ImVec2(width, 80));
 
     ImGui::End();
 }
@@ -1085,6 +1127,9 @@ static void EditorInit()
     editorInputDebugger.open = TableGetBool(&editorSave, "editorInputDebuggerOpen");
     if(editorInputDebugger.open) { EditorInit(&editorInputDebugger); }
 
+    editorTimeDebugger.open = TableGetBool(&editorSave, "editorTimeDebuggerOpen");
+    if(editorTimeDebugger.open) { EditorInit(&editorTimeDebugger); }
+
     editorSoundDebugger.open = TableGetBool(&editorSave, "editorSoundDebuggerOpen");
     if(editorSoundDebugger.open) { EditorInit(&editorSoundDebugger); }
 
@@ -1103,6 +1148,7 @@ static void EditorDrawAllOpen()
     EditorDraw(&editorMemoryDebugger);
     EditorDraw(&editorTextureDebugger);
     EditorDraw(&editorInputDebugger);
+    EditorDraw(&editorTimeDebugger);
     EditorDraw(&editorSoundDebugger);
 #ifdef LUA_SCRIPTING_ENABLED
     EditorDraw(&editorLUADebugger);
@@ -1120,6 +1166,7 @@ static void EditorEnd()
     TableSetBool(&permanentState->arena, &editorSave, "editorMemoryDebuggerOpen", editorMemoryDebugger.open);
     TableSetBool(&permanentState->arena, &editorSave, "editorTextureDebuggerOpen", editorTextureDebugger.open);
     TableSetBool(&permanentState->arena, &editorSave, "editorInputDebuggerOpen", editorInputDebugger.open);
+    TableSetBool(&permanentState->arena, &editorSave, "editorTimeDebuggerOpen", editorTimeDebugger.open);
     TableSetBool(&permanentState->arena, &editorSave, "editorSoundDebuggerOpen", editorSoundDebugger.open);
 #ifdef LUA_SCRIPTING_ENABLED
     TableSetBool(&permanentState->arena, &editorSave, "editorLUADebuggerOpen", editorLUADebugger.open);

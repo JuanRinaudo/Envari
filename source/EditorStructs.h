@@ -99,11 +99,29 @@ struct SoundDebuggerWindow
     bool open;
 
     i32 cacheIndex;
+    i32 bufferOffset;
+    f32* bufferToShow;
+    f32 bufferToShowMin[SOUND_CHANNELS];
+    f32 bufferToShowMax[SOUND_CHANNELS];
 };
 
 struct InputDebuggerWindow
 {
     bool open;
+};
+
+struct TimeDebuggerWindow
+{
+    bool open;
+
+    i32 debuggerOffset = 0;
+
+    f32* frameTimeBuffer;
+    f32 frameTimeMin;
+    f32 frameTimeMax;
+    f32* fpsBuffer;
+    f32 fpsMin;
+    f32 fpsMax;
 };
 
 #ifdef LUA_SCRIPTING_ENABLED

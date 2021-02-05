@@ -46,6 +46,10 @@ static InputDebuggerWindow editorInputDebugger;
 static void EditorInit(InputDebuggerWindow* debugger);
 static void EditorDraw(InputDebuggerWindow* debugger);
 
+static TimeDebuggerWindow editorTimeDebugger;
+static void EditorInit(TimeDebuggerWindow* debugger);
+static void EditorDraw(TimeDebuggerWindow* debugger);
+
 #ifdef LUA_SCRIPTING_ENABLED
 static LUADebuggerWindow editorLUADebugger;
 static void EditorInit(LUADebuggerWindow* debugger);

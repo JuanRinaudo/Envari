@@ -404,7 +404,11 @@ void Begin2D(u32 frameBufferID, u32 width, u32 height)
 	glBindFramebuffer(GL_FRAMEBUFFER, frameBufferID);
 	glViewport(0,0, width, height);
     
+#ifdef PLATFORM_WASM
+    DrawTextureParameters(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
+#else
     DrawTextureParameters(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR_MIPMAP_LINEAR);
+#endif    
     DrawSetLayer(0, true);
     if(gameState->render.defaultFontID != 0) {
         DrawSetFont(gameState->render.defaultFontID);

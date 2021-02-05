@@ -17,7 +17,7 @@
 
 #include <stdio.h>
 
-static void* LoadFileToMemory(const char* filepath, const char* mode, u32* fileSize)
+static void* LoadFileToMemory(const char* filepath, const char* mode, size_t* fileSize)
 {
     FILE* file = fopen(filepath, mode);
 
@@ -25,7 +25,7 @@ static void* LoadFileToMemory(const char* filepath, const char* mode, u32* fileS
 	if (file) {
 		fseek(file, 0, SEEK_END);
         size_t size = ftell(file);
-		*fileSize = (u32)size;
+		*fileSize = size;
 		rewind(file);
 
 		fileBuffer = malloc(size);

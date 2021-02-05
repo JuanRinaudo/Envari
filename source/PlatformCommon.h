@@ -39,9 +39,16 @@ static i32 InitSDL()
         return -1;
     }
     
+    #ifdef PLATFORM_WASM
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-    
+    #else
+    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+    #endif
+
     SDL_GetCurrentDisplayMode(0, &displayMode);
     
     return 1;
@@ -95,10 +102,6 @@ static i32 SetupWindow()
     if (!glContext) {
         return -1;
     }
-
-	if (gl3wInit()) {
-		return -1;
-	}
 
     return 1;
 }

@@ -281,6 +281,7 @@ void WritePNG(char *filename, int x, int y, int comp, void *data, int stride_byt
     free(data);
 }
 
+#ifndef PLATFORM_WASM
 void GL_DumpTexture(const char *filepath, i32 textureID, u32 width, u32 height)
 {
     u8* data = (u8*)malloc(width * height * 3);
@@ -291,6 +292,7 @@ void GL_DumpTexture(const char *filepath, i32 textureID, u32 width, u32 height)
     std::thread saveImage(WritePNG, savePath, width, height, 3, data, width * 3);
     saveImage.detach();
 }
+#endif
 
 i32 GL_GenerateFont(void* data, u32 data_size, const char *filepath, f32 fontSize, u32 width, u32 height)
 {
@@ -315,7 +317,7 @@ i32 GL_GenerateFont(void* data, u32 data_size, const char *filepath, f32 fontSiz
 
 u32 GL_GenerateFont(const char *filepath, f32 fontSize, u32 width, u32 height)
 {
-    u32 data_size = 0;
+    size_t data_size = 0;
     void* data = LoadFileToMemory(filepath, FILE_MODE_READ_BINARY, &data_size);
 
     return GL_GenerateFont(data, data_size, filepath, fontSize, width, height);

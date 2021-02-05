@@ -56,6 +56,26 @@ typedef double f64;
 #define F32Max FLT_MAX
 #define F64Max DBL_MAX
 
+#ifndef SOUND_MIX_SIZE
+#define SOUND_MIX_SIZE       32
+#endif
+#ifndef SOUND_FORMAT
+#define SOUND_FORMAT         ma_format_f32
+#endif
+#ifndef SOUND_CHANNELS
+#define SOUND_CHANNELS       2
+#endif
+#ifndef SOUND_SAMPLE_RATE
+#define SOUND_SAMPLE_RATE    48000
+#endif
+
+#if GAME_EDITOR
+#define BUFFER_CHANNEL_TO_SHOW_SIZE SOUND_SAMPLE_RATE * 1
+#define BUFFER_TO_SHOW_SIZE BUFFER_CHANNEL_TO_SHOW_SIZE * SOUND_CHANNELS
+
+#define TIME_BUFFER_SIZE 1000
+#endif
+
 #if __EMSCRIPTEN__
     #ifdef GAME_SLOW
         // TODO(Juan): Complete assert macro
@@ -90,8 +110,8 @@ typedef double f64;
 
 #define ArrayCount(Array) (sizeof(Array) / sizeof((Array)[0]))
 
-#define GenerateTableGetExtern(POSTFIX, valueType, typeDefault) extern valueType TableGet##POSTFIX##(SerializableTable** table, const char* key, valueType defaultValue = typeDefault);
-#define GenerateTableGet(POSTFIX, valueType, typeDefault) valueType TableGet##POSTFIX##(SerializableTable** table, const char* key, valueType defaultValue = typeDefault) \
+#define GenerateTableGetExtern(POSTFIX, valueType) extern valueType TableGet ## POSTFIX (SerializableTable** table, const char* key, valueType defaultValue);
+#define GenerateTableGet(POSTFIX, valueType, typeDefault) valueType TableGet ## POSTFIX (SerializableTable** table, const char* key, valueType defaultValue = typeDefault) \
 { \
     SerializableValue* tableValue = shget(*table, key); \
     if(tableValue) { \
@@ -102,8 +122,8 @@ typedef double f64;
     } \
 }
 
-#define GenerateTableSetExtern(POSTFIX, valueType, serializableType) extern void TableSet##POSTFIX##_(MemoryArena *arena, SerializableTable** table, const char* key, valueType value);
-#define GenerateTableSet(POSTFIX, valueType, serializableType) void TableSet##POSTFIX##_(MemoryArena *arena, SerializableTable** table, const char* key, valueType value) \
+#define GenerateTableSetExtern(POSTFIX, valueType, serializableType) extern void TableSet ## POSTFIX ## _(MemoryArena *arena, SerializableTable** table, const char* key, valueType value);
+#define GenerateTableSet(POSTFIX, valueType, serializableType) void TableSet ## POSTFIX ## _(MemoryArena *arena, SerializableTable** table, const char* key, valueType value) \
 { \
     SerializableValue* tableValue = shget(*table, key); \
     if(tableValue) { \
@@ -126,7 +146,7 @@ typedef double f64;
 #define TableSetF32(arena, table, key, value) TableSetF32_(arena, table, key, value)
 #define TableSetV2(arena, table, key, value) TableSetV2_(arena, table, key, value)
 
-#define GenerateRenderTemporaryPush(PREFIX, type) static type* RenderTemporaryPush##PREFIX##(type value) \
+#define GenerateRenderTemporaryPush(PREFIX, type) static type* RenderTemporaryPush ## PREFIX (type value) \
 { \
     u32 size = sizeof(type); \
     if(renderTemporaryMemory.arena->used + size < renderTemporaryMemory.arena->size) { \

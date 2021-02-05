@@ -164,7 +164,6 @@ static void TableSetValue_(MemoryArena *arena, SerializableTable** table, const 
     shput(*table, keyPointer, tableValue);
 }
 
-GenerateTableGet(String, char*, "")
 void TableSetString_(MemoryArena *arena, SerializableTable** table, const char* key, const char* value)
 {
     u32 stringSize = strlen(value);
@@ -186,16 +185,17 @@ void TableSetString_(MemoryArena *arena, SerializableTable** table, const char* 
         shput(*table, keyPointer, tableValue);
     }
 }
-// static char* TableGetString(SerializableTable** table, const char* key, char* defaultValue = "")
-// {
-//     SerializableValue* tableValue = shget(*table, key);
-//     if(tableValue) {
-//         return (char*)tableValue->value;
-//     }
-//     else {
-//         return defaultValue;
-//     }
-// }
+
+char* TableGetString (SerializableTable** table, const char* key, char* defaultValue)
+{
+    SerializableValue* tableValue = shget(*table, key);
+    if(tableValue) {
+        return (char*)tableValue->value;
+    }
+    else {
+        return defaultValue;
+    }
+}
 
 GenerateTableGet(Bool, bool, false)
 GenerateTableSet(Bool, bool, SerializableType_BOOL)
@@ -323,7 +323,7 @@ static void SerializeTable(SerializableTable** table, const char* filepath)
         i32 tableSize = shlen(*table);
         fputs("#version", file);
         fputc(' ', file);
-        itoa(1, stringBuffer, 10);
+        sprintf(stringBuffer, "%d", 1);
         fputs(stringBuffer, file);
         fputs(";\n", file);
 
@@ -332,12 +332,12 @@ static void SerializeTable(SerializableTable** table, const char* filepath)
             fputs(data.key, file);
             fputc(' ', file);
             
-            itoa((i32)data.value->type, stringBuffer, 10);
+            sprintf(stringBuffer, "%d", (i32)data.value->type);
             fputs(stringBuffer, file);
             fputc(' ', file);
 
             i32 valueCount = data.value->count;
-            itoa(valueCount, stringBuffer, 10);
+            sprintf(stringBuffer, "%d", valueCount);
             fputs(stringBuffer, file);
             fputc(' ', file);
             

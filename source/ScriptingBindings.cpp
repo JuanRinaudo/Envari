@@ -1,7 +1,7 @@
 #ifndef SCRIPTINGWRAPPERS_H
 #define SCRIPTINGWRAPPERS_H
 
-#ifndef __EMSCRIPTEN__
+#ifndef PLATFORM_WASM
 #include <filesystem>
 
 #include "GL3W/gl3w.h"
@@ -37,15 +37,6 @@ extern void Log_(ConsoleLogType type, const char* fmt, ...);
 #define LogCommand(fmt, ...) Log_(ConsoleLogType_COMMAND, fmt, ##__VA_ARGS__)
 #endif
 
-#define LUASaveGetSet(POSTFIX, valueType) static valueType SaveGet##POSTFIX##(const char* key, valueType defaultValue) \
-{ \
-    return TableGet##POSTFIX##(&saveData, key, defaultValue); \
-} \
-static void SaveSet##POSTFIX##(const char* key, valueType value) \
-{ \
-    TableSet##POSTFIX##_(&permanentState->arena, &saveData, key, value); \
-}
-
 #define PushStruct(arena, type) (type *)PushSize_(arena, sizeof(type))
 #define PushArray(arena, count, type) (type *)PushSize_(arena, ((count)*sizeof(type)))
 #define PushSize(arena, size) PushSize_(arena, size)
@@ -63,7 +54,7 @@ extern TemporaryMemory renderTemporaryMemory;
 extern SerializableTable* configSave;
 extern SerializableTable* saveData;
 
-extern void LoadScriptFile(char* filePath);
+extern void LoadScriptFile(const char* filePath);
 extern void LoadLUALibrary(sol::lib library);
 
 // #NOTE (Juan): Input
@@ -114,17 +105,6 @@ extern void DrawOverrideIndices(u32* indices, u32 count);
 extern void End2D();
 extern v2 RenderToViewport(f32 screenX, f32 screenY, f32 size, f32 ratio);
 
-GenerateTableGetExtern(String, char*, "")
-GenerateTableSetExtern(String, const char*, SerializableType_STRING)
-GenerateTableGetExtern(Bool, bool, false)
-GenerateTableSetExtern(Bool, bool, SerializableType_BOOL)
-GenerateTableGetExtern(I32, i32, 0)
-GenerateTableSetExtern(I32, i32, SerializableType_I32)
-GenerateTableGetExtern(F32, f32, 0)
-GenerateTableSetExtern(F32, f32, SerializableType_F32)
-GenerateTableGetExtern(V2, v2, V2(0, 0))
-GenerateTableSetExtern(V2, v2, SerializableType_V2)
-
 extern void LoadLUAScene(const char* luaFilepath);
 
 extern u32 defaultFontID;
@@ -173,6 +153,26 @@ extern transform2D Transform2D(f32 posX, f32 posY, f32 scaleX, f32 scaleY);
 
 extern f32 Length(v2 a);
 #endif
+
+#define LUASaveGetSet(POSTFIX, valueType) static valueType SaveGet ## POSTFIX (const char* key, valueType defaultValue) \
+{ \
+    return TableGet ## POSTFIX (&saveData, key, defaultValue); \
+} \
+static void SaveSet ## POSTFIX (const char* key, valueType value) \
+{ \
+    TableSet ## POSTFIX ## _(&permanentState->arena, &saveData, key, value); \
+}
+
+GenerateTableGetExtern(String, char*)
+GenerateTableSetExtern(String, const char*, SerializableType_STRING)
+GenerateTableGetExtern(Bool, bool)
+GenerateTableSetExtern(Bool, bool, SerializableType_BOOL)
+GenerateTableGetExtern(I32, i32)
+GenerateTableSetExtern(I32, i32, SerializableType_I32)
+GenerateTableGetExtern(F32, f32)
+GenerateTableSetExtern(F32, f32, SerializableType_F32)
+GenerateTableGetExtern(V2, v2)
+GenerateTableSetExtern(V2, v2, SerializableType_V2)
 
 // #NOTE(Juan): Console
 static void LogConsole(const char* log)
@@ -245,7 +245,7 @@ static void SaveSetString(const char* key, const char* value)
 }
 
 // #NOTE(Juan): Sound
-static void SoundPlaySimple(const char* filepath, f32 volume, bool loop) {
+static void SoundPlaySimple(const char* filepath, f32 volume) {
     SoundPlay(filepath, volume, false);
 }
 
@@ -260,7 +260,7 @@ GenerateRenderTemporaryPush(Vector2, v2);
 void ScriptingInitBindings()
 {
     // #NOTE (Juan): Lua
-    lua["LoadScriptFile"] = LoadScriptFile;
+    lua["LoadScriptFile"] = sol::resolve<void(const char*)>(LoadScriptFile);
     lua["LoadLibrary"] = LoadLUALibrary;
     lua["SOL_LIBRARY_BASE"] = sol::lib::base;
     lua["SOL_LIBRARY_PACKAGE"] = sol::lib::package;
@@ -366,7 +366,7 @@ void ScriptingInitBindings()
     lua["DrawSetFont"] = DrawSetFont;
     lua["DrawChar"] = DrawChar;
     lua["DrawString"] = DrawString;
-    lua["DrawStyledString"] = DrawStyledString;
+    lua["DrawStyledString"] = sol::resolve<void(f32, f32, f32, f32, const char*, u32)>(DrawStyledString);
     lua["ClearInputBuffer"] = ClearInputBuffer;
     lua["DrawStringInput"] = DrawStringInput;
     lua["DrawButton"] = DrawButton;
@@ -404,7 +404,7 @@ void ScriptingInitBindings()
     lua["CreateQuadPosUV"] = CreateQuadPosUV;
     lua["LoadTextureID"] = GL_LoadTextureID;
     lua["LoadTexture"] = LoadTexture;
-    lua["GenerateFont"] = GL_GenerateFont;
+    lua["GenerateFont"] = sol::resolve<u32(const char*, f32, u32, u32)>(GL_GenerateFont);
     lua["CompileProgram"] = GL_CompileProgram;
     lua["CompileProgramPlatform"] = GL_CompileProgramPlatform;
     lua["GetUniformLocation"] = glGetUniformLocation;

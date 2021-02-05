@@ -3,7 +3,10 @@
 
 void Log_(ConsoleLogType type, const char* fmt, ...)
 {
-    
+    va_list args;
+    va_start(args, fmt);
+    printf(fmt, args);
+    va_end(args);
 }
 
 #define Log(fmt, ...) Log_(ConsoleLogType_NORMAL, fmt, ##__VA_ARGS__)

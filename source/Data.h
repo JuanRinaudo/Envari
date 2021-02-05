@@ -4,7 +4,7 @@
 struct DataTokenizer {
     bool active;
     void* memory;
-    u32 memorySize;
+    size_t memorySize;
     char* dataString;
     u32 dataIndex;
     char currentChar;
