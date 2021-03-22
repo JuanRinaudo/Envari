@@ -1,5 +1,5 @@
 @echo off
 
 pushd data
-"..\build/editor/EditorWindows.exe"
+START /D %CD% ..\build/editor/EditorWindows.exe"
 popd

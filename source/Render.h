@@ -404,11 +404,7 @@ void Begin2D(u32 frameBufferID, u32 width, u32 height)
 	glBindFramebuffer(GL_FRAMEBUFFER, frameBufferID);
 	glViewport(0,0, width, height);
     
-#ifdef PLATFORM_WASM
-    DrawTextureParameters(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
-#else
-    DrawTextureParameters(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR_MIPMAP_LINEAR);
-#endif    
+    DrawTextureParameters(DEFAULT_WRAP_S, DEFAULT_WRAP_T, DEFAULT_MIN_FILTER, DEFAULT_MAX_FILTER);    
     DrawSetLayer(0, true);
     if(gameState->render.defaultFontID != 0) {
         DrawSetFont(gameState->render.defaultFontID);
@@ -433,6 +429,28 @@ v2 RenderToViewport(f32 renderX, f32 renderY, f32 size, f32 ratio)
     position.y = ((renderY / gameState->render.size.y) - 0.5f) * size + size * 0.5f;
 
     return position;
+}
+
+v4 ColorHexRGBA(u32 hex)
+{
+    v4 color = V4(
+        ((hex >> 0) & 0xFF) / 255.0f,
+        ((hex >> 8) & 0xFF) / 255.0f,
+        ((hex >> 16) & 0xFF) / 255.0f,
+        ((hex >> 24) & 0xFF) / 255.0f
+    );
+    return color;
+}
+
+v4 ColorHexRGB(u32 hex)
+{
+    v4 color = V4(
+        ((hex >> 0) & 0xFF) / 255.0f,
+        ((hex >> 8) & 0xFF) / 255.0f,
+        ((hex >> 16) & 0xFF) / 255.0f,
+        1
+    );
+    return color;
 }
 
 #endif

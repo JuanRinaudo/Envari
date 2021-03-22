@@ -60,7 +60,7 @@ static i32 SetupWindow()
     gameState->render.windowPosition = TableGetV2(&configSave, "windowPosition", V2(-1, -1));
     gameState->render.windowSize = TableGetV2(&configSave, "windowSize", TableGetV2(&initialConfig, "windowSize"));
 
-    if(gameState->render.windowSize.x <= 64 && gameState->render.windowSize.y <= 64) {
+    if(gameState->render.windowSize.x <= 32 && gameState->render.windowSize.y <= 32) {
         gameState->render.size.x = displayMode.w * gameState->render.windowSize.x;
         gameState->render.size.y = displayMode.h * gameState->render.windowSize.y;
     }
@@ -74,7 +74,7 @@ static i32 SetupWindow()
     gameState->render.framebufferEnabled = TableHasKey(initialConfig, "bufferSize");
     if(gameState->render.framebufferEnabled) {
         v2 bufferSize = TableGetV2(&initialConfig, "bufferSize");
-        if(bufferSize.x <= 64 && bufferSize.y <= 64) {
+        if(bufferSize.x <= 32 && bufferSize.y <= 32) {
             gameState->render.bufferSize.x = gameState->render.windowSize.x * bufferSize.x;
             gameState->render.bufferSize.y = gameState->render.windowSize.y * bufferSize.y;
         }
@@ -198,13 +198,13 @@ static i32 ProcessEvent(const SDL_Event* event)
             break;
         }
         case SDL_MOUSEBUTTONDOWN: {
-            if(mouseEnabled || mouseOverWindow) {
+            if((mouseEnabled || mouseOverWindow) && gameState->input.mouseState[event->button.button] <= KEY_RELEASED) {
                 gameState->input.mouseState[event->button.button] = KEY_PRESSED;
             }
            break;
         }
         case SDL_MOUSEBUTTONUP: {
-            if(mouseEnabled || mouseOverWindow) {
+            if((mouseEnabled || mouseOverWindow) && gameState->input.mouseState[event->button.button] >= KEY_PRESSED) {
                 gameState->input.mouseState[event->button.button] = KEY_RELEASED;
             }
             break;
@@ -224,13 +224,13 @@ static i32 ProcessEvent(const SDL_Event* event)
             }
             break;
         case SDL_KEYDOWN: {
-            if(keyboardEnabled) {
+            if(keyboardEnabled && gameState->input.keyState[event->key.keysym.scancode] <= KEY_RELEASED) {
                 gameState->input.keyState[event->key.keysym.scancode] = KEY_PRESSED;
             }
             break;
         }
         case SDL_KEYUP: {
-            if(keyboardEnabled) {
+            if(keyboardEnabled && gameState->input.keyState[event->key.keysym.scancode] >= KEY_PRESSED) {
                 gameState->input.keyState[event->key.keysym.scancode] = KEY_RELEASED;
             }
             break;
@@ -258,9 +258,10 @@ static i32 RenderFramebuffer()
     Begin2D(0, (u32)gameState->render.size.x, (u32)gameState->render.size.y);
     DrawOverrideVertices(0, 0);
     DrawClear(0, 0, 0, 1);
-    DrawTextureParameters(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, GL_LINEAR, GL_LINEAR);
-    f32 sizeX = gameState->camera.size * tempRatio;
-    DrawTexture(0, gameState->camera.size, sizeX, -gameState->camera.size, gameState->render.renderBuffer);
+    DrawTextureParameters(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, FRAMEBUFFER_DEFAULT_FILTER, FRAMEBUFFER_DEFAULT_FILTER);
+    f32 sizeX = tempRatio;
+    f32 xOffset = -(gameState->render.windowSize.x / (gameState->render.bufferSize.x * (gameState->render.windowSize.y / gameState->render.bufferSize.y))) * 0.5f;
+    DrawTexture(-sizeX * .2f, gameState->camera.size, sizeX, -gameState->camera.size, gameState->render.renderBuffer);
     GL_Render();
     End2D();
 

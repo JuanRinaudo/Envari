@@ -104,6 +104,8 @@ extern void DrawOverrideVertices(f32* vertices, u32 count);
 extern void DrawOverrideIndices(u32* indices, u32 count);
 extern void End2D();
 extern v2 RenderToViewport(f32 screenX, f32 screenY, f32 size, f32 ratio);
+extern v4 ColorHexRGBA(u32 hex);
+extern v4 ColorHexRGB(u32 hex);
 
 extern void LoadLUAScene(const char* luaFilepath);
 
@@ -113,6 +115,7 @@ extern f32* CreateQuadPosUV(f32 posStartX, f32 posStartY, f32 posEndX, f32 posEn
 extern void GL_LoadTextureID(u32 textureID, f32 width, f32 height);
 extern GLTexture GL_LoadTextureFile(const char *texturePath);
 extern u32 GL_GenerateFont(const char *filepath, f32 fontSize, u32 width, u32 height);
+extern u32 GL_GenerateBitmapFontStrip(const char *filepath, const char* glyphs, u32 glyphWidth, u32 glyphHeight);
 extern u32 GL_CompileProgram(const char *vertexShaderSource, const char *fragmentShaderSource);
 extern u32 GL_CompileProgramPlatform(const char *vertexShaderPlatform, const char *fragmentShaderPlatform);
 
@@ -382,6 +385,8 @@ void ScriptingInitBindings()
     lua["LoadLUAScene"] = LoadLUAScene;
 
     lua["RenderToViewport"] = RenderToViewport;
+    lua["ColorHexRGBA"] = ColorHexRGBA;
+    lua["ColorHexRGB"] = ColorHexRGB;
     
     lua["ImageRenderFlag_Fit"] = ImageRenderFlag_Fit;
     lua["ImageRenderFlag_KeepRatioX"] = ImageRenderFlag_KeepRatioX;
@@ -405,6 +410,7 @@ void ScriptingInitBindings()
     lua["LoadTextureID"] = GL_LoadTextureID;
     lua["LoadTexture"] = LoadTexture;
     lua["GenerateFont"] = sol::resolve<u32(const char*, f32, u32, u32)>(GL_GenerateFont);
+    lua["GL_GenerateBitmapFontStrip"] = GL_GenerateBitmapFontStrip;
     lua["CompileProgram"] = GL_CompileProgram;
     lua["CompileProgramPlatform"] = GL_CompileProgramPlatform;
     lua["GetUniformLocation"] = glGetUniformLocation;
@@ -529,6 +535,9 @@ void ScriptingMathBindings()
     v3_usertype["x"] = sol::property([](v3 &v) { return v.x; }, [](v3 &v, f32 f) { v.x = f; });
     v3_usertype["y"] = sol::property([](v3 &v) { return v.y; }, [](v3 &v, f32 f) { v.y = f; });
     v3_usertype["z"] = sol::property([](v3 &v) { return v.z; }, [](v3 &v, f32 f) { v.z = f; });
+    v3_usertype["r"] = sol::property([](v3 &v) { return v.x; }, [](v3 &v, f32 f) { v.x = f; });
+    v3_usertype["g"] = sol::property([](v3 &v) { return v.y; }, [](v3 &v, f32 f) { v.y = f; });
+    v3_usertype["b"] = sol::property([](v3 &v) { return v.z; }, [](v3 &v, f32 f) { v.z = f; });
     v3_usertype["e"] = sol::property([](v3 &v) { return &v.e; });
 
     sol::usertype<v4> v4_usertype = lua.new_usertype<v4>("v4");
@@ -536,6 +545,10 @@ void ScriptingMathBindings()
     v4_usertype["y"] = sol::property([](v4 &v) { return v.y; }, [](v4 &v, f32 f) { v.y = f; });
     v4_usertype["z"] = sol::property([](v4 &v) { return v.z; }, [](v4 &v, f32 f) { v.z = f; });
     v4_usertype["w"] = sol::property([](v4 &v) { return v.w; }, [](v4 &v, f32 f) { v.w = f; });
+    v4_usertype["r"] = sol::property([](v4 &v) { return v.x; }, [](v4 &v, f32 f) { v.x = f; });
+    v4_usertype["g"] = sol::property([](v4 &v) { return v.y; }, [](v4 &v, f32 f) { v.y = f; });
+    v4_usertype["b"] = sol::property([](v4 &v) { return v.z; }, [](v4 &v, f32 f) { v.z = f; });
+    v4_usertype["a"] = sol::property([](v4 &v) { return v.w; }, [](v4 &v, f32 f) { v.w = f; });
     v4_usertype["e"] = sol::property([](v4 &v) { return &v.e; });
 
     sol::usertype<m44> m44_usertype = lua.new_usertype<m44>("m44");

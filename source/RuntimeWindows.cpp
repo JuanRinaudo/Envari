@@ -21,11 +21,17 @@
 
 #include <SDL.h>
 
+#define DEFAULT_MIN_FILTER GL_NEAREST
+#define DEFAULT_MAX_FILTER GL_NEAREST
+#define FRAMEBUFFER_DEFAULT_FILTER GL_NEAREST
+
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "STB/stb_truetype.h"
 
 #include "Game.h"
 #include "PlatformCommon.h"
+
+#define GAME_SLOW
 
 i32 CALLBACK WinMain(
     HINSTANCE Instance,
@@ -35,6 +41,11 @@ i32 CALLBACK WinMain(
 {
     size_t permanentStorageSize = Megabytes(32);
     void* permanentStorage = malloc(permanentStorageSize);
+    
+#ifdef GAME_SLOW
+    AllocConsole();
+    freopen("CONOUT$", "w", stdout);
+#endif
 
     gameState = (Data *)permanentStorage;
     gameState->memory.permanentStorageSize = permanentStorageSize;
@@ -122,6 +133,10 @@ i32 CALLBACK WinMain(
 
         WaitFPSLimit();
     }
+
+#ifdef GAME_SLOW
+    FreeConsole();
+#endif
 
     GameEnd();
 

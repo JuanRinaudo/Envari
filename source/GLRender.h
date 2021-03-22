@@ -294,6 +294,40 @@ void GL_DumpTexture(const char *filepath, i32 textureID, u32 width, u32 height)
 }
 #endif
 
+u32 GL_GenerateBitmapFontStrip(const char *filepath, const char* glyphs, u32 glyphWidth, u32 glyphHeight)
+{
+    size_t data_size = 0;
+    GLTexture texture = GL_LoadTextureFile(filepath);
+
+    i32 glyphCount = strlen(glyphs);
+
+    FontAtlas result;
+    result.lineHeight = (f32)glyphHeight;
+    result.tabSize = (i32)glyphHeight * 2;
+    result.width = glyphWidth * glyphCount;
+    result.height = glyphHeight;
+    result.fontSize = (f32)glyphHeight;
+    result.fontTextureID = texture.textureID;
+
+    for(i32 i = 0; i < glyphCount; ++i) {
+        if(glyphs[i] != '\r') {
+            char offsetedGlyph = glyphs[i] - SPECIAL_ASCII_CHAR_OFFSET;
+            stbtt_bakedchar* charData = &result.charData[offsetedGlyph];
+            charData->x0 = (u16)(i * glyphWidth);
+            charData->x1 = (u16)((i + 1) * glyphWidth);
+            charData->y0 = 0;
+            charData->y1 = (u16)(glyphHeight);
+            charData->xadvance = (f32)glyphWidth;
+            charData->xoff = 0;
+            charData->yoff = 0;
+        }
+    }
+
+    hmput(fontCache, result.fontTextureID, result);
+
+    return result.fontTextureID;
+}
+
 i32 GL_GenerateFont(void* data, u32 data_size, const char *filepath, f32 fontSize, u32 width, u32 height)
 {
     FontAtlas result;
@@ -301,6 +335,7 @@ i32 GL_GenerateFont(void* data, u32 data_size, const char *filepath, f32 fontSiz
     result.tabSize = (i32)fontSize * 2;
     result.width = width;
     result.height = height;
+    result.fontSize = fontSize;
 
     u8* tempBitmap = PushArray(&temporalState->arena, width * height, u8);
     stbtt_BakeFontBitmap((u8 *)data, 0, fontSize, tempBitmap, width, height, SPECIAL_ASCII_CHAR_OFFSET, FONT_CHAR_SIZE, result.charData); // no guarantee this fits!

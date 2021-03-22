@@ -24,6 +24,10 @@
 
 #include <SDL.h>
 
+#define DEFAULT_MIN_FILTER GL_NEAREST
+#define DEFAULT_MAX_FILTER GL_NEAREST
+#define FRAMEBUFFER_DEFAULT_FILTER GL_NEAREST
+
 #include "IMGUI/imgui.cpp"
 
 #include "STB/stb_truetype.h"

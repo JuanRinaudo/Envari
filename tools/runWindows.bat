@@ -1,5 +1,5 @@
 @echo off
 
 pushd data
-"..\build/windows/RuntimeWindows.exe"
+START /D %CD% ..\build/windows/RuntimeWindows.exe
 popd
