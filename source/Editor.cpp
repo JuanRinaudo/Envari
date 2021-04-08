@@ -763,6 +763,10 @@ static void EditorDraw(SoundDebuggerWindow* debugger)
         return;
     }
 
+    if (ImGui::SmallButton(soundMuted ? "Unmute" : "Mute")) {
+        soundMuted = !soundMuted;
+    }
+
     ImGui::Text("Sound mix pool: %d / %d", soundMixIndex + 1, SOUND_MIX_SIZE);
 
     ImGui::Separator();
@@ -1132,6 +1136,7 @@ static void EditorInit()
 
     editorSoundDebugger.open = TableGetBool(&editorSave, "editorSoundDebuggerOpen");
     if(editorSoundDebugger.open) { EditorInit(&editorSoundDebugger); }
+    soundMuted = TableGetBool(&editorSave, "editorSoundDebuggersoundMuted");
 
 #ifdef LUA_SCRIPTING_ENABLED
     editorLUADebugger.open = TableGetBool(&editorSave, "editorLUADebuggerOpen");
@@ -1168,6 +1173,7 @@ static void EditorEnd()
     TableSetBool(&permanentState->arena, &editorSave, "editorInputDebuggerOpen", editorInputDebugger.open);
     TableSetBool(&permanentState->arena, &editorSave, "editorTimeDebuggerOpen", editorTimeDebugger.open);
     TableSetBool(&permanentState->arena, &editorSave, "editorSoundDebuggerOpen", editorSoundDebugger.open);
+    TableSetBool(&permanentState->arena, &editorSave, "editorSoundDebuggersoundMuted", soundMuted);
 #ifdef LUA_SCRIPTING_ENABLED
     TableSetBool(&permanentState->arena, &editorSave, "editorLUADebuggerOpen", editorLUADebugger.open);
 #endif

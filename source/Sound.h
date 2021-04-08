@@ -29,6 +29,8 @@ struct SoundInstance {
 i32 soundMixIndex = -1;
 SoundInstance soundMix[SOUND_MIX_SIZE];
 
+bool soundMuted;
+
 f32 soundRangeMin;
 f32 soundRangeMax;
 
@@ -50,8 +52,10 @@ static void data_callback(ma_device* pDevice, void* pOutput, const void* pInput,
                 break; /* Reached EOF. */
             }
             else {
-                for(u32 sampleIndex = 0; sampleIndex < framesRead * SOUND_CHANNELS; ++sampleIndex) {
-                    pOutputFormatted[totalFramesRead * SOUND_CHANNELS + sampleIndex] += buffer[sampleIndex] * soundMix[i].volumeModifier;
+                if(!soundMuted) {
+                    for(u32 sampleIndex = 0; sampleIndex < framesRead * SOUND_CHANNELS; ++sampleIndex) {
+                        pOutputFormatted[totalFramesRead * SOUND_CHANNELS + sampleIndex] += buffer[sampleIndex] * soundMix[i].volumeModifier;
+                    }
                 }
                 totalFramesRead += framesRead;
 
@@ -156,7 +160,7 @@ ma_decoder* SoundLoad(const char* soundKey)
 }
 
 void SetMasterVolume(float value)
-{    
+{
     ma_device_set_master_volume(&soundDevice, value);
 }
 
