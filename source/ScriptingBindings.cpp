@@ -119,9 +119,8 @@ extern u32 GL_GenerateBitmapFontStrip(const char *filepath, const char* glyphs, 
 extern u32 GL_CompileProgram(const char *vertexShaderSource, const char *fragmentShaderSource);
 extern u32 GL_CompileProgramPlatform(const char *vertexShaderPlatform, const char *fragmentShaderPlatform);
 
-extern ma_decoder* SoundLoad(const char* soundKey);
-extern void SoundPlay(const char* filepath, f32 volume, bool loop);
-extern void SoundStop(const char* filepath);
+extern SoundInstance* SoundPlay(const char* filepath, f32 volume, bool loop);
+extern void SoundStop(SoundInstance* instance);
 extern void SetMasterVolume(float value);
 extern float dbToVolume(float db);
 extern float volumeToDB(float volume);
@@ -248,8 +247,8 @@ static void SaveSetString(const char* key, const char* value)
 }
 
 // #NOTE(Juan): Sound
-static void SoundPlaySimple(const char* filepath, f32 volume) {
-    SoundPlay(filepath, volume, false);
+static SoundInstance* SoundPlaySimple(const char* filepath, f32 volume) {
+    return SoundPlay(filepath, volume, false);
 }
 
 LUASaveGetSet(Bool, bool)
@@ -496,7 +495,6 @@ void ScriptingInitBindings()
 #endif
 
     // #NOTE (Juan): Sound
-    lua["SoundLoad"] = SoundLoad;
     lua["SoundPlay"] = SoundPlaySimple;
     lua["SoundPlayLoop"] = SoundPlay;
     lua["SoundStop"] = SoundStop;

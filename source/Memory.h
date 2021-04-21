@@ -53,7 +53,7 @@ static char *PushChar(TemporaryMemory *memory, char singleChar)
     return result;
 }
 
-static char *PushString(MemoryArena *arena, const char *string, u32 *stringSize)
+static char *PushString(MemoryArena *arena, const char *string, size_t *stringSize)
 {
     char *result = 0;
 
@@ -71,7 +71,7 @@ static char *PushString(MemoryArena *arena, const char *string, u32 *stringSize)
     return result;
 }
 
-static char *PushString(MemoryArena *arena, const char *string, u32 size)
+static char *PushString(MemoryArena *arena, const char *string, size_t size)
 {
     char *result = 0;
 
@@ -90,7 +90,7 @@ char *PushString(MemoryArena *arena, const char *string)
     return PushString(arena, string, strlen(string) + 1);
 }
 
-static char *PushString(TemporaryMemory *memory, const char *string, u32 *stringSize)
+static char *PushString(TemporaryMemory *memory, const char *string, size_t *stringSize)
 {
     char *result = PushString(memory->arena, string, stringSize);
     memory->used += *stringSize;
@@ -98,7 +98,7 @@ static char *PushString(TemporaryMemory *memory, const char *string, u32 *string
     return result;
 }
 
-static char *PushString(TemporaryMemory *memory, const char *string, u32 size)
+static char *PushString(TemporaryMemory *memory, const char *string, size_t size)
 {
     char *result = PushString(memory->arena, string, size);
     memory->used += size;

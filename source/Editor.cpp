@@ -1,3 +1,5 @@
+const char* watchTypeNames[] = { "Auto", "Int", "Float", "Bool", "Char", "String" };
+
 static void ClearLog(ConsoleWindow* console)
 {
     for (i32 i = 0; i < console->items.Size; i++) {
@@ -55,51 +57,49 @@ static void EditorInit(ConsoleWindow* console)
 
 static void EditorInit(PreviewWindow* preview)
 {
-    preview->open = true;
+    
 }
 
 static void EditorInit(PerformanceDebuggerWindow* debugger)
 {
-    debugger->open = true;
+    
 }
 
 static void EditorInit(RenderDebuggerWindow* debugger)
 {
-    debugger->open = true;
+    
 }
 
 static void EditorInit(MemoryDebuggerWindow* debugger)
 {
-    debugger->open = true;
+    
 }
 
 static void EditorInit(TextureDebuggerWindow* debugger)
 {
-    debugger->open = true;
-
     debugger->textureIndex = 0;
     debugger->inspectMode = TextureInspect_CACHE;
 }
 
 static void EditorInit(SoundDebuggerWindow* debugger)
 {
-    debugger->open = true;
+    
 }
 
 static void EditorInit(InputDebuggerWindow* debugger)
 {
-    debugger->open = true;
+    
 }
 
 static void EditorInit(TimeDebuggerWindow* debugger)
 {
-    debugger->open = true;
+    
 }
 
 #ifdef LUA_SCRIPTING_ENABLED
 static void EditorInit(LUADebuggerWindow* debugger)
 {
-    debugger->open = true;
+    debugger->watching = true;
 
     if(TableHasKey(initialConfig, INITLUASCRIPT)) {
         debugger->currentFile = (char*)LoadFileToMemory(TableGetString(&initialConfig, INITLUASCRIPT), FILE_MODE_READ_BINARY, &debugger->currentFileSize);
@@ -109,7 +109,7 @@ static void EditorInit(LUADebuggerWindow* debugger)
 
 static void EditorInit(HelpWindow* help)
 {
-    help->open = true;
+    
 }
 
 static i32 TextEditCallback(ConsoleWindow* console, ImGuiInputTextCallbackData* data)
@@ -300,26 +300,27 @@ static void EditorDraw(ConsoleWindow* console)
         }
         if (ImGui::BeginMenu("Window"))
         {
-            if (ImGui::MenuItem("Preview")) { EditorInit(&editorPreview); }
+            if (ImGui::Checkbox("Preview", &editorPreview.open)) { EditorInit(&editorPreview); }
             ImGui::EndMenu();
         }
         if (ImGui::BeginMenu("Debug"))
         {
-            if (ImGui::MenuItem("Performance")) { EditorInit(&editorPerformanceDebugger); }
-            if (ImGui::MenuItem("Render")) { EditorInit(&editorRenderDebugger); }
-            if (ImGui::MenuItem("Memory")) { EditorInit(&editorMemoryDebugger); }
-            if (ImGui::MenuItem("Textures")) { EditorInit(&editorTextureDebugger); }
-            if (ImGui::MenuItem("Input")) { EditorInit(&editorInputDebugger); }
-            if (ImGui::MenuItem("Time")) { EditorInit(&editorTimeDebugger); }
-            if (ImGui::MenuItem("Sound")) { EditorInit(&editorSoundDebugger); }
+            if (ImGui::Checkbox("Performance", &editorPerformanceDebugger.open)) { EditorInit(&editorPerformanceDebugger); }
+            if (ImGui::Checkbox("Render", &editorRenderDebugger.open)) { EditorInit(&editorRenderDebugger); }
+            if (ImGui::Checkbox("Memory", &editorMemoryDebugger.open)) { EditorInit(&editorMemoryDebugger); }
+            if (ImGui::Checkbox("Textures", &editorTextureDebugger.open)) { EditorInit(&editorTextureDebugger); }
+            if (ImGui::Checkbox("Input", &editorInputDebugger.open)) { EditorInit(&editorInputDebugger); }
+            if (ImGui::Checkbox("Time", &editorTimeDebugger.open)) { EditorInit(&editorTimeDebugger); }
+            if (ImGui::Checkbox("Sound", &editorSoundDebugger.open)) { EditorInit(&editorSoundDebugger); }
 #ifdef LUA_SCRIPTING_ENABLED
-            if (ImGui::MenuItem("LUA")) { EditorInit(&editorLUADebugger); }
+            if (ImGui::Checkbox("LUA", &editorLUADebugger.open)) { EditorInit(&editorLUADebugger); }
 #endif
             ImGui::EndMenu();
         }
         if (ImGui::BeginMenu("Help"))
         {
-            if (ImGui::MenuItem("About")) { EditorInit(&editorHelp); }
+            if (ImGui::Checkbox("About", &editorHelp.open)) { EditorInit(&editorHelp); }
+            ImGui::Checkbox("Imgui demo window", &editorState->demoWindow);
             ImGui::EndMenu();
         }
         ImGui::EndMenuBar();
@@ -606,6 +607,11 @@ static void EditorDraw(RenderDebuggerWindow* debugger)
         ImGui::End();
         return;
     }
+
+    ImGui::Text("Window size: %.0fx%.0f", gameState->render.windowSize.x, gameState->render.windowSize.y);
+    ImGui::Text("Buffer size: %.0fx%.0f", gameState->render.bufferSize.x, gameState->render.bufferSize.y);
+    
+    ImGui::Separator();
     
     ImGui::Text("Render memory size: %d", debugger->renderMemory);
     ImGui::Text("Draw count: %d", debugger->drawCount);
@@ -622,8 +628,221 @@ static void EditorDraw(RenderDebuggerWindow* debugger)
     
     ImGui::Separator();
 
-    ImGui::Checkbox("Recording", &debugger->recording);
-    
+    ImGui::Checkbox("Record frames", &debugger->recording);
+
+    ImGui::Separator();
+
+    if(ImGui::SmallButton(editorState->editorFrameRunning ? "Stop" : "Run")) {
+        editorState->editorFrameRunning = !editorState->editorFrameRunning;
+    }
+
+    if(!editorState->editorFrameRunning) {
+        ImGui::SameLine();
+        ImGui::Text("ID Target: %d", debugger->renderDebugTarget);
+        ImGui::SameLine();
+        if(ImGui::SmallButton("Clear")) {
+            debugger->renderDebugTarget = -1;
+        }
+        ImGui::SameLine();
+        if(ImGui::SmallButton("Previous")) {
+            debugger->renderDebugTarget--;
+        }
+        ImGui::SameLine();
+        if(ImGui::SmallButton("Next")) {
+            debugger->renderDebugTarget++;
+        }
+    }
+
+    b32 targetChanged = debugger->renderDebugTargetChanged;
+    debugger->renderDebugTargetChanged = false;
+
+    if(ImGui::CollapsingHeader("Render Queue")) {        
+        RenderHeader *renderHeader = (RenderHeader *)renderTemporaryMemory.arena->base;
+        if(!editorState->editorFrameRunning) {
+            renderHeader = editorState->savedRenderHeader;
+        }
+        u32 lastHeaderID = 0;
+
+        while(renderHeader->id > 0 && (void*)renderHeader < (void*)(renderTemporaryMemory.arena->base + renderTemporaryMemory.used)) {
+            if(renderHeader->type == RenderType_RenderTransparent) {
+                ImGui::Separator();
+            }
+
+            lastHeaderID = renderHeader->id;
+            bool stylePushed = false;
+            if(!renderHeader->enabled) {
+                stylePushed = true;
+                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(.5f, .5f, .5f, 1));
+            }
+            
+            ImGui::Text("%d   ", renderHeader->id); // #TODO (Juan): Fix padding number
+            ImGui::SameLine();
+
+            switch(renderHeader->type) {
+                case RenderType_RenderTempData: {
+                    RenderTempData *tempData = (RenderTempData *)renderHeader;
+                    ImGui::Text("Temp Data");
+                    break;
+                }
+                case RenderType_RenderClear: {
+                    RenderClear *clear = (RenderClear *)renderHeader;
+                    ImGui::Text("Clear -> %.3f, %.3f, %.3f, %.3f", clear->color.r, clear->color.g, clear->color.b, clear->color.a);
+                    break;
+                }
+                case RenderType_RenderColor: {
+                    RenderColor *color = (RenderColor *)renderHeader;
+                    ImGui::Text("Color -> %.3f, %.3f, %.3f, %.3f", color->color.r, color->color.g, color->color.b, color->color.a);
+                    break;
+                }
+                case RenderType_RenderLayer: {
+                    RenderLayer *layer = (RenderLayer *)renderHeader;
+                    ImGui::Text("Layer -> %d", layer->layer);
+                    break;
+                }
+                case RenderType_RenderTransparent: {                    
+                    RenderTransparent *transparent = (RenderTransparent *)renderHeader;
+                    ImGui::Text("Transparent -> On: %u, Mode: %u %u, RGB: %u %u, Alpha: %u %u", transparent->enabled, transparent->modeRGB, transparent->modeAlpha, 
+                        transparent->srcRGB, transparent->dstRGB, transparent->srcAlpha, transparent->dstAlpha);
+                    break;
+                }
+                case RenderType_RenderLineWidth: {
+                    RenderLineWidth *line = (RenderLineWidth *)renderHeader;
+                    ImGui::Text("Line Width -> %.3f", line->width);
+                    break;
+                }
+                case RenderType_RenderLine: {
+                    RenderLine *line = (RenderLine *)renderHeader;
+                    ImGui::Text("Line -> Start: %.3f %.3f, End: %.3f %.3f", line->start.x, line->start.y, line->end.x, line->end.y);
+                    break;
+                }
+                case RenderType_RenderTriangle: {
+                    RenderTriangle *triangle = (RenderTriangle *)renderHeader;
+                    ImGui::Text("Triangle -> P1: %.3f %.3f, P2: %.3f %.3f, P3: %.3f %.3f", triangle->point1.x, triangle->point1.y,
+                        triangle->point2.x, triangle->point2.y,
+                        triangle->point3.x, triangle->point3.y);
+                    break;
+                }
+                case RenderType_RenderRectangle: {
+                    RenderRectangle *rectangle = (RenderRectangle *)renderHeader;
+                    ImGui::Text("Rectangle -> Position: %.3f %.3f, Scale: %.3f %.3f", rectangle->position.x, rectangle->position.y, rectangle->scale.x, rectangle->scale.y);
+                    break;
+                }
+                case RenderType_RenderCircle: {
+                    RenderCircle *circle = (RenderCircle *)renderHeader;
+                    ImGui::Text("Circle -> Position: %.3f %.3f, Radius: %.3f, Segments: %.3f", circle->position.x, circle->position.y, circle->radius, circle->segments);
+                    break;\
+                }
+                case RenderType_RenderTextureParameters: {
+                    RenderTextureParameters *textureParameters = (RenderTextureParameters *)renderHeader;
+                    ImGui::Text("Texture Parameters -> %u, %u, %u, %u", textureParameters->wrapS, textureParameters->wrapT,
+                        textureParameters->minFilter, textureParameters->magFilter);
+                    break;
+                }
+                case RenderType_RenderTexture: {
+                    RenderTexture *texture = (RenderTexture *)renderHeader;
+                    ImGui::Text("Texture -> Position: %.3f %.3f, Scale: %.3f %.3f, ID: %u", texture->position.x, texture->position.y, texture->scale.x, texture->scale.y,
+                        texture->textureID);
+                    break;
+                }
+                case RenderType_RenderImage: {
+                    RenderImage *image = (RenderImage *)renderHeader;
+                    ImGui::Text("Image -> Position: %.3f %.3f, Scale: %.3f %.3f,\n\tFile: %s", image->position.x, image->position.y, image->scale.x, image->scale.y, 
+                        image->filepath);
+                    break;
+                }
+                case RenderType_RenderImageUV: {
+                    RenderImageUV *imageUV = (RenderImageUV *)renderHeader;
+                    ImGui::Text("Image UV -> Position: %.3f %.3f, Scale: %.3f %.3f, UVMin: %.3f %.3f, UVMax: %.3f %.3f,\n\tFile: %s", imageUV->position.x, imageUV->position.y,
+                        imageUV->scale.x, imageUV->scale.y, 
+                        imageUV->uvMin.x, imageUV->uvMin.y, imageUV->uvMax.x, imageUV->uvMax.y,
+                        imageUV->filepath);
+                    break;
+                }
+                case RenderType_RenderImage9Slice: {
+                    RenderImage9Slice *image9Slice = (RenderImage9Slice *)renderHeader;
+                    ImGui::Text("9 Slice -> Position: %.3f %.3f, End Position: %.3f %.3f, Slice: %.3f,\n\tFile: %s", image9Slice->position.x, image9Slice->position.y,
+                        image9Slice->endPosition.x, image9Slice->endPosition.y,
+                        image9Slice->slice, image9Slice->filepath);
+                    break;
+                }
+                case RenderType_RenderAtlasSprite: {
+                    RenderAtlasSprite *atlas = (RenderAtlasSprite *)renderHeader;
+                    ImGui::Text("Atlas Sprite -> Position: %.3f %.3f, Scale: %.3f %.3f,\n\tFile: %s\n\tAtlas: %s Sprite: %s", atlas->position.x, atlas->position.y, 
+                        atlas->scale.x, atlas->scale.y, atlas->filepath, atlas->atlasName, atlas->spriteKey);
+                    break;
+                }
+                case RenderType_RenderFont: {
+                    RenderFont *font = (RenderFont *)renderHeader;
+                    ImGui::Text("Font ID: %d", font->fontID);
+                    break;
+                }
+                case RenderType_RenderChar: {
+                    RenderChar *renderChar = (RenderChar *)renderHeader;
+                    ImGui::Text("Char -> Position: %.3f %.3f, Scale: %.3f %.3f, Char: %c", renderChar->position.x, renderChar->position.y, renderChar->scale.x, renderChar->scale.y,
+                        renderChar->singleChar);
+                    break;
+                }
+                case RenderType_RenderText: {
+                    RenderText *text = (RenderText *)renderHeader;
+                    ImGui::Text("Text -> Position: %.3f %.3f, String: %s,\n\tSize: %u", text->position.x, text->position.y,
+                        text->string, text->stringSize);
+                    break;
+                }
+                case RenderType_RenderStyledText: {
+                    RenderStyledText *styledText = (RenderStyledText *)renderHeader;
+                    ImGui::Text("Styled Text -> Position: %.3f %.3f, String: %s,\n\tSize: %u, Center: %u, LetterWrap: %u, WordWrap: %u", styledText->position.x, styledText->position.y,
+                        styledText->string, styledText->stringSize, (styledText->header.renderFlags & TextRenderFlag_Center) > 0,
+                        (styledText->header.renderFlags & TextRenderFlag_LetterWrap) > 0, (styledText->header.renderFlags & TextRenderFlag_WordWrap) > 0
+                    );
+                    break;
+                }
+                case RenderType_RenderSetUniform: {
+                    RenderSetUniform *uniform = (RenderSetUniform *)renderHeader;
+                    ImGui::Text("Set Uniform");
+                    break;
+                }
+                case RenderType_RenderOverrideProgram: {
+                    RenderOverrideProgram *program = (RenderOverrideProgram *)renderHeader;
+                    ImGui::Text("Override Program");
+                    break;
+                }
+                case RenderType_RenderOverrideVertices: {
+                    RenderOverrideVertices *vertices = (RenderOverrideVertices *)renderHeader;
+                    ImGui::Text("Override Vertices");
+                    break;
+                }
+                case RenderType_RenderOverrideIndices: {
+                    RenderOverrideIndices *indices = (RenderOverrideIndices *)renderHeader;
+                    ImGui::Text("Override Indices");
+                    break;
+                }
+                default: {
+                    ImGui::Text("Unknown render command! Header Type %d, Size %d", renderHeader->type, renderHeader->size);
+                    break;
+                }
+            }
+
+            if(stylePushed) { ImGui::PopStyleColor(); }
+
+            if(targetChanged && debugger->renderDebugTarget > 0) {
+                renderHeader->enabled = renderHeader->id <= debugger->renderDebugTarget;
+            }
+
+            if(ImGui::IsItemClicked()) {
+                if(ImGui::GetIO().KeyCtrl) {
+                    debugger->renderDebugTarget = renderHeader->id;
+                    debugger->renderDebugTargetChanged = true;
+                }
+                else {
+                    renderHeader->enabled = !renderHeader->enabled;
+                }
+            }
+
+            Assert(renderHeader->size > 0);
+            renderHeader = (RenderHeader *)((u8 *)renderHeader + renderHeader->size);
+        }
+    }
+
     ImGui::End();
 }
 
@@ -784,32 +1003,32 @@ static void EditorDraw(SoundDebuggerWindow* debugger)
     }
     
     if(ImGui::CollapsingHeader("Sound cache")) {
-        i32 soundCacheSize = shlen(soundCache);
-        ImGui::Text("Sound Cache ID: %d / %d", debugger->cacheIndex + 1, soundCacheSize);
+        // i32 soundCacheSize = shlen(soundCache);
+        // ImGui::Text("Sound Cache ID: %d / %d", debugger->cacheIndex + 1, soundCacheSize);
 
-        if(debugger->cacheIndex < soundCacheSize) {
-            ImGui::SameLine();
-            if (ImGui::SmallButton("Prev")) {
-                debugger->cacheIndex--;
-            }
-            ImGui::SameLine();
-            if (ImGui::SmallButton("Next")) {
-                debugger->cacheIndex++;
-            }
+        // if(debugger->cacheIndex < soundCacheSize) {
+        //     ImGui::SameLine();
+        //     if (ImGui::SmallButton("Prev")) {
+        //         debugger->cacheIndex--;
+        //     }
+        //     ImGui::SameLine();
+        //     if (ImGui::SmallButton("Next")) {
+        //         debugger->cacheIndex++;
+        //     }
 
-            if(debugger->cacheIndex < 0) { debugger->cacheIndex = soundCacheSize - 1; }
-            if(debugger->cacheIndex >= soundCacheSize) { debugger->cacheIndex = 0; }
+        //     if(debugger->cacheIndex < 0) { debugger->cacheIndex = soundCacheSize - 1; }
+        //     if(debugger->cacheIndex >= soundCacheSize) { debugger->cacheIndex = 0; }
 
-            MASoundCache cacheItem = soundCache[debugger->cacheIndex];
+        //     MASoundCache cacheItem = soundCache[debugger->cacheIndex];
             
-            ImGui::Separator();
+        //     ImGui::Separator();
 
-            ImGui::Text("Name: %s", cacheItem.key);
-            ImGui::Text("Format: %d", cacheItem.value->internalFormat);
-            ImGui::Text("Channels: %d", cacheItem.value->internalChannels);
-            ImGui::Text("ChannelMap: %d", cacheItem.value->internalChannelMap);
-            ImGui::Text("SampleRate: %d", cacheItem.value->internalSampleRate);
-        }
+        //     ImGui::Text("Name: %s", cacheItem.key);
+        //     ImGui::Text("Format: %d", cacheItem.value->internalFormat);
+        //     ImGui::Text("Channels: %d", cacheItem.value->internalChannels);
+        //     ImGui::Text("ChannelMap: %d", cacheItem.value->internalChannelMap);
+        //     ImGui::Text("SampleRate: %d", cacheItem.value->internalSampleRate);
+        // }
     }
 
     ImGui::End();
@@ -951,6 +1170,8 @@ static void EditorDraw(LUADebuggerWindow* debugger)
                 }
             }
 
+            ImGui::Checkbox("Watch variables", &debugger->watching);
+
             ImGui::Separator();
             if (ImGui::MenuItem("Break on function")) {
                 menuAction = DebugMenuAction_BREAK_ON_FUNCTION;
@@ -1020,6 +1241,11 @@ static void EditorDraw(LUADebuggerWindow* debugger)
         ImGui::EndPopup();
     }
 
+    ImVec2 contentMin = ImGui::GetWindowContentRegionMin();
+    ImVec2 contentMax = ImGui::GetWindowContentRegionMax();
+    f32 height = contentMax.y - contentMin.y;
+
+    ImGui::BeginChild("LUA Code", ImVec2(contentMax.x, height * (debugger->watching ? 0.5f : 1)), false);
     if(debugger->currentFile) {
         ImVec2 size = ImGui::GetWindowSize();
         i32 line = 1;
@@ -1065,6 +1291,42 @@ static void EditorDraw(LUADebuggerWindow* debugger)
     else {
         ImGui::Text("No file loaded");
     }
+    ImGui::EndChild();
+
+    if(debugger->watching) {
+        ImGui::Separator();
+        ImGui::BeginChild("Watch Window", ImVec2(contentMax.x, height * (debugger->watching ? 0.5f : 1) - 5), false, ImGuiWindowFlags_AlwaysUseWindowPadding);
+        ImGui::Text("Watching");
+        char valueBuffer[64];
+        for(i32 i = 0; i < WATCH_BUFFER_COUNT; ++i) {
+            valueBuffer[0] = '\0';
+
+            ImGui::PushID(i);
+            ImGui::PushItemWidth(contentMax.x * 0.3f);
+            char* test = debugger->watchBuffer + i * WATCH_BUFFER_SIZE_EXT;
+            ImGui::InputText("##Input", test, WATCH_BUFFER_SIZE);
+            ImGui::SameLine();
+            ImGui::PushItemWidth(contentMax.x * 0.3f);
+            if (ImGui::BeginCombo("##Combo", watchTypeNames[debugger->watchType[i]]))
+            {
+                for (int n = 0; n < ArrayCount(watchTypeNames); n++)
+                {
+                    const bool is_selected = (debugger->watchType[i] == n);
+                    if (ImGui::Selectable(watchTypeNames[n], is_selected))
+                        debugger->watchType[i] = n;
+
+                    if (is_selected)
+                        ImGui::SetItemDefaultFocus();
+                }
+                ImGui::EndCombo();
+            }
+            ImGui::SameLine();
+            GetWatchValue(debugger->watchType[i], debugger->watchBuffer + i * WATCH_BUFFER_SIZE_EXT, valueBuffer);
+            ImGui::TextUnformatted(valueBuffer);
+            ImGui::PopID();
+        }
+        ImGui::EndChild();
+    }
 
     ImGui::End();
 }
@@ -1095,11 +1357,14 @@ static void EditorDraw(HelpWindow* help)
 
     ImGui::Text("Version: %d.%d.%d (%s)", ENVARI_MAYOR_VERSION, ENVARI_MINOR_VERSION, ENVARI_MICRO_VERSION, ENVARI_PLATFORM);
 #ifdef LUA_SCRIPTING_ENABLED
-    ImGui::Text("LUA Version: %s.%s.%s", LUA_VERSION_MAJOR, LUA_VERSION_MINOR, LUA_VERSION_RELEASE);
+    ImGui::Text("LUA Version: %s", LUA_RELEASE);
+    ImGui::Text("SOL Version: %s", SOL_VERSION_STRING);
 #endif
+    ImGui::Text("Dear Imgui Version: %s", IMGUI_VERSION);
     ImGui::Text("SDL Compile Version: %d.%d.%d", compiled.major, compiled.minor, compiled.patch);
     ImGui::Text("SDL Link Version: %d.%d.%d", linked.major, linked.minor, linked.patch);
     ImGui::Text("OpenGL Version: %s", glGetString(GL_VERSION));
+    ImGui::Text("Miniaudio Version: %s", MA_VERSION_STRING);
 
     ImGui::End();
 }
@@ -1109,38 +1374,45 @@ static void EditorInit()
     SerializableTable* editorSave = 0;
     DeserializeTable(&permanentState->arena, &editorSave, "editor.save");
     
+    char loadNameBuffer[128];
+
     // editorConsole.open = TableGetBool(&editorSave, "editorConsoleOpen");
     editorConsole.open = true;
-    if(editorConsole.open) { EditorInit(&editorConsole); }
+    EditorInit(&editorConsole);
 
     editorPreview.open = TableGetBool(&editorSave, "editorPreviewOpen");
-    if(editorPreview.open) { EditorInit(&editorPreview); }
+    EditorInit(&editorPreview);
 
     editorPerformanceDebugger.open = TableGetBool(&editorSave, "editorPerformanceDebuggerOpen");
-    if(editorPerformanceDebugger.open) { EditorInit(&editorPerformanceDebugger); }
+    EditorInit(&editorPerformanceDebugger);
 
     editorRenderDebugger.open = TableGetBool(&editorSave, "editorRenderDebuggerOpen");
-    if(editorRenderDebugger.open) { EditorInit(&editorRenderDebugger); }
+    EditorInit(&editorRenderDebugger);
 
     editorMemoryDebugger.open = TableGetBool(&editorSave, "editorMemoryDebuggerOpen");
-    if(editorMemoryDebugger.open) { EditorInit(&editorMemoryDebugger); }
+    EditorInit(&editorMemoryDebugger);
 
     editorTextureDebugger.open = TableGetBool(&editorSave, "editorTextureDebuggerOpen");
-    if(editorTextureDebugger.open) { EditorInit(&editorTextureDebugger); }
+    EditorInit(&editorTextureDebugger);
 
     editorInputDebugger.open = TableGetBool(&editorSave, "editorInputDebuggerOpen");
-    if(editorInputDebugger.open) { EditorInit(&editorInputDebugger); }
+    EditorInit(&editorInputDebugger);
 
     editorTimeDebugger.open = TableGetBool(&editorSave, "editorTimeDebuggerOpen");
-    if(editorTimeDebugger.open) { EditorInit(&editorTimeDebugger); }
+    EditorInit(&editorTimeDebugger);
 
     editorSoundDebugger.open = TableGetBool(&editorSave, "editorSoundDebuggerOpen");
-    if(editorSoundDebugger.open) { EditorInit(&editorSoundDebugger); }
+    EditorInit(&editorSoundDebugger);
     soundMuted = TableGetBool(&editorSave, "editorSoundDebuggersoundMuted");
 
 #ifdef LUA_SCRIPTING_ENABLED
     editorLUADebugger.open = TableGetBool(&editorSave, "editorLUADebuggerOpen");
-    if(editorLUADebugger.open) { EditorInit(&editorLUADebugger); }
+    EditorInit(&editorLUADebugger);
+    
+    for(i32 i = 0; i < WATCH_BUFFER_COUNT; ++i) {
+        sprintf(loadNameBuffer, "editorLUADebuggerWatching%d", i);
+        strcpy(editorLUADebugger.watchBuffer + i * WATCH_BUFFER_SIZE_EXT, TableGetString(&editorSave, loadNameBuffer, ""));
+    }
 #endif
 }
 
@@ -1159,10 +1431,16 @@ static void EditorDrawAllOpen()
     EditorDraw(&editorLUADebugger);
 #endif
     EditorDraw(&editorHelp);
+
+    if(editorState->demoWindow) {
+        ImGui::ShowDemoWindow(&editorState->demoWindow);
+    }
 }
 
 static void EditorEnd()
 {
+    char saveNameBuffer[128];
+    
     SerializableTable* editorSave = 0;
     TableSetBool(&permanentState->arena, &editorSave, "editorConsoleOpen", editorConsole.open);
     TableSetBool(&permanentState->arena, &editorSave, "editorPreviewOpen", editorPreview.open);
@@ -1176,6 +1454,10 @@ static void EditorEnd()
     TableSetBool(&permanentState->arena, &editorSave, "editorSoundDebuggersoundMuted", soundMuted);
 #ifdef LUA_SCRIPTING_ENABLED
     TableSetBool(&permanentState->arena, &editorSave, "editorLUADebuggerOpen", editorLUADebugger.open);
+    for(i32 i = 0; i < WATCH_BUFFER_COUNT; ++i) {
+        sprintf(saveNameBuffer, "editorLUADebuggerWatching%d", i);
+        TableSetString(&permanentState->arena, &editorSave, saveNameBuffer, editorLUADebugger.watchBuffer + i * WATCH_BUFFER_SIZE_EXT);
+    }
 #endif
     SerializeTable(&editorSave, "editor.save");
 }

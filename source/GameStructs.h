@@ -118,7 +118,10 @@ struct RenderHeader
     i32 id;
     RenderType type;
     u32 renderFlags;
-    u32 size;
+    size_t size;
+#if GAME_EDITOR
+    bool enabled;
+#endif
 };
 
 struct RenderTempData
@@ -215,7 +218,7 @@ struct RenderImage
     v2 position;
     v2 scale;
     char* filepath;
-    u32 filepathSize;
+    size_t filepathSize;
 };
 
 struct RenderImageUV
@@ -226,7 +229,7 @@ struct RenderImageUV
     v2 uvMin;
     v2 uvMax;
     char* filepath;
-    u32 filepathSize;
+    size_t filepathSize;
 };
 
 struct RenderImage9Slice
@@ -236,7 +239,7 @@ struct RenderImage9Slice
     v2 endPosition;
     f32 slice;
     char* filepath;
-    u32 filepathSize;
+    size_t filepathSize;
 };
 
 struct RenderAtlasSprite
@@ -245,11 +248,11 @@ struct RenderAtlasSprite
     v2 position;
     v2 scale;
     char* filepath;
-    u32 filepathSize;
+    size_t filepathSize;
     char* atlasName;
-    u32 atlasNameSize;
+    size_t atlasNameSize;
     char* spriteKey;
-    u32 spriteKeySize;
+    size_t spriteKeySize;
 };
 
 struct RenderFont
@@ -271,7 +274,7 @@ struct RenderText
     RenderHeader header;
     v2 position;
     char* string;
-    u32 stringSize;
+    size_t stringSize;
 };
 
 struct RenderStyledText
@@ -280,7 +283,7 @@ struct RenderStyledText
     v2 position;
     v2 endPosition;
     char* string;
-    u32 stringSize;
+    size_t stringSize;
 };
 
 struct RenderSetUniform {
@@ -299,14 +302,14 @@ struct RenderOverrideVertices
 {
     RenderHeader header;
     f32* vertices;
-    u32 size;
+    size_t size;
 };
 
 struct RenderOverrideIndices
 {
     RenderHeader header;
     u32* indices;
-    u32 size;
+    size_t size;
 };
 
 struct RenderState {
@@ -417,6 +420,11 @@ struct TemporalData {
 struct EditorData {
     b32 initialized;
     MemoryArena arena;
+    
+    bool demoWindow;
+
+    b32 editorFrameRunning;
+    RenderHeader* savedRenderHeader;
 };
 #endif
 
@@ -444,12 +452,22 @@ enum SerializableType {
 struct SerializableValue {
     void* value;
     SerializableType type;
-    u32 count;
+    size_t count;
 };
 
 struct SerializableTable {
     char* key;
     SerializableValue* value;
+};
+
+struct SoundInstance {
+    char* filepath;
+    ma_decoder* decoder;
+    f32 volumeModifier;
+    bool loop;
+    bool playing;
+    f32 lastPlayTime;
+    i32 index;
 };
 
 #endif

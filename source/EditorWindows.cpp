@@ -34,8 +34,10 @@
 #include "Game.h"
 #include "PlatformCommon.h"
 
+#include "IMGUI/imgui_demo.cpp"
 #include "IMGUI/imgui_draw.cpp"
 #include "IMGUI/imgui_widgets.cpp"
+#include "IMGUI/imgui_tables.cpp"
 
 #include "IMGUI/imgui_impl_sdl.h"
 #include "IMGUI/imgui_impl_opengl3.h"
@@ -66,6 +68,7 @@ i32 CALLBACK WinMain(
     gameState->memory.permanentStorage = permanentStorage;
     sceneState = (SceneData *)gameState->memory.sceneStorage;
     editorState = (EditorData *)gameState->memory.editorStorage;
+    editorState->editorFrameRunning = true;
     temporalState = (TemporalData *)gameState->memory.temporalStorage;
 
     InitializeArena(&permanentState->arena, gameState->memory.permanentStorageSize, (u8 *)gameState->memory.permanentStorage, sizeof(PermanentData) + sizeof(Data));
@@ -193,31 +196,53 @@ i32 CALLBACK WinMain(
 #endif
 
         GL_WatchChanges();
-        RenderDebugStart();
 
-        if(gameState->render.framebufferEnabled) {
-            Begin2D(gameState->render.frameBuffer, (u32)gameState->render.bufferSize.x, (u32)gameState->render.bufferSize.y);
-        }
-        else {
-            Begin2D(0, (u32)gameState->render.size.x, (u32)gameState->render.size.y);
-        }
-
+        LARGE_INTEGER luaPerformanceStart = {};
+        LARGE_INTEGER luaPerformanceEnd = {};
         i64 luaUpdateCyclesStart = __rdtsc();
-        LARGE_INTEGER luaPerformanceStart;
-        QueryPerformanceCounter(&luaPerformanceStart);
-        ScriptingUpdate();
-        LARGE_INTEGER luaPerformanceEnd;
-        QueryPerformanceCounter(&luaPerformanceEnd);
         i64 luaUpdateCyclesEnd = __rdtsc();
 
-        GameUpdate();
+        if(editorState->editorFrameRunning) {
+            RenderDebugStart();
 
-        GL_Render();
+            if(gameState->render.framebufferEnabled) {
+                Begin2D(gameState->render.frameBuffer, (u32)gameState->render.bufferSize.x, (u32)gameState->render.bufferSize.y);
+            }
+            else {
+                Begin2D(0, (u32)gameState->render.size.x, (u32)gameState->render.size.y);
+            }
 
-        EditorDrawAllOpen();
+            QueryPerformanceCounter(&luaPerformanceStart);
+            ScriptingUpdate();
+            QueryPerformanceCounter(&luaPerformanceEnd);
 
-        RenderDebugEnd();
-        End2D();
+            GameUpdate();
+
+            GL_Render();
+
+            EditorDrawAllOpen();
+
+            RenderDebugEnd();
+            End2D();
+        }
+        else {
+            if(gameState->render.framebufferEnabled) {
+                glBindFramebuffer(GL_FRAMEBUFFER, gameState->render.frameBuffer);
+                glViewport(0,0, (u32)gameState->render.bufferSize.x, (u32)gameState->render.bufferSize.y);
+            }
+            else {
+                glBindFramebuffer(GL_FRAMEBUFFER, 0);
+                glViewport(0,0, (u32)gameState->render.size.x, (u32)gameState->render.size.y);
+            }
+
+            RenderDebugStart();
+            GL_Render();
+            RenderDebugEnd();
+
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+            EditorDrawAllOpen();
+        }
 
         if(gameState->render.framebufferEnabled) {
             if(!editorPreview.open) {

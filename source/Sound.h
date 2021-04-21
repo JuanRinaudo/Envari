@@ -14,18 +14,6 @@
 
 ma_device soundDevice;
 
-struct MASoundCache {
-    char* key;
-    ma_decoder* value;
-};
-MASoundCache* soundCache = NULL;
-
-struct SoundInstance {
-    ma_decoder* decoder;
-    f32 volumeModifier;
-    bool loop;
-};
-
 i32 soundMixIndex = -1;
 SoundInstance soundMix[SOUND_MIX_SIZE];
 
@@ -33,6 +21,24 @@ bool soundMuted;
 
 f32 soundRangeMin;
 f32 soundRangeMax;
+
+void SoundStop(SoundInstance* sound)
+{    
+    SoundInstance* instance = &soundMix[sound->index];
+    i32 index = instance->index;
+    
+    instance->playing = false;
+    instance->index = -1;
+    ma_decoder_uninit(instance->decoder);
+    free(instance->filepath);
+    instance->filepath = 0;
+    free(instance->decoder);
+
+    soundMix[index] = soundMix[soundMixIndex];
+    soundMix[index].index = index;
+    
+    soundMixIndex--;
+}
 
 static void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount)
 {
@@ -70,9 +76,7 @@ static void data_callback(ma_device* pDevice, void* pOutput, const void* pInput,
                 ma_decoder_seek_to_pcm_frame(soundMix[i].decoder, 0);
             }
             else {
-                soundMix[i] = soundMix[soundMixIndex];
-                soundMix[soundMixIndex].decoder = 0;
-                soundMixIndex--;
+                SoundStop(&soundMix[i]);
             }
         }
     }
@@ -137,25 +141,9 @@ static void SoundInit()
             soundRangeMax =  1.0f;
         } break;
     }
-}
-
-ma_decoder* SoundLoad(const char* soundKey)
-{
-    i32 index = (i32)shgeti(soundCache, soundKey);
-    if(index > -1) {
-        return shget(soundCache, soundKey);
-    } else {
-        ma_result result;
-        ma_decoder* decoder = (ma_decoder*)malloc(sizeof(ma_decoder));
-        ma_decoder_config config = ma_decoder_config_init(SOUND_FORMAT, 2, 48000);
-        result = ma_decoder_init_file(soundKey, &config, decoder);
-        if (result != MA_SUCCESS) {
-            Log("Failed to load sound.\n");
-        }
-        
-        shput(soundCache, soundKey, decoder);
-
-        return decoder;
+    
+    for(i32 i = 0; i <= SOUND_MIX_SIZE; ++i) {
+        soundMix[soundMixIndex].index = -1;
     }
 }
 
@@ -164,51 +152,35 @@ void SetMasterVolume(float value)
     ma_device_set_master_volume(&soundDevice, value);
 }
 
-void SoundPlay(const char* filepath, f32 volume, bool loop = false)
+SoundInstance* SoundPlay(const char* filepath, f32 volume, bool loop = false)
 {
-    if(soundMixIndex < SOUND_MIX_SIZE) {
-        ma_decoder* decoder = SoundLoad(filepath);
-        i32 soundIndex = -1;
-
-        ma_decoder_seek_to_pcm_frame(decoder, 0);
-
-        for(i32 i = 0; i <= soundMixIndex; ++i) {
-            if(decoder == soundMix[i].decoder) {
-                soundIndex = i;
-                break;
-            }
-        }
-
-        if(soundIndex == -1) {
-            soundMixIndex++;
-            soundMix[soundMixIndex].decoder = decoder;
-        }
-        soundMix[soundMixIndex].volumeModifier = volume;
-        soundMix[soundMixIndex].loop = loop;
+    if(soundMixIndex >= SOUND_MIX_SIZE) {
+        Log("Too many sounds being played at the same time.\n");
+        return NULL;
     }
-    else {
-        // #TODO (Juan): What to do if sound cant be played
-    }
-}
 
-void SoundStop(const char* filepath)
-{
-    i32 soundIndex = -1;
+    ma_decoder* decoder = (ma_decoder*)malloc(sizeof(ma_decoder));
+    ma_decoder_config config = ma_decoder_config_init(SOUND_FORMAT, 2, 48000);
+    ma_result result = ma_decoder_init_file(filepath, &config, decoder);
+    if (result != MA_SUCCESS) {
+        Log("Failed to load sound.\n");
+    }
     
-    ma_decoder* decoder = SoundLoad(filepath);
+    soundMixIndex++;
+    SoundInstance* instance = &soundMix[soundMixIndex];
+    instance->index = soundMixIndex;
+    instance->decoder = decoder;
 
-    for(i32 i = 0; i <= soundMixIndex; ++i) {
-        if(decoder == soundMix[i].decoder) {
-            soundIndex = i;
-            break;
-        }
-    }
+    instance->filepath = (char*)malloc(strlen(filepath));
+    strcpy(instance->filepath, filepath);
 
-    if(soundIndex != -1) {
-        soundMix[soundIndex] = soundMix[soundMixIndex];
-        soundMix[soundMixIndex].decoder = 0;
-        soundMixIndex--;
-    }
+    instance->volumeModifier = volume;
+    instance->loop = loop;
+    instance->playing = true;
+
+    ma_decoder_seek_to_pcm_frame(decoder, 0);
+
+    return instance;
 }
 
 float dbToVolume(float db)

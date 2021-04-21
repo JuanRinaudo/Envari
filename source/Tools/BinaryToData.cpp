@@ -78,19 +78,22 @@ i32 main()
             char* extensionChar = strrchr(newPath, '.');
             strcpy(extensionChar, ".txt");
 
-            char stringBuffer[512];
             FILE* writeFile = fopen(newPath, "w");
 
-            char* start = "i32 test[] = {";
+            char start[512];
+            sprintf(start, "u8 %s[] = {", "testFile");
             fputs(start, writeFile);
 
-            while(!feof(readFile)) {
+            fseek(readFile, 0, SEEK_END);
+            size_t size = ftell(readFile);
+            rewind(readFile);
+
+            char stringBuffer[512];
+            for(size_t i = 0; i < size; ++i) {
                 i32 value = fgetc(readFile);
-                if(value >= 0) {
-                    itoa(value, stringBuffer, 10);
-                    fputs(stringBuffer, writeFile);
-                    fputc(',', writeFile);
-                }
+                itoa(value, stringBuffer, 10);
+                fputs(stringBuffer, writeFile);
+                if(i < size - 1) { fputc(',', writeFile); }
             }
 
             char* end = "};";

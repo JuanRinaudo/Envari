@@ -20,11 +20,11 @@ robocopy Envari\template-data\scripts\envari data\scripts\envari /MIR > NUL
 
 if not exist build mkdir build
 pushd build
-if not exist windows mkdir windows
-pushd windows
+if not exist windows64 mkdir windows64
+pushd windows64
 
-if not exist lua54.dll copy ..\..\Envari\LUA\lib\x86\lua54.dll lua54.dll >NUL
-if not exist SDL2.dll copy ..\..\Envari\SDL2\lib\x86\SDL2.dll SDL2.dll >NUL
+if not exist lua54.dll copy ..\..\Envari\LUA\lib\x64\lua54.dll lua54.dll >NUL
+if not exist SDL2.dll copy ..\..\Envari\SDL2\lib\x64\SDL2.dll SDL2.dll >NUL
 
 del /F *.pdb >NUL 2>NUL
 
@@ -39,7 +39,7 @@ cl ..\..\Envari\source\RuntimeWindows.cpp ScriptingBindings.obj ^
     -FmRuntimeWindows.map %CommonCompilerFlags% -Bt ^
     -I ..\..\Envari\SDL2\include -I ..\..\Envari\LUA\include ^
     -link %CommonLinkerFlags% ^
-    -LIBPATH:"..\..\Envari\SDL2\lib\x86" -LIBPATH:"..\..\Envari\LUA\lib\x86" ^
+    -LIBPATH:"..\..\Envari\SDL2\lib\x64" -LIBPATH:"..\..\Envari\LUA\lib\x64" ^
     -PDB:RuntimeWindows.pdb
 @echo End time %time%
 

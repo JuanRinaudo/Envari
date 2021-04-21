@@ -25,6 +25,9 @@ static RenderHeader *RenderPushElement_(TemporaryMemory *memory, u32 size, Rende
         result->id = renderState.lastRenderID;
         result->type = type;
         result->size = size;
+#if GAME_EDITOR
+        result->enabled = true;
+#endif
     }
     else {
         InvalidCodePath;

@@ -12,6 +12,14 @@ enum DebugMenuAction {
     DebugMenuAction_BREAK_ON_FUNCTION,
 };
 
+enum WatchType {
+    WatchType_AUTO,
+    WatchType_INT,
+    WatchType_FLOAT,
+    WatchType_BOOL,
+    WatchType_STRING,
+};
+
 struct ConsoleLog
 {
     char* log;
@@ -75,6 +83,9 @@ struct RenderDebuggerWindow
     i32 programChanges;
 
     bool wireframeMode;
+
+    i32 renderDebugTarget;
+    bool renderDebugTargetChanged;
 };
 
 struct MemoryDebuggerWindow
@@ -125,6 +136,9 @@ struct TimeDebuggerWindow
 };
 
 #ifdef LUA_SCRIPTING_ENABLED
+#define WATCH_BUFFER_SIZE 64
+#define WATCH_BUFFER_SIZE_EXT WATCH_BUFFER_SIZE + 1 
+#define WATCH_BUFFER_COUNT 8
 struct LUADebuggerWindow
 {
     bool open;
@@ -133,6 +147,10 @@ struct LUADebuggerWindow
     char inputBuffer[256];
     char* currentFile;
     u32 currentFileSize;
+    bool watching;
+
+    char watchBuffer[WATCH_BUFFER_SIZE_EXT * WATCH_BUFFER_COUNT];
+    i32 watchType[WATCH_BUFFER_COUNT];
 };
 #endif
 

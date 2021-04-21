@@ -1,7 +1,7 @@
 @echo off
 
 pushd build
-pushd windows
+pushd windows86
 devenv EnvariWindows.exe
 popd
 popd

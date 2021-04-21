@@ -46,4 +46,19 @@ static void UnloadFileFromMemory(char* fileBuffer)
     UnloadFileFromMemory((void*)fileBuffer);
 }
 
+// #TODO (Juan): Compression ZSTD
+// size_t fSize = sizeof(defaultFont);
+// Log("Uncompressed size = %d", fSize);
+// size_t cBufferSize = ZSTD_compressBound(fSize);
+// void* cBuffer = malloc(cBufferSize);
+// LARGE_INTEGER performanceStart;
+// LARGE_INTEGER performanceEnd;
+// for(int i = 0; i < 4; ++i) {
+//     QueryPerformanceCounter(&performanceStart);
+//     size_t cSize = ZSTD_compress(cBuffer, cBufferSize, (void*)defaultFont, fSize, i);
+//     QueryPerformanceCounter(&performanceEnd);
+//     Log("Compressed size = %d, level %d, %f ms", cSize, i, (performanceEnd.QuadPart - performanceStart.QuadPart) / 10000.0f);
+// }
+// free(cBuffer);
+
 #endif

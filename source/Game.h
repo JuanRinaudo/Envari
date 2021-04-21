@@ -1,6 +1,8 @@
 #ifndef GAME_H
 #define GAME_H
 
+#include "Miniaudio/miniaudio.h"
+#include "ZSTD/zstddeclib.c"
 #include "Defines.h"
 #include "MemoryStructs.h"
 #include "Memory.h"
@@ -24,6 +26,7 @@ PermanentData *permanentState;
 SceneData *sceneState;
 TemporalData *temporalState;
 TemporaryMemory renderTemporaryMemory;
+TemporaryMemory renderStepTemporaryMemory;
 #ifdef GAME_EDITOR
 EditorData *editorState;
 #endif

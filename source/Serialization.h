@@ -106,7 +106,7 @@ static bool DeserializeDataTable(MemoryArena *arena, DataTable** table, const ch
             
             keyPointer = PushString(arena, tokenizer.tokenBuffer, tokenizer.tokenBufferIndex);
         }
-        else if(token) {            
+        else if(token) {
             char* tokenPointer = PushString(arena, tokenizer.tokenBuffer, tokenizer.tokenBufferIndex);
 
             if(tokenizer.tokenLineCount == 1) {
@@ -166,7 +166,8 @@ static void TableSetValue_(MemoryArena *arena, SerializableTable** table, const 
 
 void TableSetString_(MemoryArena *arena, SerializableTable** table, const char* key, const char* value)
 {
-    u32 stringSize = strlen(value);
+    size_t stringSize = strlen(value);
+
     SerializableValue* tableValue = shget(*table, key);
     if(tableValue) {
         if(stringSize < tableValue->count) {
@@ -247,6 +248,11 @@ static bool DeserializeTable(MemoryArena *arena, SerializableTable** table, cons
             token = NextToken(&tokenizer);
             i32 count = atoi(token);
 
+            // #FIX (Juan): Fix for 0 value saves like empty strings
+            if(count == 0) {
+                continue;
+            }
+
             void* valuePointer = 0;
 
             i32 valueSize = SerializableValueSize(type);
@@ -258,6 +264,14 @@ static bool DeserializeTable(MemoryArena *arena, SerializableTable** table, cons
             if(type == SerializableType_STRING) {
                 token = NextToken(&tokenizer);
                 char* value = PushString(arena, token);
+
+                // #NOTE (Juan): Changes back from ' to "
+                for(u32 i = 0; i < count; ++i) {
+                    if(value[i] == '\'') {
+                        value[i] = '"';
+                    }
+                }
+
                 valuePointer = (void*)value;
             }
             else {
@@ -320,7 +334,7 @@ static void SerializeTable(SerializableTable** table, const char* filepath)
     char stringBuffer[DATA_MAX_TOKEN_COUNT];
 
     if(file) {
-        i32 tableSize = shlen(*table);
+        size_t tableSize = shlen(*table);
         fputs("#version", file);
         fputc(' ', file);
         sprintf(stringBuffer, "%d", 1);
@@ -335,18 +349,31 @@ static void SerializeTable(SerializableTable** table, const char* filepath)
             sprintf(stringBuffer, "%d", (i32)data.value->type);
             fputs(stringBuffer, file);
             fputc(' ', file);
-
-            i32 valueCount = data.value->count;
-            sprintf(stringBuffer, "%d", valueCount);
-            fputs(stringBuffer, file);
-            fputc(' ', file);
             
             if(data.value->type == SerializableType_STRING) {
+                size_t valueCount = strlen(((char*)data.value->value));
+                sprintf(stringBuffer, "%d", (i32)valueCount);
+                fputs(stringBuffer, file);
+                fputc(' ', file);
+
                 fputc('"', file);
+
+                // #NOTE (Juan): Changes " for ' because of deserialization, I might need to find a better solution later
+                for(u32 i = 0; i < valueCount; ++i) {
+                    if(((char*)data.value->value)[i] == '"') {
+                        ((char*)data.value->value)[i] = '\'';
+                    }
+                }
+                
                 fputs((char*)data.value->value, file);
                 fputc('"', file);
             }
             else {
+                size_t valueCount = data.value->count;
+                sprintf(stringBuffer, "%d", (i32)valueCount);
+                fputs(stringBuffer, file);
+                fputc(' ', file);
+            
                 for(i32 valueIndex = 0; valueIndex < valueCount; ++valueIndex) {
                     if(valueIndex > 0) { fputc(' ', file); }
                     switch(data.value->type) {

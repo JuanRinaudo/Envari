@@ -83,11 +83,11 @@ void LoadLUALibrary(sol::lib library)
         case sol::lib::package: {
             auto string = std::filesystem::current_path().string();
             const char* workingDirectory = string.c_str();
-            i32 workingDirectorySize = strlen(workingDirectory);
+            size_t workingDirectorySize = strlen(workingDirectory);
 
             char* packagePath = PushArray(&temporalState->arena, 512, char);
             
-            i32 offset = 0;
+            size_t offset = 0;
             strcpy(packagePath, workingDirectory);
             offset += workingDirectorySize;
             const char* luaRelative = "\\scripts\\?.lua;";
@@ -182,5 +182,46 @@ void ScriptingWatchChanges()
     }
     #endif
 }
+
+#if GAME_EDITOR
+void GetWatchValue(i32 watchType, char* name, char* valueBuffer)
+{
+    lua_getglobal(lua, name);
+    if(watchType == WatchType_AUTO) {
+        if(lua_isinteger(lua, -1)) {
+            int value = (int)lua_tointeger(lua, -1);
+            sprintf(valueBuffer, "%d", value);
+        }
+        else if(lua_isnumber(lua, -1)) {
+            float value = (float)lua_tonumber(lua, -1);
+            sprintf(valueBuffer, "%f", value);
+        }
+        else if(lua_isboolean(lua, -1)) {
+            bool value = (bool)lua_toboolean(lua, -1);
+            sprintf(valueBuffer, value ? "true" : "false");
+        }
+        else if(lua_isstring(lua, -1)) {
+            const char* value = lua_tostring(lua, -1);
+            sprintf(valueBuffer, "%s", value);
+        }
+    }
+    else if(watchType == WatchType_INT && lua_isinteger(lua, -1)) {
+        int value = (int)lua_tointeger(lua, -1);
+        sprintf(valueBuffer, "%d", value);
+    }
+    else if(watchType == WatchType_FLOAT && lua_isnumber(lua, -1)) {
+        float value = (float)lua_tonumber(lua, -1);
+        sprintf(valueBuffer, "%f", value);
+    }
+    else if(watchType == WatchType_BOOL && lua_isboolean(lua, -1)) {
+        bool value = (bool)lua_toboolean(lua, -1);
+        sprintf(valueBuffer, value ? "true" : "false");
+    }
+    else if(watchType == WatchType_STRING && lua_isstring(lua, -1)) {
+        const char* value = lua_tostring(lua, -1);
+        sprintf(valueBuffer, "%s", value);
+    }
+}
+#endif
 
 #endif

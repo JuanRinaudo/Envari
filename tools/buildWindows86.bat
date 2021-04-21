@@ -20,8 +20,8 @@ robocopy Envari\template-data\scripts\envari data\scripts\envari /MIR > NUL
 
 if not exist build mkdir build
 pushd build
-if not exist windows mkdir windows
-pushd windows
+if not exist windows86 mkdir windows86
+pushd windows86
 
 if not exist lua54.dll copy ..\..\Envari\LUA\lib\x86\lua54.dll lua54.dll >NUL
 if not exist SDL2.dll copy ..\..\Envari\SDL2\lib\x86\SDL2.dll SDL2.dll >NUL

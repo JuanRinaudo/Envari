@@ -299,12 +299,12 @@ u32 GL_GenerateBitmapFontStrip(const char *filepath, const char* glyphs, u32 gly
     size_t data_size = 0;
     GLTexture texture = GL_LoadTextureFile(filepath);
 
-    i32 glyphCount = strlen(glyphs);
+    size_t glyphCount = strlen(glyphs);
 
     FontAtlas result;
     result.lineHeight = (f32)glyphHeight;
     result.tabSize = (i32)glyphHeight * 2;
-    result.width = glyphWidth * glyphCount;
+    result.width = glyphWidth * (i32)glyphCount;
     result.height = glyphHeight;
     result.fontSize = (f32)glyphHeight;
     result.fontTextureID = texture.textureID;
@@ -328,7 +328,7 @@ u32 GL_GenerateBitmapFontStrip(const char *filepath, const char* glyphs, u32 gly
     return result.fontTextureID;
 }
 
-i32 GL_GenerateFont(void* data, u32 data_size, const char *filepath, f32 fontSize, u32 width, u32 height)
+i32 GL_GenerateFont(void* data, size_t data_size, const char *filepath, f32 fontSize, u32 width, u32 height)
 {
     FontAtlas result;
     result.lineHeight = fontSize;
@@ -540,7 +540,7 @@ static void CalculateCharacterOffset(FontAtlas *font, char singleChar, f32 *posX
     }
 }
 
-static v2 CalculateTextSize(FontAtlas *font, const char* string, i32 stringSize, f32 containerWidth = -1)
+static v2 CalculateTextSize(FontAtlas *font, const char* string, size_t stringSize, f32 containerWidth = -1)
 {
     f32 lineWidth = 0;
     f32 lineHeight = 0;
@@ -777,11 +777,16 @@ static void GL_Render()
     RenderHeader *renderHeader = (RenderHeader *)renderTemporaryMemory.arena->base;
 
     // #NOTE (Juan): Check if there are layers setted and sort commands by layer
-    if(renderState.usedLayers > 0) {
+    bool hasLayers = renderState.usedLayers > 0;
+#if GAME_EDITOR
+    hasLayers = hasLayers && editorState->editorFrameRunning;
+#endif
+    if(hasLayers) {
         void *sortedRenderStart = renderTemporaryMemory.arena->base + renderTemporaryMemory.arena->used;
         
         for(u32 layerIndex = 31; layerIndex < 32; --layerIndex) {
             if((renderState.usedLayers & (1 << layerIndex)) > 0) {
+                RenderHeader* layerStartHeader = (RenderHeader*)(renderTemporaryMemory.arena->base + renderTemporaryMemory.arena->used);
                 if((renderState.transparentLayers & (1 << layerIndex)) > 0) {
                     DrawTransparent();
                 } else {
@@ -797,14 +802,26 @@ static void GL_Render()
                     else if(searchLayer == layerIndex) {
                         void* copyDestination = PushSize(&renderTemporaryMemory, searchHeader->size);
                         memcpy(copyDestination, (void *)searchHeader, searchHeader->size);
+                        RenderHeader* copyHeader = (RenderHeader*)copyDestination;
+                        copyHeader->id += layerStartHeader->id;
                     }
                     searchHeader = (RenderHeader *)((u8 *)searchHeader + searchHeader->size);
                 }
             }
         }
 
-        renderHeader = (RenderHeader *)sortedRenderStart;
+        renderHeader = (RenderHeader*)sortedRenderStart;
+#if GAME_EDITOR
+        editorState->savedRenderHeader = renderHeader;
+#endif
     }
+    RenderHeader* sortedRenderStart = renderHeader;
+
+#if GAME_EDITOR
+    if(!editorState->editorFrameRunning) {
+        renderHeader = editorState->savedRenderHeader;
+    }
+#endif
 
     m44 view = gameState->camera.view;
     view._30 = -gameState->camera.size * 0.5f;
@@ -814,6 +831,13 @@ static void GL_Render()
 
     while(renderHeader->id > 0 && (void*)renderHeader < (void*)(renderTemporaryMemory.arena->base + renderTemporaryMemory.used)) {
         m44 model = IdM44();
+
+#if GAME_EDITOR
+        if(!renderHeader->enabled) {
+            renderHeader = (RenderHeader *)((u8 *)renderHeader + renderHeader->size);
+            continue;
+        }
+#endif
 
         switch(renderHeader->type) {
             case RenderType_RenderTempData: {
@@ -1016,36 +1040,31 @@ static void GL_Render()
                 GLTexture texture = GL_LoadTextureFile(image->filepath);
                 SetupTextureParameters(GL_TEXTURE_2D);
 
-                image->scale.x *= texture.width;
-                image->scale.y *= texture.height;
+                v2 scale = V2(image->scale.x * texture.width, image->scale.y * texture.height);
+                v2 position = V2(image->position.x, image->position.y);
+
+                f32 quadRatio = (f32)scale.y / (f32)scale.x;
+                f32 textureRatio = (f32)texture.height / (f32)texture.width;
 
                 if((image->header.renderFlags & ImageRenderFlag_Fit) > 0) {
                     // #TODO(Juan): Check this and fix errors
                     if(texture.height > texture.width) {
-                        f32 oldScaleX = image->scale.x;
-                        image->scale.x *= (f32)texture.width / (f32)texture.height;
-                        image->position.x += (oldScaleX - image->scale.x) * 0.5f;
+                        scale.x *= (f32)texture.width / (f32)texture.height;
+                        position.x += (image->scale.x - scale.x) * 0.5f;
                     } else {
-                        f32 oldScaleY = image->scale.y;
-                        image->scale.y *= (f32)texture.width / (f32)texture.height;
-                        image->position.y += (oldScaleY - image->scale.y) * 0.5f;
+                        scale.y *= (f32)texture.width / (f32)texture.height;
+                        position.y += (image->scale.y - scale.y) * 0.5f;
                     }
                 } else if((image->header.renderFlags & ImageRenderFlag_KeepRatioX) > 0) {
-                    f32 quadRatio = (f32)image->scale.y / (f32)image->scale.x;
-                    f32 textureRatio = (f32)texture.height / (f32)texture.width;
-                    f32 oldScaleY = image->scale.y;
-                    image->scale.y *= textureRatio / quadRatio;
-                    image->position.y += (oldScaleY - image->scale.y) * 0.5f;
+                    scale.y *= textureRatio / quadRatio;
+                    position.y += (image->scale.y - scale.y) * 0.5f;
                 } else if((image->header.renderFlags & ImageRenderFlag_KeepRatioY) > 0) {
-                    f32 quadRatio = (f32)image->scale.x / (f32)image->scale.y;
-                    f32 textureRatio = (f32)texture.width / (f32)texture.height;
-                    f32 oldScaleX = image->scale.x;
-                    image->scale.x *= textureRatio / quadRatio;
-                    image->position.x += (oldScaleX - image->scale.x) * 0.5f;
+                    scale.x *= textureRatio / quadRatio;
+                    position.x += (image->scale.x - scale.x) * 0.5f;
                 }
 
-                model *= ScaleM44(image->scale);
-                model *= TranslationM44(image->position);
+                model *= ScaleM44(scale);
+                model *= TranslationM44(position);
                 SetupModelUniforms(texturedProgram, renderState.renderColor, model, view, projection);
 
                 BindBuffer();
@@ -1066,10 +1085,9 @@ static void GL_Render()
                 GLTexture texture = GL_LoadTextureFile(imageUV->filepath);
                 SetupTextureParameters(GL_TEXTURE_2D);
 
-                imageUV->scale.x *= texture.width;
-                imageUV->scale.y *= texture.height;
+                v2 scale = V2(imageUV->scale.x * texture.width, imageUV->scale.y * texture.height);
 
-                model *= ScaleM44(imageUV->scale);
+                model *= ScaleM44(scale);
                 model *= TranslationM44(imageUV->position);
                 SetupModelUniforms(texturedProgram, renderState.renderColor, model, view, projection);
 
@@ -1129,10 +1147,9 @@ static void GL_Render()
                 GLTexture texture = GL_LoadTextureFile(atlas->filepath);
                 SetupTextureParameters(GL_TEXTURE_2D);
 
-                atlas->scale.x *= spriteRect.width;
-                atlas->scale.y *= spriteRect.height;
+                v2 scale = V2(atlas->scale.x * spriteRect.width, atlas->scale.y * spriteRect.height);
 
-                model *= ScaleM44(atlas->scale);
+                model *= ScaleM44(scale);
                 model *= TranslationM44(atlas->position);
                 SetupModelUniforms(coloredProgram, renderState.renderColor, model, view, projection);
 
@@ -1248,13 +1265,15 @@ static void GL_Render()
                 v2 containerSize = V2(styledText->endPosition.x - styledText->position.x, styledText->endPosition.y - styledText->position.y);
                 v2 textSize = CalculateTextSize(&currentFont, styledText->string, styledText->stringSize, containerSize.x);
 
+                v2 position = V2(styledText->position.x, styledText->position.y);
+
                 if((styledText->header.renderFlags & TextRenderFlag_Center) > 0) {
-                    styledText->position.x += (containerSize.x - textSize.x) * 0.5f;
-                    styledText->position.y -= (containerSize.y - textSize.y) * 0.5f;
+                    position.x += (containerSize.x - textSize.x) * 0.5f;
+                    position.y -= (containerSize.y - textSize.y) * 0.5f;
                 }
 
                 model *= ScaleM44(1, 1, 1);
-                model *= TranslationM44(styledText->position);
+                model *= TranslationM44(position);
                 SetupModelUniforms(texturedProgram, renderState.renderColor, model, view, projection);
 
                 f32 posX = 0;
