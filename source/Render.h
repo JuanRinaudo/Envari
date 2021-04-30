@@ -407,7 +407,7 @@ void Begin2D(u32 frameBufferID, u32 width, u32 height)
 	glBindFramebuffer(GL_FRAMEBUFFER, frameBufferID);
 	glViewport(0,0, width, height);
     
-    DrawTextureParameters(DEFAULT_WRAP_S, DEFAULT_WRAP_T, DEFAULT_MIN_FILTER, DEFAULT_MAX_FILTER);    
+    DrawTextureParameters(DEFAULT_WRAP_S, DEFAULT_WRAP_T, DEFAULT_MIN_FILTER, DEFAULT_MAG_FILTER);    
     DrawSetLayer(0, true);
     if(gameState->render.defaultFontID != 0) {
         DrawSetFont(gameState->render.defaultFontID);

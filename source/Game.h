@@ -89,20 +89,13 @@ static u32 GameInit()
     gameState->camera.projection = OrtographicProjection(gameState->camera.size, gameState->camera.ratio, gameState->camera.nearPlane, gameState->camera.farPlane);
 
 #ifdef LUA_SCRIPTING_ENABLED
+#if GAME_EDITOR
+    currentLogFlag = EditorLogFlag_SCRIPTING;
+#endif
+
     LoadScriptFile(TableGetString(&initialConfig, INITLUASCRIPT));
 
-    sol::protected_function Init(lua["Init"]);
-    if(Init.valid()) {
-        sol::protected_function_result result = Init();
-        if (!result.valid()) {
-            sol::error error = result;
-		    std::string what = error.what();
-            LogError("%s", what.c_str());
-        }
-    }
-    else {
-        LogError("Error on script 'Init', not valid");
-    }
+    RunLUAProtectedFunction(Init);
 #endif
     
     return 1;
@@ -111,18 +104,11 @@ static u32 GameInit()
 static u32 ScriptingUpdate()
 {
     #ifdef LUA_SCRIPTING_ENABLED
-        sol::protected_function Update(lua["Update"]);
-        if(Update.valid()) {
-            sol::protected_function_result result = Update();
-            if (!result.valid()) {
-                sol::error error = result;
-                std::string what = error.what();
-                LogError("%s", what.c_str());
-            }
-        }
-        else {
-            LogError("Error on script 'Update', not valid");
-        }
+#if GAME_EDITOR
+    currentLogFlag = EditorLogFlag_SCRIPTING;
+#endif
+
+    RunLUAProtectedFunction(Update)
     #endif
 
     return 1;
@@ -144,19 +130,12 @@ static u32 GameUpdate()
 
 static u32 GameEnd()
 {
-    #ifdef LUA_SCRIPTING_ENABLED
-        sol::protected_function End(lua["End"]);
-        if(End.valid()) {
-            sol::protected_function_result result = End();
-            if (!result.valid()) {
-                sol::error error = result;
-                std::string what = error.what();
-                LogError("%s", what.c_str());
-            }
-        }
-        else {
-            LogError("Error on script 'End', not valid");
-        }
+    #ifdef LUA_SCRIPTING_ENABLED    
+#if GAME_EDITOR
+    currentLogFlag = EditorLogFlag_SCRIPTING;
+#endif
+
+    RunLUAProtectedFunction(End)
     #endif
 
     return 1;

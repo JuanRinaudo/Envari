@@ -9,6 +9,8 @@
 
 #define Log printf
 
+#include "../Miniaudio/miniaudio.h"
+
 #define STB_DS_IMPLEMENTATION
 #include "../STB/stb_ds.h"
 

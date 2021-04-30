@@ -14,6 +14,9 @@ extern void Log_(ConsoleWindow* console, ConsoleLogType type, const char* file, 
 #define LogError(fmt, ...) Log_(&editorConsole, ConsoleLogType_ERROR, __FILE__, __LINE__, fmt, ##__VA_ARGS__)
 #define LogCommand(fmt, ...) Log_(&editorConsole, ConsoleLogType_COMMAND, __FILE__, __LINE__, fmt, ##__VA_ARGS__)
 
+extern void ChangeLogFlag_(u32 newFlag);
+#define ChangeLogFlag(newFlag) ChangeLogFlag_(newFlag)
+
 ConsoleWindow editorConsole;
 static void EditorInit(ConsoleWindow* console);
 static void EditorDraw(ConsoleWindow* console);

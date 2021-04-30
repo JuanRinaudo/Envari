@@ -120,7 +120,9 @@ static u32 GL_LoadTextureMemory(u8 *data, i32 width, i32 height)
     glGenTextures(1, &textureID);
     glBindTexture(GL_TEXTURE_2D, textureID);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+#ifndef MIPMAP_DISABLED
     glGenerateMipmap(GL_TEXTURE_2D);
+#endif
     
     glBindTexture(GL_TEXTURE_2D, textureID);
     
@@ -143,11 +145,16 @@ GLTexture GL_LoadTextureFile(const char *texturePath)
         i32 width, height, channels;
         u8 *data = stbi_load(texturePath, &width, &height, &channels, 0);
 
+        Assert(width > 0 && height > 0);
+
         u32 textureID;
         glGenTextures(1, &textureID);
         glBindTexture(GL_TEXTURE_2D, textureID);
+        
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+#ifndef MIPMAP_DISABLED
         glGenerateMipmap(GL_TEXTURE_2D);
+#endif
 
         texture.textureID = textureID;
         texture.width = width;

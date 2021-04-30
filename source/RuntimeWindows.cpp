@@ -21,9 +21,9 @@
 
 #include <SDL.h>
 
-#define DEFAULT_MIN_FILTER GL_NEAREST
-#define DEFAULT_MAX_FILTER GL_NEAREST
-#define FRAMEBUFFER_DEFAULT_FILTER GL_NEAREST
+#define DEFAULT_MIN_FILTER GL_LINEAR_MIPMAP_LINEAR
+#define DEFAULT_MAG_FILTER GL_LINEAR_MIPMAP_LINEAR
+#define FRAMEBUFFER_DEFAULT_FILTER GL_LINEAR
 
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "STB/stb_truetype.h"
@@ -97,8 +97,6 @@ i32 CALLBACK WinMain(
 
     SoundInit();
 
-    SDL_ShowCursor(false);
-
     gameState->game.running = true;
     while (gameState->game.running)
     {
@@ -108,13 +106,10 @@ i32 CALLBACK WinMain(
         while(SDL_PollEvent(&event)) {
             ProcessEvent(&event);
         }
+    
+        CommonShowCursor();
 
-        if(gameState->render.framebufferEnabled) {
-            Begin2D(gameState->render.frameBuffer, (u32)gameState->render.bufferSize.x, (u32)gameState->render.bufferSize.y);
-        }
-        else {
-            Begin2D(0, (u32)gameState->render.size.x, (u32)gameState->render.size.y);
-        }
+        CommonBegin2D();
 
         ScriptingUpdate();
         GameUpdate();

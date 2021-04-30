@@ -1,0 +1,1 @@
+@echo End time %time%

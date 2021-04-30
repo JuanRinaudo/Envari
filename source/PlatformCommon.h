@@ -124,7 +124,10 @@ static i32 SetupTime()
     fpsFixed = TableGetInt(&initialConfig, "fpsFixed");
     fpsDelta = 1000.0f / fpsLimit;
     vsync = TableGetInt(&initialConfig, "vsync");
+#ifndef __EMSCRIPTEN__
+    // #TODO (Juan): Check why this brings problems with emcripten even if it is disabled
     SDL_GL_SetSwapInterval(vsync);
+#endif
 
     gameState->game.updateRunning = true;
     gameState->time.gameFrames = -1;
@@ -255,13 +258,14 @@ static i32 RenderFramebuffer()
     gameState->camera.view = IdM44();
     gameState->camera.projection = OrtographicProjection(gameState->camera.size, gameState->camera.ratio, gameState->camera.nearPlane, gameState->camera.farPlane);
 
-    Begin2D(0, (u32)gameState->render.size.x, (u32)gameState->render.size.y);
+    Begin2D(0, (u32)gameState->render.windowSize.x, (u32)gameState->render.windowSize.y);
     DrawOverrideVertices(0, 0);
     DrawClear(0, 0, 0, 1);
     DrawTextureParameters(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, FRAMEBUFFER_DEFAULT_FILTER, FRAMEBUFFER_DEFAULT_FILTER);
     f32 sizeX = tempRatio;
     f32 xOffset = -(gameState->render.windowSize.x / (gameState->render.bufferSize.x * (gameState->render.windowSize.y / gameState->render.bufferSize.y))) * 0.5f;
-    DrawTexture(-sizeX * .2f, gameState->camera.size, sizeX, -gameState->camera.size, gameState->render.renderBuffer);
+    // #TODO (Juan): Fix this texture offset
+    DrawTexture(0, gameState->camera.size, sizeX, -gameState->camera.size, gameState->render.renderBuffer);
     GL_Render();
     End2D();
 
@@ -271,6 +275,36 @@ static i32 RenderFramebuffer()
     gameState->camera.projection = tempProjection;
 
     return 1;
+}
+
+// #TODO (Juan): Maybe change this and refactor it for a real render size variable instead
+static v2 GetRenderSize()
+{
+    if(gameState->render.framebufferEnabled) {
+        return gameState->render.bufferSize;
+    }
+    else {
+        return gameState->render.size;
+    }
+}
+
+static void CommonBegin2D()
+{
+    if(gameState->render.framebufferEnabled) {
+        Begin2D(gameState->render.frameBuffer, (u32)gameState->render.bufferSize.x, (u32)gameState->render.bufferSize.y);
+    }
+    else {
+        Begin2D(0, (u32)gameState->render.size.x, (u32)gameState->render.size.y);
+    }
+}
+
+static void CommonShowCursor()
+{
+    v2 renderSize = GetRenderSize();
+
+    SDL_ShowCursor(gameState->input.mouseTextureID == 0 ||
+        gameState->input.mousePosition.x < 0 || gameState->input.mousePosition.x > renderSize.x ||
+        gameState->input.mousePosition.y < 0 || gameState->input.mousePosition.y > renderSize.y);
 }
 
 static i32 WaitFPSLimit()

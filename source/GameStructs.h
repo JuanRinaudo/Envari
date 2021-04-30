@@ -102,15 +102,15 @@ enum UniformType {
 };
 
 enum ImageRenderFlag {
-    ImageRenderFlag_Fit = 0x1,
-    ImageRenderFlag_KeepRatioX = 0x2,
-    ImageRenderFlag_KeepRatioY = 0x4,
+    ImageRenderFlag_Fit = 1 << 1,
+    ImageRenderFlag_KeepRatioX = 1 << 2,
+    ImageRenderFlag_KeepRatioY = 1 << 3,
 };
 
 enum TextRenderFlag {
-    TextRenderFlag_Center = 0x1,
-    TextRenderFlag_LetterWrap = 0x2,
-    TextRenderFlag_WordWrap = 0x4,
+    TextRenderFlag_Center = 1 << 1,
+    TextRenderFlag_LetterWrap = 1 << 2,
+    TextRenderFlag_WordWrap = 1 << 3,
 };
 
 struct RenderHeader

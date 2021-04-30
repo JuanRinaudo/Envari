@@ -12,6 +12,22 @@ enum DebugMenuAction {
     DebugMenuAction_BREAK_ON_FUNCTION,
 };
 
+enum EditorLogFlag {
+    EditorLogFlag_NONE = 1 << 0,
+    EditorLogFlag_PERFORMANCE = 1 << 1,
+    EditorLogFlag_RENDER = 1 << 2,
+    EditorLogFlag_MEMORY = 1 << 3,
+    EditorLogFlag_TEXTURE = 1 << 4,
+    EditorLogFlag_SOUND = 1 << 5,
+    EditorLogFlag_INPUT = 1 << 6,
+    EditorLogFlag_TIME = 1 << 7,
+    EditorLogFlag_LUA = 1 << 8,
+
+    EditorLogFlag_SYSTEM = 1 << 16,
+    EditorLogFlag_GAME = 1 << 17,
+    EditorLogFlag_SCRIPTING = 1 << 18,
+};
+
 enum WatchType {
     WatchType_AUTO,
     WatchType_INT,
@@ -40,6 +56,7 @@ struct PreviewWindow
     v2 cursorPosition;
     v2i changeSize;
     bool showData;
+    f32 previewOffsetY;
 };
 
 struct ConsoleWindow
@@ -54,6 +71,7 @@ struct ConsoleWindow
     ImGuiTextFilter filter;
     bool autoScroll;
     bool scrollToBottom;
+    i32 logFlags;
 };
 
 enum TextureInspect

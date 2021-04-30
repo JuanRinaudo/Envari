@@ -154,6 +154,8 @@ extern f32 Lerp(f32 a, f32 b, f32 t);
 extern transform2D Transform2D(f32 posX, f32 posY, f32 scaleX, f32 scaleY);
 
 extern f32 Length(v2 a);
+
+extern void ChangeLogFlag_(u32 newFlag);
 #endif
 
 #define LUASaveGetSet(POSTFIX, valueType) static valueType SaveGet ## POSTFIX (const char* key, valueType defaultValue) \
@@ -258,6 +260,24 @@ LUASaveGetSet(V2, v2)
 
 GenerateRenderTemporaryPush(Float, f32);
 GenerateRenderTemporaryPush(Vector2, v2);
+
+#ifdef GAME_EDITOR
+static std::tuple<bool, bool> ImGuiBegin(const char* name, bool open, u32 flags) {
+    bool shouldDraw = ImGui::Begin(name, &open, flags);
+    if(!open) {
+        ImGui::End();
+    }
+    return std::tuple<bool, bool>(open, shouldDraw);
+}
+
+static void ImGuiSetNextWindowSize(f32 width, f32 height, u32 cond) {
+    ImGui::SetNextWindowSize(ImVec2(width, height), cond);
+}
+
+static void ImGuiSetNextWindowSizeConstraints(f32 minX, f32 minY, f32 maxX, f32 maxY) {
+    ImGui::SetNextWindowSizeConstraints(ImVec2(minX, minY), ImVec2(maxX, maxY));
+}
+#endif
 
 void ScriptingInitBindings()
 {
@@ -518,6 +538,30 @@ void ScriptingInitBindings()
     lua["SaveSetF32"] = SaveSetF32;
     lua["SaveGetV2"] = SaveGetV2;
     lua["SaveSetV2"] = SaveSetV2;
+    
+    // #NOTE (Juan): Editor
+#ifdef GAME_EDITOR
+    lua["ChangeLogFlag"] = ChangeLogFlag_;
+
+    lua["EditorLogFlag_PERFORMANCE"] = EditorLogFlag_PERFORMANCE;
+    lua["EditorLogFlag_RENDER"] = EditorLogFlag_RENDER;
+    lua["EditorLogFlag_MEMORY"] = EditorLogFlag_MEMORY;
+    lua["EditorLogFlag_TEXTURE"] = EditorLogFlag_TEXTURE;
+    lua["EditorLogFlag_SOUND"] = EditorLogFlag_SOUND;
+    lua["EditorLogFlag_INPUT"] = EditorLogFlag_INPUT;
+    lua["EditorLogFlag_TIME"] = EditorLogFlag_TIME;
+    lua["EditorLogFlag_LUA"] = EditorLogFlag_LUA;
+
+    lua["EditorLogFlag_GAME"] = EditorLogFlag_GAME;
+    lua["EditorLogFlag_SCRIPTING"] = EditorLogFlag_SCRIPTING;
+
+    lua["ImGuiCond_FirstUseEver"] = ImGuiCond_FirstUseEver;
+
+    lua["ImGuiSetNextWindowSize"] = ImGuiSetNextWindowSize;
+    lua["ImGuiSetNextWindowSizeConstraints"] = ImGuiSetNextWindowSizeConstraints;
+    lua["ImGuiBegin"] = ImGuiBegin;
+    lua["ImGuiEnd"] = ImGui::End;
+#endif
 }
 
 void ScriptingMathBindings()

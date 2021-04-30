@@ -1,5 +1,7 @@
 const char* watchTypeNames[] = { "Auto", "Int", "Float", "Bool", "Char", "String" };
 
+EditorLogFlag currentLogFlag = EditorLogFlag_NONE;
+
 static void ClearLog(ConsoleWindow* console)
 {
     for (i32 i = 0; i < console->items.Size; i++) {
@@ -27,13 +29,20 @@ static void LogString(ConsoleWindow* console, const char* log, ConsoleLogType ty
 
 void Log_(ConsoleWindow* console, ConsoleLogType type, const char* file, u32 line, const char* fmt, ...)
 {
-    char buffer[1024];
-    va_list args;
-    va_start(args, fmt);
-    vsnprintf(buffer, ArrayCount(buffer), fmt, args);
-    va_end(args);
-    buffer[ArrayCount(buffer)-1] = 0;
-    LogString(console, buffer, type, line, file);
+    if(currentLogFlag == EditorLogFlag_NONE || (currentLogFlag & console->logFlags) > 0) {
+        char buffer[1024];
+        va_list args;
+        va_start(args, fmt);
+        i32 size = vsnprintf(buffer, ArrayCount(buffer), fmt, args);
+        va_end(args);
+        buffer[ArrayCount(buffer)-1] = 0;
+        LogString(console, buffer, type, line, file);
+    }
+}
+
+extern void ChangeLogFlag_(u32 newFlag)
+{
+    currentLogFlag = (EditorLogFlag)newFlag;
 }
 
 static void EditorInit(ConsoleWindow* console)
@@ -49,6 +58,7 @@ static void EditorInit(ConsoleWindow* console)
 #endif
     console->autoScroll = true;
     console->scrollToBottom = false;
+    console->logFlags = EditorLogFlag_NONE;
 
     console->open = true;
     
@@ -266,6 +276,11 @@ static void ExecCommand(ConsoleWindow* console, const char* command_line)
     console->scrollToBottom = true;
 }
 
+static void EditorLogMenuButton(ConsoleWindow* console, const char* flagName, u32 flag) {
+    bool value = (console->logFlags & flag) > 0;
+    if (ImGui::Checkbox(flagName, &value)) { console->logFlags = (value ? console->logFlags | flag : console->logFlags & ~flag); }
+}
+
 static u32 GameInit();
 ConsoleLog *inspectedLog = 0;
 static void EditorDraw(ConsoleWindow* console)
@@ -344,13 +359,37 @@ static void EditorDraw(ConsoleWindow* console)
         ImGui::Checkbox("Auto-scroll", &console->autoScroll);
         ImGui::EndPopup();
     }
+    
+    if (ImGui::BeginPopup("LogFlagPopup"))
+    {
+        EditorLogMenuButton(console, "Performance", EditorLogFlag_PERFORMANCE);
+        EditorLogMenuButton(console, "Render", EditorLogFlag_RENDER);
+        EditorLogMenuButton(console, "Memory", EditorLogFlag_MEMORY);
+        EditorLogMenuButton(console, "Texture", EditorLogFlag_TEXTURE);
+        EditorLogMenuButton(console, "Sound", EditorLogFlag_SOUND);
+        EditorLogMenuButton(console, "Input", EditorLogFlag_INPUT);
+        EditorLogMenuButton(console, "Time", EditorLogFlag_TIME);
+        EditorLogMenuButton(console, "LUA", EditorLogFlag_LUA);
+        
+        EditorLogMenuButton(console, "System", EditorLogFlag_SYSTEM);
+        EditorLogMenuButton(console, "Game", EditorLogFlag_GAME);
+        EditorLogMenuButton(console, "Scripting", EditorLogFlag_SCRIPTING);
+
+        ImGui::EndMenu();
+    }
 
     // Options, filter
+    console->filter.Draw("Filter", 180);
+
+    ImGui::SameLine();
     if (ImGui::Button("Options")) {
         ImGui::OpenPopup("Options");
     }
+    
     ImGui::SameLine();
-    console->filter.Draw("Filter", 180);
+    if (ImGui::Button("Flags"))
+        ImGui::OpenPopup("LogFlagPopup");
+
     ImGui::Separator();
 
     const float footer_height_to_reserve = ImGui::GetStyle().ItemSpacing.y + ImGui::GetFrameHeightWithSpacing();
@@ -541,7 +580,7 @@ static void EditorDraw(PreviewWindow* preview)
     previewMax.y -= height;
 
     preview->cursorInsideWindow = cursorPosition.x > previewMin.x && cursorPosition.x < previewMax.x && cursorPosition.y > previewMin.y && cursorPosition.y < previewMax.y;
-    preview->cursorPosition = V2(Clamp(cursorPosition.x - previewMin.x, 0, gameState->render.size.x), Clamp(cursorPosition.y - previewMin.y - contentStart.y, 0, gameState->render.size.y));
+    preview->cursorPosition = V2(Clamp(cursorPosition.x - previewMin.x, 0, gameState->render.size.x), Clamp(cursorPosition.y - previewMin.y, 0, gameState->render.size.y));
 
     if(menuAction == PreviewMenuAction_CHANGE_SIZE) { ImGui::OpenPopup("ChangeSize"); }
     
@@ -1135,11 +1174,10 @@ static void EditorDraw(LUADebuggerWindow* debugger)
     DebugMenuAction menuAction = DebugMenuAction_NONE;
     if (ImGui::BeginMenuBar())
     {
-        if (ImGui::BeginMenu("File"))
-        {
-            if (ImGui::MenuItem("WIP")) { }
-            ImGui::EndMenu();
-        }
+        // if (ImGui::BeginMenu("File"))
+        // {
+        //     ImGui::EndMenu();
+        // }
         
         if (ImGui::BeginMenu("Go"))
         {
@@ -1379,6 +1417,7 @@ static void EditorInit()
     // editorConsole.open = TableGetBool(&editorSave, "editorConsoleOpen");
     editorConsole.open = true;
     EditorInit(&editorConsole);
+    editorConsole.logFlags = TableGetI32(&editorSave, "editorLogFlags");
 
     editorPreview.open = TableGetBool(&editorSave, "editorPreviewOpen");
     EditorInit(&editorPreview);
@@ -1443,6 +1482,7 @@ static void EditorEnd()
     
     SerializableTable* editorSave = 0;
     TableSetBool(&permanentState->arena, &editorSave, "editorConsoleOpen", editorConsole.open);
+    TableSetI32(&permanentState->arena, &editorSave, "editorLogFlags", editorConsole.logFlags);
     TableSetBool(&permanentState->arena, &editorSave, "editorPreviewOpen", editorPreview.open);
     TableSetBool(&permanentState->arena, &editorSave, "editorPerformanceDebuggerOpen", editorPerformanceDebugger.open);
     TableSetBool(&permanentState->arena, &editorSave, "editorRenderDebuggerOpen", editorRenderDebugger.open);

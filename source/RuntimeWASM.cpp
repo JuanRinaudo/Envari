@@ -18,6 +18,10 @@
 
 #include <SDL.h>
 
+#define DEFAULT_MIN_FILTER GL_LINEAR_MIPMAP_LINEAR
+#define DEFAULT_MAG_FILTER GL_LINEAR
+#define FRAMEBUFFER_DEFAULT_FILTER GL_LINEAR
+
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "STB/stb_truetype.h"
 
@@ -86,7 +90,7 @@ int main(int argc, char** argv)
 
     SoundInit();
 
-    SDL_ShowCursor(false);
+    SDL_ShowCursor(gameState->input.mouseTextureID == 0);
 
     gameState->game.running = true;
 
@@ -103,12 +107,7 @@ static void main_loop()
             ProcessEvent(&event);
         }
 
-        if(gameState->render.framebufferEnabled) {
-            Begin2D(gameState->render.frameBuffer, (u32)gameState->render.bufferSize.x, (u32)gameState->render.bufferSize.y);
-        }
-        else {
-            Begin2D(0, (u32)gameState->render.size.x, (u32)gameState->render.size.y);
-        }
+        CommonBegin2D();
 
         ScriptingUpdate();
         GameUpdate();
@@ -129,11 +128,11 @@ static void main_loop()
     }
 }
 
-static void main_end()
-{
-    GameEnd();
+// static void main_end()
+// {
+//     GameEnd();
 
-    // SaveConfig();
+//     // SaveConfig();
 
-    // SerializeTable(&saveData, "saveData.save");
-}
+//     // SerializeTable(&saveData, "saveData.save");
+// }

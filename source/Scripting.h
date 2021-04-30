@@ -1,6 +1,19 @@
 #ifndef SCRIPTING_H
 #define SCRIPTING_H
 
+#define RunLUAProtectedFunction(FUNCTION) sol::protected_function Func ## FUNCTION ## (lua[#FUNCTION]); \
+if(Func ## FUNCTION ## .valid()) { \
+    sol::protected_function_result result = Func ## FUNCTION ## (); \
+    if (!result.valid()) { \
+        sol::error error = result; \
+        std::string what = error.what(); \
+        LogError("%s", what.c_str()); \
+    } \
+} \
+else { \
+    LogError("Error on script '"#FUNCTION"', not valid"); \
+}
+
 #ifdef GAME_EDITOR
 char watchList[200];
 std::filesystem::file_time_type watchListTimes[20];
@@ -90,12 +103,12 @@ void LoadLUALibrary(sol::lib library)
             size_t offset = 0;
             strcpy(packagePath, workingDirectory);
             offset += workingDirectorySize;
-            const char* luaRelative = "\\scripts\\?.lua;";
+            const char* luaRelative = "/scripts/?.lua;";
             strcpy(packagePath + offset, luaRelative);
             offset += strlen(luaRelative);
             strcpy(packagePath + offset, workingDirectory);
             offset += workingDirectorySize;
-            strcpy(packagePath + offset, "\\scripts\\envari\\?.lua;");
+            strcpy(packagePath + offset, "/scripts/envari/?.lua;");
 
             lua["package"]["path"] = packagePath;
             

@@ -2,7 +2,7 @@
 
 cl>nul
 if "%errorlevel%" == "9009" (
-    vsvars.bat x86
+    vsvars.bat x64
 ) || (
     echo CL found, starting build
 )

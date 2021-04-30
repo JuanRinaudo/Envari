@@ -24,9 +24,9 @@
 
 #include <SDL.h>
 
-#define DEFAULT_MIN_FILTER GL_NEAREST
-#define DEFAULT_MAX_FILTER GL_NEAREST
-#define FRAMEBUFFER_DEFAULT_FILTER GL_NEAREST
+#define DEFAULT_MIN_FILTER GL_LINEAR_MIPMAP_LINEAR
+#define DEFAULT_MAG_FILTER GL_LINEAR_MIPMAP_LINEAR
+#define FRAMEBUFFER_DEFAULT_FILTER GL_LINEAR
 
 #include "IMGUI/imgui.cpp"
 
@@ -205,12 +205,7 @@ i32 CALLBACK WinMain(
         if(editorState->editorFrameRunning) {
             RenderDebugStart();
 
-            if(gameState->render.framebufferEnabled) {
-                Begin2D(gameState->render.frameBuffer, (u32)gameState->render.bufferSize.x, (u32)gameState->render.bufferSize.y);
-            }
-            else {
-                Begin2D(0, (u32)gameState->render.size.x, (u32)gameState->render.size.y);
-            }
+            CommonBegin2D();
 
             QueryPerformanceCounter(&luaPerformanceStart);
             ScriptingUpdate();
@@ -221,6 +216,8 @@ i32 CALLBACK WinMain(
             GL_Render();
 
             EditorDrawAllOpen();
+
+            RunLUAProtectedFunction(EditorUpdate)
 
             RenderDebugEnd();
             End2D();
