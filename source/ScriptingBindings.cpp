@@ -264,9 +264,6 @@ GenerateRenderTemporaryPush(Vector2, v2);
 #ifdef GAME_EDITOR
 static std::tuple<bool, bool> ImGuiBegin(const char* name, bool open, u32 flags) {
     bool shouldDraw = ImGui::Begin(name, &open, flags);
-    if(!open) {
-        ImGui::End();
-    }
     return std::tuple<bool, bool>(open, shouldDraw);
 }
 
@@ -276,6 +273,18 @@ static void ImGuiSetNextWindowSize(f32 width, f32 height, u32 cond) {
 
 static void ImGuiSetNextWindowSizeConstraints(f32 minX, f32 minY, f32 maxX, f32 maxY) {
     ImGui::SetNextWindowSizeConstraints(ImVec2(minX, minY), ImVec2(maxX, maxY));
+}
+
+static void ImGuiDummy(f32 width, f32 height) {
+    ImGui::Dummy(ImVec2(width, height));
+}
+
+static bool ImGuiButton(const char* label, f32 width, f32 height) {
+    return ImGui::Button(label, ImVec2(width, height));
+}
+
+static bool ImGuiImageButton(i32 id, f32 width, f32 height) {
+    return ImGui::ImageButton((ImTextureID)id, ImVec2(width, height));
 }
 #endif
 
@@ -561,6 +570,12 @@ void ScriptingInitBindings()
     lua["ImGuiSetNextWindowSizeConstraints"] = ImGuiSetNextWindowSizeConstraints;
     lua["ImGuiBegin"] = ImGuiBegin;
     lua["ImGuiEnd"] = ImGui::End;
+    lua["ImGuiSameLine"] = ImGui::SameLine;
+    lua["ImGuiSpacing"] = ImGui::Spacing;
+    lua["ImGuiSeparator"] = ImGui::Separator;
+    lua["ImGuiSeparator"] = ImGuiDummy;
+    lua["ImGuiButton"] = ImGuiButton;
+    lua["ImGuiImageButton"] = ImGuiImageButton;
 #endif
 }
 
