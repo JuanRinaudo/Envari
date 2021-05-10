@@ -15,9 +15,9 @@ else { \
 }
 
 #ifdef GAME_EDITOR
-char watchList[200];
+char watchList[4096];
 std::filesystem::file_time_type watchListTimes[20];
-u32 watchListSize = 0;
+size_t watchListSize = 0;
 u32 watchFiles = 0;
 #endif
 
@@ -31,7 +31,7 @@ extern void ScriptingInitBindings();
 extern void ScriptingMathBindings();
 #endif
 
-void LoadScriptFile(char* filePath)
+void LoadScriptFile(const char* filePath)
 {
     sol::load_result loadResult = lua.load_file(filePath);
 
@@ -50,18 +50,17 @@ void LoadScriptFile(char* filePath)
     }
 
     #ifdef GAME_EDITOR
-    watchListTimes[watchFiles] = std::filesystem::last_write_time(filePath);
-    watchFiles++;
+    if(!strstr(watchList, filePath)) {
+        watchListTimes[watchFiles] = std::filesystem::last_write_time(filePath);
+        watchFiles++;
 
-    strcat(watchList, filePath);
-    strcat(watchList, "@");
-    watchListSize += (u32)strlen(filePath) + 1;
+        strcat(watchList, filePath);
+        strcat(watchList, "@");
+        watchListSize += strlen(filePath) + 1;
+
+        assert(watchListSize < ArrayCount(watchList));
+    }
     #endif
-}
-
-void LoadScriptFile(const char* filePath)
-{
-    LoadScriptFile((char*)filePath);
 }
 
 void ScriptingPanic(sol::optional<std::string> maybe_msg) {
@@ -151,7 +150,7 @@ void ScriptingWatchChanges()
     i32 nameIndex = 0;
     i32 fileIndex = 0;
     i32 watchIndex = 0;
-    char name[100];
+    char name[LUA_FILENAME_MAX];
     while(watchIndex < watchListSize) {
         if(watchList[watchIndex] == '@') {
             name[nameIndex] = 0;

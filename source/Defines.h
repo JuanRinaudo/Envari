@@ -1,7 +1,7 @@
 #ifndef DEFINES_H
 #define DEFINES_H
 
-#define InvalidCodePath Assert(!"InvalidCodePath");
+#define InvalidCodePath Assert(!"InvalidCodePath", "InvalidCodePath");
 #define InvalidDefaultCase default: {InvalidCodePath;} break;
 
 // NOTE(Juan): Types
@@ -34,6 +34,7 @@
 #define CONSOLE_INPUT_BUFFER_COUNT 256
 
 #define TEXT_INPUT_BUFFER_COUNT 256
+#define LUA_FILENAME_MAX 256
 
 #define KEY_UP 0
 #define KEY_RELEASED 1
@@ -113,17 +114,17 @@ typedef double f64;
 
 #if __EMSCRIPTEN__
     #ifdef GAME_SLOW
-        // TODO(Juan): Complete assert macro
-        #define Assert(Expression) if(!(Expression)) { *(volatile i32 *)0 = 0; }
+        #define Assert(Expression, Message) if(!(Expression)) { *(volatile i32 *)0 = 0; }
     #else
-        #define Assert(Expression)
+        #define Assert(Expression, Message)
     #endif
 #else
     #ifdef GAME_SLOW
-        // TODO(Juan): Complete assert macro
-        #define Assert(Expression) if(!(Expression)) { *(i32 *)0 = 0; }
+        #ifndef Assert
+        #define Assert(Expression, Message) if(!(Expression)) { *(i32 *)0 = 0; }
+        #endif
     #else
-        #define Assert(Expression)
+        #define Assert(Expression, Message)
     #endif
 #endif
 

@@ -317,7 +317,7 @@ static bool DeserializeTable(MemoryArena *arena, SerializableTable** table, cons
                 }
             }
 
-            Assert(valuePointer != 0);
+            Assert(valuePointer != 0, "No value found");
             TableSetValueReference(arena, table, keyPointer, valuePointer, type, count);
         }
     }
@@ -327,7 +327,7 @@ static bool DeserializeTable(MemoryArena *arena, SerializableTable** table, cons
     return true;
 }
 
-static void SerializeTable(SerializableTable** table, const char* filepath)
+void SerializeTable(SerializableTable** table, const char* filepath)
 {
     FILE* file = fopen(filepath, FILE_MODE_WRITE_CREATE_BINARY);
 

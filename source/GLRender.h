@@ -114,22 +114,28 @@ static i32 GL_AvailableGPUMemoryKB()
     return availableMemoryInKB;
 }
 
-static u32 GL_LoadTextureMemory(u8 *data, i32 width, i32 height)
+static u32 GL_TextureFromMemory(u8 *data, i32 width, i32 height, u32 channels)
 {
+    Assert(width > 0 && height > 0, "Texture loading error: Image has no width or height");
+
     u32 textureID;
     glGenTextures(1, &textureID);
     glBindTexture(GL_TEXTURE_2D, textureID);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+    
+    u32 format = GL_RGBA;
+    if(channels == 3) {
+        format = GL_RGB;
+    }
+
+    glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
 #ifndef MIPMAP_DISABLED
     glGenerateMipmap(GL_TEXTURE_2D);
 #endif
-    
-    glBindTexture(GL_TEXTURE_2D, textureID);
-    
+
     return textureID;
 }
 
-void GL_LoadTextureID(u32 textureID, f32 width, f32 height)
+void GL_BindTextureID(u32 textureID, f32 width, f32 height)
 {
     glBindTexture(GL_TEXTURE_2D, textureID);
     glUniform2f(textureSizeLocation, width, height);
@@ -145,16 +151,7 @@ GLTexture GL_LoadTextureFile(const char *texturePath)
         i32 width, height, channels;
         u8 *data = stbi_load(texturePath, &width, &height, &channels, 0);
 
-        Assert(width > 0 && height > 0);
-
-        u32 textureID;
-        glGenTextures(1, &textureID);
-        glBindTexture(GL_TEXTURE_2D, textureID);
-        
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-#ifndef MIPMAP_DISABLED
-        glGenerateMipmap(GL_TEXTURE_2D);
-#endif
+        u32 textureID = GL_TextureFromMemory(data, width, height, channels);
 
         texture.textureID = textureID;
         texture.width = width;
@@ -1189,7 +1186,7 @@ static void GL_Render()
 
                 UseProgram(fontProgram);
 
-                GL_LoadTextureID(currentFont.fontTextureID, (f32)currentFont.width, (f32)currentFont.height);
+                GL_BindTextureID(currentFont.fontTextureID, (f32)currentFont.width, (f32)currentFont.height);
                 SetupTextureParameters(GL_TEXTURE_2D);
 
                 model *= ScaleM44(renderChar->scale);
@@ -1223,7 +1220,7 @@ static void GL_Render()
 
                 UseProgram(fontProgram);
 
-                GL_LoadTextureID(currentFont.fontTextureID, (f32)currentFont.width, (f32)currentFont.height);
+                GL_BindTextureID(currentFont.fontTextureID, (f32)currentFont.width, (f32)currentFont.height);
                 SetupTextureParameters(GL_TEXTURE_2D);
 
                 v2 textSize = CalculateTextSize(&currentFont, text->string, text->stringSize);
@@ -1266,7 +1263,7 @@ static void GL_Render()
 
                 UseProgram(fontProgram);
 
-                GL_LoadTextureID(currentFont.fontTextureID, (f32)currentFont.width, (f32)currentFont.height);
+                GL_BindTextureID(currentFont.fontTextureID, (f32)currentFont.width, (f32)currentFont.height);
                 SetupTextureParameters(GL_TEXTURE_2D);
 
                 v2 containerSize = V2(styledText->endPosition.x - styledText->position.x, styledText->endPosition.y - styledText->position.y);
@@ -1392,7 +1389,7 @@ static void GL_Render()
             }
         }
 
-        Assert(renderHeader->size > 0);
+        Assert(renderHeader->size > 0, "Rendering loop error: header has no size");
         #ifdef GAME_EDITOR
         editorRenderDebugger.drawCount++;
         #endif

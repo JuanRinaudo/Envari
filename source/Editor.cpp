@@ -70,6 +70,11 @@ static void EditorInit(PreviewWindow* preview)
     
 }
 
+static void EditorInit(AssetsWindow* debugger)
+{
+    
+}
+
 static void EditorInit(PerformanceDebuggerWindow* debugger)
 {
     
@@ -89,6 +94,7 @@ static void EditorInit(TextureDebuggerWindow* debugger)
 {
     debugger->textureIndex = 0;
     debugger->inspectMode = TextureInspect_CACHE;
+    debugger->textureChanged = true;
 }
 
 static void EditorInit(SoundDebuggerWindow* debugger)
@@ -285,7 +291,7 @@ static u32 GameInit();
 ConsoleLog *inspectedLog = 0;
 static void EditorDraw(ConsoleWindow* console)
 {
-    if(!console->open) { return; };
+    if(!console->open) { return; }
     ImGui::SetNextWindowSizeConstraints(ImVec2(300, 300), ImVec2(FLT_MAX, FLT_MAX));
     ImGui::SetNextWindowSize(ImVec2(600,600), ImGuiCond_FirstUseEver);
 
@@ -315,6 +321,7 @@ static void EditorDraw(ConsoleWindow* console)
         }
         if (ImGui::BeginMenu("Window"))
         {
+            if (ImGui::Checkbox("Assets", &assetsWindow.open)) { EditorInit(&assetsWindow); }
             if (ImGui::Checkbox("Preview", &editorPreview.open)) { EditorInit(&editorPreview); }
             ImGui::EndMenu();
         }
@@ -526,7 +533,7 @@ static void EditorDraw(ConsoleWindow* console)
 
 static void EditorDraw(PreviewWindow* preview)
 {
-    if(!preview->open) { return; };
+    if(!preview->open) { return; }
     ImGui::SetNextWindowSize(ImVec2(400,300), ImGuiCond_FirstUseEver);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
     if (!ImGui::Begin("Preview", &preview->open, ImGuiWindowFlags_MenuBar)) {
@@ -621,9 +628,23 @@ static void EditorDraw(PreviewWindow* preview)
     ImGui::End();
 }
 
+static void EditorDraw(AssetsWindow* debugger)
+{
+    if(!debugger->open) { return; }
+
+    ImGui::SetNextWindowSize(ImVec2(400,300), ImGuiCond_FirstUseEver);
+
+    if (!ImGui::Begin("Assets Manager", &debugger->open)) {
+        ImGui::End();
+        return;
+    }
+
+    ImGui::End();
+}
+
 static void EditorDraw(PerformanceDebuggerWindow* debugger)
 {
-    if(!debugger->open) { return; };
+    if(!debugger->open) { return; }
     ImGui::SetNextWindowSize(ImVec2(400,300), ImGuiCond_FirstUseEver);
 
     if (!ImGui::Begin("Performance Debugger", &debugger->open)) {
@@ -639,7 +660,7 @@ static void EditorDraw(PerformanceDebuggerWindow* debugger)
 
 static void EditorDraw(RenderDebuggerWindow* debugger)
 {
-    if(!debugger->open) { return; };
+    if(!debugger->open) { return; }
     ImGui::SetNextWindowSize(ImVec2(400,300), ImGuiCond_FirstUseEver);
 
     if (!ImGui::Begin("Render Debugger", &debugger->open)) {
@@ -877,7 +898,7 @@ static void EditorDraw(RenderDebuggerWindow* debugger)
                 }
             }
 
-            Assert(renderHeader->size > 0);
+            Assert(renderHeader->size > 0, "Editor render loop error: header has no size");
             renderHeader = (RenderHeader *)((u8 *)renderHeader + renderHeader->size);
         }
     }
@@ -887,7 +908,7 @@ static void EditorDraw(RenderDebuggerWindow* debugger)
 
 static void EditorDraw(MemoryDebuggerWindow* debugger)
 {
-    if(!debugger->open) { return; };
+    if(!debugger->open) { return; }
     ImGui::SetNextWindowSize(ImVec2(400,300), ImGuiCond_FirstUseEver);
 
     if (!ImGui::Begin("Memory Debugger", &debugger->open)) {
@@ -927,7 +948,7 @@ static void EditorDraw(MemoryDebuggerWindow* debugger)
 
 static void EditorDraw(TextureDebuggerWindow* debugger)
 {
-    if(!debugger->open) { return; };
+    if(!debugger->open) { return; }
     ImGui::SetNextWindowSize(ImVec2(400,300), ImGuiCond_FirstUseEver);
 
     if (!ImGui::Begin("Texture Debugger", &debugger->open)) {
@@ -937,10 +958,12 @@ static void EditorDraw(TextureDebuggerWindow* debugger)
 
     if (ImGui::SmallButton("Cache")) {
         debugger->inspectMode = TextureInspect_CACHE;
+        debugger->textureChanged = true;
     }
     ImGui::SameLine();
     if (ImGui::SmallButton("All")) {
         debugger->inspectMode = TextureInspect_ALL;
+        debugger->textureChanged = true;
     }
 
     ImGui::Separator();
@@ -955,10 +978,12 @@ static void EditorDraw(TextureDebuggerWindow* debugger)
         ImGui::SameLine();
         if (ImGui::SmallButton("Prev")) {
             debugger->textureIndex--;
+            debugger->textureChanged = true;
         }
         ImGui::SameLine();
         if (ImGui::SmallButton("Next")) {
             debugger->textureIndex++;
+            debugger->textureChanged = true;
         }
 
         if(debugger->textureIndex < 0) { debugger->textureIndex = textureCacheSize - 1; }
@@ -967,29 +992,38 @@ static void EditorDraw(TextureDebuggerWindow* debugger)
         GLTexture cachedTexture = textureCache[debugger->textureIndex].value;
 
         ImGui::Text("Texture ID: %d", cachedTexture.textureID);
-        ImGui::Text("Texture Size: %d x %d", cachedTexture.width, cachedTexture.height);
 
-        ImGui::Separator();
+        if(ImGui::InputInt("Texture Level", &debugger->textureLevel, 1, 1)) {
+            if(debugger->textureLevel < 0) {
+                debugger->textureLevel = 0;
+            }
+            debugger->textureChanged = true;
+        }
 
-        debugger->textureWidth = cachedTexture.width;
-        debugger->textureHeight = cachedTexture.height;
+        if(debugger->textureChanged) {
+            glBindTexture(GL_TEXTURE_2D, cachedTexture.textureID);
+            f32 width, height;
+            glGetTexLevelParameterfv(GL_TEXTURE_2D, debugger->textureLevel, GL_TEXTURE_WIDTH, &width);
+            glGetTexLevelParameterfv(GL_TEXTURE_2D, debugger->textureLevel, GL_TEXTURE_HEIGHT, &height);
+            debugger->textureWidth = (i32)width;
+            debugger->textureHeight = (i32)height;
+        }
 
         textureID = cachedTexture.textureID;
     }
     else if(debugger->inspectMode == TextureInspect_ALL) {
-        bool textureChanged = false;
         if(ImGui::InputInt("Texture ID", &debugger->textureIndex, 1, 1)) {
             debugger->textureLevel = 0;
-            textureChanged = true;
+            debugger->textureChanged = true;
         }
         if(ImGui::InputInt("Texture Level", &debugger->textureLevel, 1, 1)) {
             if(debugger->textureLevel < 0) {
                 debugger->textureLevel = 0;
             }
-            textureChanged = true;
+            debugger->textureChanged = true;
         }
 
-        if(textureChanged) {
+        if(debugger->textureChanged) {
             glBindTexture(GL_TEXTURE_2D, debugger->textureIndex);
             f32 width, height;
             glGetTexLevelParameterfv(GL_TEXTURE_2D, debugger->textureLevel, GL_TEXTURE_WIDTH, &width);
@@ -998,11 +1032,12 @@ static void EditorDraw(TextureDebuggerWindow* debugger)
             debugger->textureHeight = (i32)height;
         }
         
-        ImGui::InputInt("Texture Width", &debugger->textureWidth, 1, 1);
-        ImGui::InputInt("Texture Height", &debugger->textureHeight, 1, 1);
-
         textureID = debugger->textureIndex;
     }
+
+    ImGui::Text("Texture Size: %d x %d", debugger->textureWidth, debugger->textureHeight);
+    
+    ImGui::Separator();
 
     ImGui::BeginChild("Texture", ImVec2(0, 0), true, ImGuiWindowFlags_AlwaysVerticalScrollbar | ImGuiWindowFlags_AlwaysHorizontalScrollbar | ImGuiWindowFlags_NavFlattened);
     ImGui::Image((ImTextureID)textureID, ImVec2((f32)debugger->textureWidth, (f32)debugger->textureHeight));
@@ -1013,7 +1048,7 @@ static void EditorDraw(TextureDebuggerWindow* debugger)
 
 static void EditorDraw(SoundDebuggerWindow* debugger)
 {
-    if(!debugger->open) { return; };
+    if(!debugger->open) { return; }
     ImGui::SetNextWindowSize(ImVec2(400,300), ImGuiCond_FirstUseEver);
 
     if (!ImGui::Begin("Sound debugger", &debugger->open)) {
@@ -1075,7 +1110,7 @@ static void EditorDraw(SoundDebuggerWindow* debugger)
 
 static void EditorDraw(InputDebuggerWindow* debugger)
 {
-    if(!debugger->open) { return; };
+    if(!debugger->open) { return; }
     ImGui::SetNextWindowSize(ImVec2(400,300), ImGuiCond_FirstUseEver);
 
     if (!ImGui::Begin("Input debugger", &debugger->open)) {
@@ -1123,7 +1158,7 @@ static void EditorDraw(InputDebuggerWindow* debugger)
 
 static void EditorDraw(TimeDebuggerWindow* debugger)
 {
-    if(!debugger->open) { return; };
+    if(!debugger->open) { return; }
     ImGui::SetNextWindowSize(ImVec2(400,300), ImGuiCond_FirstUseEver);
 
     if (!ImGui::Begin("Time debugger", &debugger->open)) {
@@ -1159,7 +1194,7 @@ static void EditorDraw(TimeDebuggerWindow* debugger)
 #ifdef LUA_SCRIPTING_ENABLED
 static void EditorDraw(LUADebuggerWindow* debugger)
 {
-    if(!debugger->open) { return; };
+    if(!debugger->open) { return; }
     ImGui::SetNextWindowSize(ImVec2(400,300), ImGuiCond_FirstUseEver);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
 
@@ -1282,6 +1317,32 @@ static void EditorDraw(LUADebuggerWindow* debugger)
     ImVec2 contentMin = ImGui::GetWindowContentRegionMin();
     ImVec2 contentMax = ImGui::GetWindowContentRegionMax();
     f32 height = contentMax.y - contentMin.y;
+    
+    if (ImGui::BeginTabBar("LoadedFiles", ImGuiTabBarFlags_Reorderable | ImGuiTabBarFlags_FittingPolicyScroll))
+    {
+        i32 nameIndex = 0;
+        i32 watchIndex = 0;
+        char name[LUA_FILENAME_MAX];
+        while(watchIndex < watchListSize) {
+            if(watchList[watchIndex] == '@') {
+                name[nameIndex] = 0;
+
+                if (ImGui::BeginTabItem(name))
+                {
+                    debugger->currentFile = (char*)LoadFileToMemory(name, FILE_MODE_READ_BINARY, &debugger->currentFileSize);
+                    ImGui::EndTabItem();
+                }
+
+                nameIndex = -1;
+            }
+            else {
+                name[nameIndex] = watchList[watchIndex];
+            }
+            nameIndex++;
+            watchIndex++;
+        }
+        ImGui::EndTabBar();
+    }
 
     ImGui::BeginChild("LUA Code", ImVec2(contentMax.x, height * (debugger->watching ? 0.5f : 1)), false);
     if(debugger->currentFile) {
@@ -1290,7 +1351,7 @@ static void EditorDraw(LUADebuggerWindow* debugger)
         i32 index = 0;
 
         ImGui::BeginColumns("Text Editor", 2, ImGuiColumnsFlags_NoResize | ImGuiColumnsFlags_NoBorder);
-        f32 lineSize = size.x * 0.08f;
+        f32 lineSize = size.x * 0.1f;
         ImGui::SetColumnWidth(0, lineSize);
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
         ImGui::Dummy(ImVec2(0, 3));
@@ -1298,9 +1359,6 @@ static void EditorDraw(LUADebuggerWindow* debugger)
             if(debugger->currentFile[index] == '\r') { ++index; }
             if(debugger->currentFile[index] == '\n' || debugger->currentFile[index] == 0) {
                 ImGui::Text("%d         ", line);
-                // if(ImGui::IsItemClicked()) {
-	            //     LogCommand("%d", line);
-                // }
                 ++line;
             }
             ++index;
@@ -1333,7 +1391,7 @@ static void EditorDraw(LUADebuggerWindow* debugger)
 
     if(debugger->watching) {
         ImGui::Separator();
-        ImGui::BeginChild("Watch Window", ImVec2(contentMax.x, height * (debugger->watching ? 0.5f : 1) - 5), false, ImGuiWindowFlags_AlwaysUseWindowPadding);
+        ImGui::BeginChild("Watch Window", ImVec2(0, 0), false, ImGuiWindowFlags_AlwaysUseWindowPadding);
         ImGui::Text("Watching");
         char valueBuffer[64];
         for(i32 i = 0; i < WATCH_BUFFER_COUNT; ++i) {
@@ -1372,7 +1430,7 @@ static void EditorDraw(LUADebuggerWindow* debugger)
 
 static void EditorDraw(HelpWindow* help)
 {    
-    if(!help->open) { return; };
+    if(!help->open) { return; }
     ImGui::SetNextWindowSizeConstraints(ImVec2(300, 300), ImVec2(FLT_MAX, FLT_MAX));
     ImGui::SetNextWindowSize(ImVec2(500,300), ImGuiCond_FirstUseEver);
     
@@ -1422,6 +1480,9 @@ static void EditorInit()
     editorPreview.open = TableGetBool(&editorSave, "editorPreviewOpen");
     EditorInit(&editorPreview);
 
+    assetsWindow.open = TableGetBool(&editorSave, "assetsWindowOpen");
+    EditorInit(&assetsWindow);
+
     editorPerformanceDebugger.open = TableGetBool(&editorSave, "editorPerformanceDebuggerOpen");
     EditorInit(&editorPerformanceDebugger);
 
@@ -1459,6 +1520,7 @@ static void EditorDrawAllOpen()
 {
     EditorDraw(&editorConsole);
     EditorDraw(&editorPreview);
+    EditorDraw(&assetsWindow);
     EditorDraw(&editorPerformanceDebugger);
     EditorDraw(&editorRenderDebugger);
     EditorDraw(&editorMemoryDebugger);
@@ -1484,6 +1546,7 @@ static void EditorEnd()
     TableSetBool(&permanentState->arena, &editorSave, "editorConsoleOpen", editorConsole.open);
     TableSetI32(&permanentState->arena, &editorSave, "editorLogFlags", editorConsole.logFlags);
     TableSetBool(&permanentState->arena, &editorSave, "editorPreviewOpen", editorPreview.open);
+    TableSetBool(&permanentState->arena, &editorSave, "assetsWindowOpen", assetsWindow.open);
     TableSetBool(&permanentState->arena, &editorSave, "editorPerformanceDebuggerOpen", editorPerformanceDebugger.open);
     TableSetBool(&permanentState->arena, &editorSave, "editorRenderDebuggerOpen", editorRenderDebugger.open);
     TableSetBool(&permanentState->arena, &editorSave, "editorMemoryDebuggerOpen", editorMemoryDebugger.open);

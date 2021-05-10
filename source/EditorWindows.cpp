@@ -1,9 +1,12 @@
 #include <windows.h>
+#include <assert.h>
 #include <psapi.h>
 #include <chrono>
 #include <thread>
 
 #include <string>
+
+#define Assert(Expression, Message) assert(Expression && Message)
 
 #define PLATFORM_WINDOWS
 #define PLATFORM_EDITOR
@@ -276,14 +279,16 @@ i32 CALLBACK WinMain(
         WaitFPSLimit();
     }
     
-    ImGui::DestroyContext();
-
     EditorEnd();
     GameEnd();
 
     SaveConfig();
 
     SerializeTable(&saveData, "saveData.save");
+    
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplSDL2_Shutdown();
+    ImGui::DestroyContext();
 
     return 0;
 }

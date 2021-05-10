@@ -80,6 +80,11 @@ enum TextureInspect
     TextureInspect_CACHE,
 };
 
+struct AssetsWindow
+{
+    bool open;
+};
+
 struct PerformanceDebuggerWindow
 {
     bool open;
@@ -116,6 +121,7 @@ struct TextureDebuggerWindow
 {
     bool open;
 
+    bool textureChanged;
     i32 textureIndex;
     i32 textureLevel;
     i32 textureWidth;

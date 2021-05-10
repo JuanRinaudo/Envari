@@ -25,19 +25,22 @@ f32 soundRangeMax;
 void SoundStop(SoundInstance* sound)
 {    
     SoundInstance* instance = &soundMix[sound->index];
-    i32 index = instance->index;
-    
-    instance->playing = false;
-    instance->index = -1;
-    ma_decoder_uninit(instance->decoder);
-    free(instance->filepath);
-    instance->filepath = 0;
-    free(instance->decoder);
+    if(instance->decoder != 0) {
+        i32 index = instance->index;
+        
+        instance->playing = false;
+        instance->index = -1;
+        ma_decoder_uninit(instance->decoder);
+        free(instance->filepath);
+        instance->filepath = 0;
+        free(instance->decoder);
+        instance->decoder = 0;
 
-    soundMix[index] = soundMix[soundMixIndex];
-    soundMix[index].index = index;
-    
-    soundMixIndex--;
+        soundMix[index] = soundMix[soundMixIndex];
+        soundMix[index].index = index;
+        
+        soundMixIndex--;
+    }
 }
 
 static void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount)

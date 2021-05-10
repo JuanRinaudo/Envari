@@ -179,11 +179,16 @@ static i32 TimeTick()
     return 1;
 }
 
+void RuntimeQuit()
+{
+    gameState->game.running = false;
+}
+
 static i32 ProcessEvent(const SDL_Event* event)
 {
     switch (event->type) {
         case SDL_QUIT: {
-            gameState->game.running = false;
+            RuntimeQuit();
             break;
         }
         case SDL_WINDOWEVENT: // #NOTE (Juan): Window resize/orientation change

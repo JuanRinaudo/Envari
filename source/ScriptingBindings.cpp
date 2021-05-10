@@ -16,6 +16,8 @@
 #include "MathStructs.h"
 #include "GameStructs.h"
 
+#include <SDL.h>
+
 #ifdef GAME_EDITOR
 #include <psapi.h>
 #include "IMGUI/imgui.h"
@@ -54,14 +56,13 @@ extern TemporaryMemory renderTemporaryMemory;
 extern SerializableTable* configSave;
 extern SerializableTable* saveData;
 
+// #NOTE (Juan): Bindings
 extern void LoadScriptFile(const char* filePath);
 extern void LoadLUALibrary(sol::lib library);
 
-// #NOTE (Juan): Input
 extern void SetCustomCursor(GLTexture texture);
 extern void DisableCustomCursor();
 
-// #NOTE (Juan): Bindings
 extern v2 V2(f32 x, f32 y);
 
 extern bool MouseOverRectangle(rectangle2 rectangle);
@@ -107,12 +108,13 @@ extern v2 RenderToViewport(f32 screenX, f32 screenY, f32 size, f32 ratio);
 extern v4 ColorHexRGBA(u32 hex);
 extern v4 ColorHexRGB(u32 hex);
 
+extern const char* GetSceneFilepath();
 extern void LoadLUAScene(const char* luaFilepath);
 
 extern u32 defaultFontID;
 
 extern f32* CreateQuadPosUV(f32 posStartX, f32 posStartY, f32 posEndX, f32 posEndY, f32 uvStartX, f32 uvStartY, f32 uvEndX, f32 uvEndY);
-extern void GL_LoadTextureID(u32 textureID, f32 width, f32 height);
+extern void GL_BindTextureID(u32 textureID, f32 width, f32 height);
 extern GLTexture GL_LoadTextureFile(const char *texturePath);
 extern u32 GL_GenerateFont(const char *filepath, f32 fontSize, u32 width, u32 height);
 extern u32 GL_GenerateBitmapFontStrip(const char *filepath, const char* glyphs, u32 glyphWidth, u32 glyphHeight);
@@ -155,7 +157,11 @@ extern transform2D Transform2D(f32 posX, f32 posY, f32 scaleX, f32 scaleY);
 
 extern f32 Length(v2 a);
 
+extern void RuntimeQuit();
+
 extern void ChangeLogFlag_(u32 newFlag);
+
+extern void SerializeTable(SerializableTable** table, const char* filepath);
 #endif
 
 #define LUASaveGetSet(POSTFIX, valueType) static valueType SaveGet ## POSTFIX (const char* key, valueType defaultValue) \
@@ -223,10 +229,9 @@ static void DrawDisableOverrideProgram()
 }
 
 // #NOTE(Juan): GLRender
-GLTexture LoadTexture(const char* filePath)
+static i32 GetTextureID(GLTexture texture)
 {
-    GLTexture texture = GL_LoadTextureFile(filePath);
-    return texture;
+    return texture.textureID;
 }
 
 // #NOTE(Juan): Render
@@ -235,22 +240,25 @@ static i32 DrawMultibuttonLUA(f32 posX, f32 posY, f32 endX, f32 height, f32 slic
     return DrawMultibutton(posX, posY, endX, height, slice, yPadding, options, buttonUp, buttonDown) + 1;
 }
 
+GenerateRenderTemporaryPush(Float, f32);
+GenerateRenderTemporaryPush(Vector2, v2);
+
 // #NOTE(Juan): Save
-// #TODO (Juan): Check strdup and see how to fix this
+static void SaveData()
+{
+    SerializeTable(&saveData, "saveData.save");
+}
+
 static char* SaveGetString(const char* key, const char* defaultValue)
 {
     char* temporalString = PushString(&temporalState->arena, defaultValue);
     return TableGetString(&saveData, key, temporalString);
 }
+
 static void SaveSetString(const char* key, const char* value)
 {
     char* permanentString = PushString(&permanentState->arena, value);
     TableSetString_(&permanentState->arena, &saveData, key, permanentString);
-}
-
-// #NOTE(Juan): Sound
-static SoundInstance* SoundPlaySimple(const char* filepath, f32 volume) {
-    return SoundPlay(filepath, volume, false);
 }
 
 LUASaveGetSet(Bool, bool)
@@ -258,10 +266,13 @@ LUASaveGetSet(I32, i32)
 LUASaveGetSet(F32, f32)
 LUASaveGetSet(V2, v2)
 
-GenerateRenderTemporaryPush(Float, f32);
-GenerateRenderTemporaryPush(Vector2, v2);
+// #NOTE(Juan): Sound
+static SoundInstance* SoundPlaySimple(const char* filepath, f32 volume) {
+    return SoundPlay(filepath, volume, false);
+}
 
 #ifdef GAME_EDITOR
+// #NOTE(Juan): Editor
 static std::tuple<bool, bool> ImGuiBegin(const char* name, bool open, u32 flags) {
     bool shouldDraw = ImGui::Begin(name, &open, flags);
     return std::tuple<bool, bool>(open, shouldDraw);
@@ -283,8 +294,22 @@ static bool ImGuiButton(const char* label, f32 width, f32 height) {
     return ImGui::Button(label, ImVec2(width, height));
 }
 
+static std::tuple<bool, i32> ImGuiInputInt(const char* label, i32 value, i32 step, i32 fastStep, u32 flags) {
+    bool changed = ImGui::InputInt(label, &value, step, fastStep, flags);
+    return std::tuple<bool, i32>(changed, value);
+}
+
+static std::tuple<bool, f32> ImGuiInputFloat(const char* label, f32 value, f32 step, f32 fastStep, u32 flags) {
+    bool changed = ImGui::InputFloat(label, &value, step, fastStep, "%.3f", flags);
+    return std::tuple<bool, f32>(changed, value);
+}
+
 static bool ImGuiImageButton(i32 id, f32 width, f32 height) {
     return ImGui::ImageButton((ImTextureID)id, ImVec2(width, height));
+}
+
+static void ImGuiPushStyleColor(i32 styleColor, f32 r, f32 g, f32 b, f32 a) {
+    ImGui::PushStyleColor(styleColor, ImVec4(r, g, b, a));
 }
 #endif
 
@@ -375,6 +400,8 @@ void ScriptingInitBindings()
     lua["MouseOverRectangle"] = MouseOverRectangle;
     lua["ClickOverRectangle"] = ClickOverRectangle;
     lua["ClickedOverRectangle"] = ClickedOverRectangle;
+    lua["GetClipboardText"] = SDL_GetClipboardText;
+    lua["SetClipboardText"] = SDL_SetClipboardText;
 
     // #NOTE (Juan): Render
     lua["DrawClear"] = DrawClear;
@@ -410,6 +437,7 @@ void ScriptingInitBindings()
     lua["DrawOverrideIndices"] = DrawOverrideIndices;
     lua["DrawDisableOverrideIndices"] = DrawDisableOverrideIndices;
     
+    lua["GetSceneFilepath"] = GetSceneFilepath;
     lua["LoadLUAScene"] = LoadLUAScene;
 
     lua["RenderToViewport"] = RenderToViewport;
@@ -435,8 +463,9 @@ void ScriptingInitBindings()
     gltexture_usertype["channels"] = &GLTexture::channels;
 
     lua["CreateQuadPosUV"] = CreateQuadPosUV;
-    lua["LoadTextureID"] = GL_LoadTextureID;
-    lua["LoadTexture"] = LoadTexture;
+    lua["LoadTextureID"] = GL_BindTextureID;
+    lua["LoadTexture"] = GL_LoadTextureFile;
+    lua["GetTextureID"] = GetTextureID;
     lua["GenerateFont"] = sol::resolve<u32(const char*, f32, u32, u32)>(GL_GenerateFont);
     lua["GL_GenerateBitmapFontStrip"] = GL_GenerateBitmapFontStrip;
     lua["CompileProgram"] = GL_CompileProgram;
@@ -537,6 +566,7 @@ void ScriptingInitBindings()
     lua["LogConsoleCommand"] = LogConsoleCommand;
 
     // #NOTE (Juan): Serialization
+    lua["SaveData"] = SaveData;
     lua["SaveGetString"] = SaveGetString;
     lua["SaveSetString"] = SaveSetString;
     lua["SaveGetBool"] = SaveGetBool;
@@ -548,6 +578,9 @@ void ScriptingInitBindings()
     lua["SaveGetV2"] = SaveGetV2;
     lua["SaveSetV2"] = SaveSetV2;
     
+    // #NOTE (Juan): Runtime
+    lua["RuntimeQuit"] = RuntimeQuit;
+
     // #NOTE (Juan): Editor
 #ifdef GAME_EDITOR
     lua["ChangeLogFlag"] = ChangeLogFlag_;
@@ -573,9 +606,19 @@ void ScriptingInitBindings()
     lua["ImGuiSameLine"] = ImGui::SameLine;
     lua["ImGuiSpacing"] = ImGui::Spacing;
     lua["ImGuiSeparator"] = ImGui::Separator;
-    lua["ImGuiSeparator"] = ImGuiDummy;
+    lua["ImGuiDummy"] = ImGuiDummy;
+    lua["ImGuiInputInt"] = ImGuiInputInt;
+    lua["ImGuiInputFloat"] = ImGuiInputFloat;
+    lua["ImGuiSmallButton"] = ImGui::SmallButton;
     lua["ImGuiButton"] = ImGuiButton;
     lua["ImGuiImageButton"] = ImGuiImageButton;
+    lua["ImGuiPushStyleColor"] = ImGuiPushStyleColor;
+    lua["ImGuiCol_Button"] = ImGuiCol_Button;
+    lua["ImGuiPopStyleColor"] = ImGui::PopStyleColor;
+    lua["ImGuiPushItemWidth"] = ImGui::PushItemWidth;
+    lua["ImGuiPopItemWidth"] = ImGui::PopItemWidth;
+    lua["ImGuiPushID"] = sol::resolve<void(const char*)>(ImGui::PushID);
+    lua["ImGuiPopID"] = ImGui::PopID;
 #endif
 }
 
