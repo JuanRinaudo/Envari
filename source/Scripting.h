@@ -1,9 +1,9 @@
 #ifndef SCRIPTING_H
 #define SCRIPTING_H
 
-#define RunLUAProtectedFunction(FUNCTION) sol::protected_function Func ## FUNCTION ## (lua[#FUNCTION]); \
-if(Func ## FUNCTION ## .valid()) { \
-    sol::protected_function_result result = Func ## FUNCTION ## (); \
+#define RunLUAProtectedFunction(FUNCTION) sol::protected_function Func ## FUNCTION (lua[#FUNCTION]); \
+if(Func ## FUNCTION .valid()) { \
+    sol::protected_function_result result = Func ## FUNCTION (); \
     if (!result.valid()) { \
         sol::error error = result; \
         std::string what = error.what(); \
