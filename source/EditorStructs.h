@@ -12,22 +12,6 @@ enum DebugMenuAction {
     DebugMenuAction_BREAK_ON_FUNCTION,
 };
 
-enum EditorLogFlag {
-    EditorLogFlag_NONE = 1 << 0,
-    EditorLogFlag_PERFORMANCE = 1 << 1,
-    EditorLogFlag_RENDER = 1 << 2,
-    EditorLogFlag_MEMORY = 1 << 3,
-    EditorLogFlag_TEXTURE = 1 << 4,
-    EditorLogFlag_SOUND = 1 << 5,
-    EditorLogFlag_INPUT = 1 << 6,
-    EditorLogFlag_TIME = 1 << 7,
-    EditorLogFlag_LUA = 1 << 8,
-
-    EditorLogFlag_SYSTEM = 1 << 16,
-    EditorLogFlag_GAME = 1 << 17,
-    EditorLogFlag_SCRIPTING = 1 << 18,
-};
-
 enum WatchType {
     WatchType_AUTO,
     WatchType_INT,
@@ -63,7 +47,6 @@ struct ConsoleWindow
 {
     bool open;
 
-    char inputBuffer[CONSOLE_INPUT_BUFFER_COUNT];
     ImVector<ConsoleLog> items;
     ImVector<const char*> commands;
     ImVector<char*> history;
@@ -72,6 +55,8 @@ struct ConsoleWindow
     bool autoScroll;
     bool scrollToBottom;
     i32 logFlags;
+    
+    char inputBuffer[CONSOLE_INPUT_BUFFER_COUNT];
 };
 
 enum TextureInspect
@@ -93,7 +78,6 @@ struct PerformanceDebuggerWindow
     u64 updateCycles;
     u64 luaUpdateTime;
     u64 luaUpdateCycles;
-    PROCESS_MEMORY_COUNTERS memoryCounters;
 };
 
 struct RenderDebuggerWindow
@@ -159,7 +143,7 @@ struct TimeDebuggerWindow
     f32 fpsMax;
 };
 
-#ifdef LUA_SCRIPTING_ENABLED
+#ifdef LUA_ENABLED
 #define WATCH_BUFFER_SIZE 64
 #define WATCH_BUFFER_SIZE_EXT WATCH_BUFFER_SIZE + 1 
 #define WATCH_BUFFER_COUNT 8
@@ -168,13 +152,16 @@ struct LUADebuggerWindow
     bool open;
 
     bool debugging;
-    char inputBuffer[256];
-    char* currentFile;
-    u32 currentFileSize;
-    bool watching;
+    char inputBuffer[CONSOLE_INPUT_BUFFER_COUNT];
+    char currentFileName[LUA_FILENAME_MAX];
+    char* currentFileBuffer;
+    u32 currentFileBufferSize;
 
-    char watchBuffer[WATCH_BUFFER_SIZE_EXT * WATCH_BUFFER_COUNT];
+    bool codeOpen;    
+    bool watchOpen;
+
     i32 watchType[WATCH_BUFFER_COUNT];
+    char watchBuffer[WATCH_BUFFER_SIZE_EXT * WATCH_BUFFER_COUNT];
 };
 #endif
 

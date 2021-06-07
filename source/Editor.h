@@ -11,8 +11,9 @@ static void ClearLog(ConsoleWindow* console);
 static void LogString(ConsoleWindow* console, const char* log, ConsoleLogType type);
 extern void Log_(ConsoleWindow* console, ConsoleLogType type, const char* file, u32 line, const char* fmt, ...);
 #define Log(fmt, ...) Log_(&editorConsole, ConsoleLogType_NORMAL, __FILE__, __LINE__, fmt, ##__VA_ARGS__)
-#define LogError(fmt, ...) Log_(&editorConsole, ConsoleLogType_ERROR, __FILE__, __LINE__, fmt, ##__VA_ARGS__)
 #define LogCommand(fmt, ...) Log_(&editorConsole, ConsoleLogType_COMMAND, __FILE__, __LINE__, fmt, ##__VA_ARGS__)
+#define LogWarning(fmt, ...) Log_(&editorConsole, ConsoleLogType_WARNING, __FILE__, __LINE__, fmt, ##__VA_ARGS__)
+#define LogError(fmt, ...) Log_(&editorConsole, ConsoleLogType_ERROR, __FILE__, __LINE__, fmt, ##__VA_ARGS__)
 
 extern void ChangeLogFlag_(u32 newFlag);
 #define ChangeLogFlag(newFlag) ChangeLogFlag_(newFlag)
@@ -57,7 +58,7 @@ static TimeDebuggerWindow editorTimeDebugger;
 static void EditorInit(TimeDebuggerWindow* debugger);
 static void EditorDraw(TimeDebuggerWindow* debugger);
 
-#ifdef LUA_SCRIPTING_ENABLED
+#ifdef LUA_ENABLED
 static LUADebuggerWindow editorLUADebugger;
 static void EditorInit(LUADebuggerWindow* debugger);
 static void EditorDraw(LUADebuggerWindow* debugger);

@@ -44,13 +44,13 @@ static char* TableGetString(DataTable** table, const char* key)
 static i32 TableGetInt(DataTable** table, const char* key)
 {
     char* tableString = shget(*table, key);
-    return atoi(tableString);
+    return strtol(tableString, 0, 10);
 }
 
 static bool TableGetBool(DataTable** table, const char* key)
 {
     char* tableString = shget(*table, key);
-    return atoi(tableString) != 0;
+    return strtol(tableString, 0, 10) != 0;
 }
 
 static f32 TableGetFloat(DataTable** table, const char* key)
@@ -243,10 +243,10 @@ static bool DeserializeTable(MemoryArena *arena, SerializableTable** table, cons
             char* keyPointer = PushString(arena, token);
 
             token = NextToken(&tokenizer);
-            SerializableType type = (SerializableType)atoi(token);
+            SerializableType type = (SerializableType)strtol(token, 0, 10);
             
             token = NextToken(&tokenizer);
-            i32 count = atoi(token);
+            i32 count = strtol(token, 0, 10);
 
             // #FIX (Juan): Fix for 0 value saves like empty strings
             if(count == 0) {
@@ -282,13 +282,13 @@ static bool DeserializeTable(MemoryArena *arena, SerializableTable** table, cons
                         }
                         case SerializableType_BOOL: {
                             token = NextToken(&tokenizer);
-                            i32 value = atoi(token);
+                            i32 value = strtol(token, 0, 10);
                             *((bool*)valuePointer + valueOffset) = value == 1;
                             break;
                         }
                         case SerializableType_I32: {
                             token = NextToken(&tokenizer);
-                            i32 value = atoi(token);
+                            i32 value = strtol(token, 0, 10);
                             *((i32*)valuePointer + valueOffset) = value;
                             break;
                         }
@@ -317,7 +317,7 @@ static bool DeserializeTable(MemoryArena *arena, SerializableTable** table, cons
                 }
             }
 
-            Assert(valuePointer != 0, "No value found");
+            AssertMessage(valuePointer != 0, "No value found");
             TableSetValueReference(arena, table, keyPointer, valuePointer, type, count);
         }
     }

@@ -6,7 +6,8 @@
 
 #include <string>
 
-#define Assert(Expression, Message) assert(Expression && Message)
+#define Assert(Expression) assert(Expression)
+#define AssertMessage(Expression, Message) assert(Expression && Message)
 
 #define PLATFORM_WINDOWS
 #define PLATFORM_EDITOR
@@ -100,9 +101,20 @@ i32 CALLBACK WinMain(
     const char* glsl_version = 0;
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO();
-    io.ConfigWindowsMoveFromTitleBarOnly = true;
+    ImGuiIO& imguiIO = ImGui::GetIO();
+    imguiIO.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+    // imguiIO.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable; // Viewports not working correctly. Fix and re-enable
+    imguiIO.ConfigWindowsMoveFromTitleBarOnly = true;
+    
+    ImGuiStyle* style = &ImGui::GetStyle();
+    if (imguiIO.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+    {
+        style->WindowRounding = 0.0f;
+        style->Colors[ImGuiCol_WindowBg].w = 1.0f;
+    }
+
     ImGui::StyleColorsDark();
+
     ImGui_ImplSDL2_InitForOpenGL(sdlWindow, glContext);
     ImGui_ImplOpenGL3_Init(glsl_version);
 
@@ -112,13 +124,14 @@ i32 CALLBACK WinMain(
     
     GL_DefaultAssets();
 
-#ifdef LUA_SCRIPTING_ENABLED
-    ScriptingInit();
-#endif
-
+    DeserializeTable(&permanentState->arena, &editorSave, "editor.save");
     DeserializeTable(&permanentState->arena, &saveData, "saveData.save");
     
     EditorInit();
+
+#ifdef LUA_ENABLED
+    ScriptingInit();
+#endif
     
     GameInit();
 
@@ -136,7 +149,7 @@ i32 CALLBACK WinMain(
     gameState->game.running = true;
     while (gameState->game.running)
     {
-        GetProcessMemoryInfo(processHandle , &editorPerformanceDebugger.memoryCounters, sizeof(PROCESS_MEMORY_COUNTERS));
+        GetProcessMemoryInfo(processHandle, &editorMemoryDebugger.memoryCounters, sizeof(PROCESS_MEMORY_COUNTERS));
 
         LARGE_INTEGER performanceStart;
         QueryPerformanceCounter(&performanceStart);
@@ -178,15 +191,17 @@ i32 CALLBACK WinMain(
             if(editorPreview.cursorInsideWindow) {
                 gameState->input.mousePosition = RenderToViewport(editorPreview.cursorPosition.x, editorPreview.cursorPosition.y, gameState->camera.size, gameState->camera.ratio);
 
-                ImGui::SetMouseCursor(ImGuiMouseCursor_None);
-                io.MouseDrawCursor = false;
+                if(gameState->input.mouseTextureID != 0) {
+                    ImGui::SetMouseCursor(ImGuiMouseCursor_None);
+                    imguiIO.MouseDrawCursor = false;
+                }
             }
         }
         else {
             SDL_ShowCursor(mouseEnabled);
             if(mouseEnabled) {
                 ImGui::SetMouseCursor(ImGuiMouseCursor_None);
-                io.MouseDrawCursor = false;
+                imguiIO.MouseDrawCursor = false;
             }
         }
 
@@ -194,7 +209,7 @@ i32 CALLBACK WinMain(
         ImGui_ImplSDL2_NewFrame(sdlWindow);
         ImGui::NewFrame();
 
-#ifdef LUA_SCRIPTING_ENABLED
+#ifdef LUA_ENABLED
         ScriptingWatchChanges();
 #endif
 
@@ -211,16 +226,20 @@ i32 CALLBACK WinMain(
             CommonBegin2D();
 
             QueryPerformanceCounter(&luaPerformanceStart);
+#ifdef LUA_ENABLED
             ScriptingUpdate();
+#endif
             QueryPerformanceCounter(&luaPerformanceEnd);
 
             GameUpdate();
 
             GL_Render();
 
-            EditorDrawAllOpen();
+            EditorDrawAll();
 
+#ifdef LUA_ENABLED
             RunLUAProtectedFunction(EditorUpdate)
+#endif
 
             RenderDebugEnd();
             End2D();
@@ -241,7 +260,7 @@ i32 CALLBACK WinMain(
 
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-            EditorDrawAllOpen();
+            EditorDrawAll();
         }
 
         if(gameState->render.framebufferEnabled) {
@@ -264,6 +283,15 @@ i32 CALLBACK WinMain(
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
+        if (imguiIO.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+        {
+            SDL_Window* backup_current_window = SDL_GL_GetCurrentWindow();
+            SDL_GLContext backup_current_context = SDL_GL_GetCurrentContext();
+            ImGui::UpdatePlatformWindows();
+            ImGui::RenderPlatformWindowsDefault();
+            SDL_GL_MakeCurrent(backup_current_window, backup_current_context);
+        }
+
         CheckInput();
         
         SDL_GL_SwapWindow(sdlWindow);
@@ -279,6 +307,9 @@ i32 CALLBACK WinMain(
         WaitFPSLimit();
     }
     
+#ifdef LUA_ENABLED
+    RunLUAProtectedFunction(EditorEnd);
+#endif
     EditorEnd();
     GameEnd();
 

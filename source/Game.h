@@ -15,8 +15,6 @@
 #include "MathStructs.h"
 #include "GameStructs.h"
 
-#define SOL_ALL_SAFETIES_ON 1
-
 DataTable* initialConfig = NULL;
 
 RenderState renderState;
@@ -33,8 +31,11 @@ EditorData *editorState;
 
 SerializableTable* configSave = 0;
 SerializableTable* saveData = 0;
+SerializableTable* editorSave = 0;
 
-#ifdef LUA_SCRIPTING_ENABLED
+#ifdef LUA_ENABLED
+#define SOL_ALL_SAFETIES_ON 1
+
 #include "LUA/sol.hpp"
 sol::state lua;
 #endif
@@ -61,8 +62,8 @@ sol::state lua;
 #include "Input.h"
 #include "Render.h"
 #include "GLRender.h"
-#ifdef LUA_SCRIPTING_ENABLED
-#include "Scripting.h"
+#ifdef LUA_ENABLED
+#include "LUAScripting.h"
 #endif
 #include "Scene.h"
 
@@ -88,29 +89,13 @@ static u32 GameInit()
     gameState->camera.view = IdM44();
     gameState->camera.projection = OrtographicProjection(gameState->camera.size, gameState->camera.ratio, gameState->camera.nearPlane, gameState->camera.farPlane);
 
-#ifdef LUA_SCRIPTING_ENABLED
-#if GAME_EDITOR
-    currentLogFlag = EditorLogFlag_SCRIPTING;
-#endif
+#ifdef LUA_ENABLED
+    ChangeLogFlag(LogFlag_SCRIPTING);
 
-    LoadScriptFile(TableGetString(&initialConfig, INITLUASCRIPT));
-
-    RunLUAProtectedFunction(Init);
+    LoadLUAScene(TableGetString(&initialConfig, INITLUASCRIPT));
+    RunLUAProtectedFunction(EditorInit)
 #endif
     
-    return 1;
-}
-
-static u32 ScriptingUpdate()
-{
-    #ifdef LUA_SCRIPTING_ENABLED
-#if GAME_EDITOR
-    currentLogFlag = EditorLogFlag_SCRIPTING;
-#endif
-
-    RunLUAProtectedFunction(Update)
-    #endif
-
     return 1;
 }
 
@@ -130,10 +115,8 @@ static u32 GameUpdate()
 
 static u32 GameEnd()
 {
-    #ifdef LUA_SCRIPTING_ENABLED    
-#if GAME_EDITOR
-    currentLogFlag = EditorLogFlag_SCRIPTING;
-#endif
+    #ifdef LUA_ENABLED
+    ChangeLogFlag(LogFlag_SCRIPTING);
 
     RunLUAProtectedFunction(End)
     #endif

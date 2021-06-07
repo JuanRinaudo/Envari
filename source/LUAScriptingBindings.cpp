@@ -1,5 +1,5 @@
-#ifndef SCRIPTINGWRAPPERS_H
-#define SCRIPTINGWRAPPERS_H
+#ifndef LUA_SCRIPTINGW_BINDINGS_CPP
+#define LUA_SCRIPTINGW_BINDINGS_CPP
 
 #ifndef PLATFORM_WASM
 #include <filesystem>
@@ -55,6 +55,7 @@ extern TemporaryMemory renderTemporaryMemory;
 
 extern SerializableTable* configSave;
 extern SerializableTable* saveData;
+extern SerializableTable* editorSave;
 
 // #NOTE (Juan): Bindings
 extern void LoadScriptFile(const char* filePath);
@@ -80,23 +81,26 @@ extern void DrawTransparent();
 extern void DrawTransparent(u32 modeRGB, u32 modeAlpha, u32 srcRGB, u32 dstRGB, u32 srcAlpha, u32 dstAlpha);
 extern void DrawTransparentDisable();
 extern void DrawSetLayer(u32 targetLayer, bool transparent);
+extern void DrawSetTransform(f32 posX, f32 posY, f32 scaleX, f32 scaleY, f32 angle);
+extern void DrawPushTransform(f32 posX, f32 posY, f32 scaleX, f32 scaleY, f32 angle);
+extern void DrawPopTransform();
 extern void DrawLineWidth(f32 width);
 extern void DrawLine(f32 startX, f32 startY, f32 endX, f32 endY);
 extern void DrawTriangle(f32 p1X, f32 p1Y, f32 p2X, f32 p2Y, f32 p3X, f32 p3Y);
-extern void DrawRectangle(f32 posX, f32 posY, f32 scaleX, f32 scaleY);
-extern void DrawCircle(f32 posX, f32 posY, f32 radius, i32 segments);
+extern void DrawRectangle(f32 posX, f32 posY, f32 sizeX, f32 sizeY);
+extern void DrawCircle(f32 posX, f32 posY, f32 radius, u32 segments);
 extern void DrawTextureParameters(u32 wrapS, u32 wrapT, u32 minFilter, u32 magFilter);
-extern void DrawTexture(f32 posX, f32 posY, f32 scaleX, f32 scaleY, u32 textureID);
-extern void DrawImage(f32 posX, f32 posY, f32 scaleX, f32 scaleY, const char* filepath, u32 renderFlags);
-extern void DrawImageUV(f32 posX, f32 posY, f32 scaleX, f32 scaleY, f32 uvX, f32 uvY, f32 uvEndX, f32 uvEndY, const char* filepath);
+extern void DrawTexture(f32 posX, f32 posY, f32 sizeX, f32 sizeY, u32 textureID);
+extern void DrawImage(f32 posX, f32 posY, const char* filepath, u32 renderFlags);
+extern void DrawImageUV(f32 posX, f32 posY, f32 uvX, f32 uvY, f32 uvEndX, f32 uvEndY, const char* filepath);
 extern void DrawImage9Slice(f32 posX, f32 posY, f32 endX, f32 endY, f32 slice, const char* filepath);
-extern void DrawAtlasSprite(f32 posX, f32 posY, f32 scaleX, f32 scaleY, const char* filepath, const char* atlasName, const char* key);
+extern void DrawAtlasSprite(f32 posX, f32 posY, const char* filepath, const char* atlasName, const char* key);
 extern void DrawSetFont(i32 fontID);
-extern void DrawChar(f32 posX, f32 posY, f32 scaleX, f32 scaleY, const char singleChar);
+extern void DrawChar(f32 posX, f32 posY, const char singleChar);
 extern void DrawString(f32 posX, f32 posY, const char* string, u32 renderFlags);
 extern void DrawStyledString(f32 posX, f32 posY, f32 endX, f32 endY, const char* string, u32 renderFlags);
 extern void ClearInputBuffer();
-extern bool DrawStringInput(f32 posX, f32 posY, f32 endX, f32 endY, const char* baseText, i32 maxSize);
+extern bool DrawStringInput(f32 posX, f32 posY, f32 endX, f32 endY, const char* baseText, u32 maxSize);
 extern bool DrawButton(f32 posX, f32 posY, f32 endX, f32 endY, f32 slice, const char* string, const char* buttonUp, const char* buttonDown);
 extern i32 DrawMultibutton(f32 posX, f32 posY, f32 endX, f32 height, f32 slice, f32 yPadding, const char* options, const char* buttonUp, const char* buttonDown);
 extern void DrawSetUniform(u32 locationID, UniformType type);
@@ -153,7 +157,7 @@ extern m44 IdM44();
 
 extern f32 Lerp(f32 a, f32 b, f32 t);
 
-extern transform2D Transform2D(f32 posX, f32 posY, f32 scaleX, f32 scaleY);
+extern transform2D Transform2D(f32 posX, f32 posY, f32 scaleX, f32 scaleY, f32 angle);
 
 extern f32 Length(v2 a);
 
@@ -163,15 +167,6 @@ extern void ChangeLogFlag_(u32 newFlag);
 
 extern void SerializeTable(SerializableTable** table, const char* filepath);
 #endif
-
-#define LUASaveGetSet(POSTFIX, valueType) static valueType SaveGet ## POSTFIX (const char* key, valueType defaultValue) \
-{ \
-    return TableGet ## POSTFIX (&saveData, key, defaultValue); \
-} \
-static void SaveSet ## POSTFIX (const char* key, valueType value) \
-{ \
-    TableSet ## POSTFIX ## _(&permanentState->arena, &saveData, key, value); \
-}
 
 GenerateTableGetExtern(String, char*)
 GenerateTableSetExtern(String, const char*, SerializableType_STRING)
@@ -183,6 +178,24 @@ GenerateTableGetExtern(F32, f32)
 GenerateTableSetExtern(F32, f32, SerializableType_F32)
 GenerateTableGetExtern(V2, v2)
 GenerateTableSetExtern(V2, v2, SerializableType_V2)
+
+#define LUAEditorSaveGetSet(POSTFIX, valueType) static valueType EditorSaveGet ## POSTFIX (const char* key, valueType defaultValue) \
+{ \
+    return TableGet ## POSTFIX (&editorSave, key, defaultValue); \
+} \
+static void EditorSaveSet ## POSTFIX (const char* key, valueType value) \
+{ \
+    TableSet ## POSTFIX ## _(&permanentState->arena, &editorSave, key, value); \
+}
+
+#define LUASaveGetSet(POSTFIX, valueType) static valueType SaveGet ## POSTFIX (const char* key, valueType defaultValue) \
+{ \
+    return TableGet ## POSTFIX (&saveData, key, defaultValue); \
+} \
+static void SaveSet ## POSTFIX (const char* key, valueType value) \
+{ \
+    TableSet ## POSTFIX ## _(&permanentState->arena, &saveData, key, value); \
+}
 
 // #NOTE(Juan): Console
 static void LogConsole(const char* log)
@@ -211,6 +224,11 @@ static char* IntToChar(i32 value)
 {
     castChar[0] = (char)value;
     return castChar;
+}
+
+static void DrawDefaultTransform()
+{
+    DrawSetTransform(0, 0, 1, 1, 0);
 }
 
 static void DrawDisableOverrideVertices()
@@ -247,6 +265,7 @@ GenerateRenderTemporaryPush(Vector2, v2);
 static void SaveData()
 {
     SerializeTable(&saveData, "saveData.save");
+    SerializeTable(&editorSave, "editor.save");
 }
 
 static char* SaveGetString(const char* key, const char* defaultValue)
@@ -261,10 +280,27 @@ static void SaveSetString(const char* key, const char* value)
     TableSetString_(&permanentState->arena, &saveData, key, permanentString);
 }
 
+static char* EditorSaveGetString(const char* key, const char* defaultValue)
+{
+    char* temporalString = PushString(&temporalState->arena, defaultValue);
+    return TableGetString(&editorSave, key, temporalString);
+}
+
+static void EditorSaveSetString(const char* key, const char* value)
+{
+    char* permanentString = PushString(&permanentState->arena, value);
+    TableSetString_(&permanentState->arena, &editorSave, key, permanentString);
+}
+
 LUASaveGetSet(Bool, bool)
 LUASaveGetSet(I32, i32)
 LUASaveGetSet(F32, f32)
 LUASaveGetSet(V2, v2)
+
+LUAEditorSaveGetSet(Bool, bool)
+LUAEditorSaveGetSet(I32, i32)
+LUAEditorSaveGetSet(F32, f32)
+LUAEditorSaveGetSet(V2, v2)
 
 // #NOTE(Juan): Sound
 static SoundInstance* SoundPlaySimple(const char* filepath, f32 volume) {
@@ -304,6 +340,10 @@ static std::tuple<bool, f32> ImGuiInputFloat(const char* label, f32 value, f32 s
     return std::tuple<bool, f32>(changed, value);
 }
 
+static void ImGuiImage(i32 id, f32 width, f32 height) {
+    return ImGui::Image((ImTextureID)id, ImVec2(width, height));
+}
+
 static bool ImGuiImageButton(i32 id, f32 width, f32 height) {
     return ImGui::ImageButton((ImTextureID)id, ImVec2(width, height));
 }
@@ -311,9 +351,29 @@ static bool ImGuiImageButton(i32 id, f32 width, f32 height) {
 static void ImGuiPushStyleColor(i32 styleColor, f32 r, f32 g, f32 b, f32 a) {
     ImGui::PushStyleColor(styleColor, ImVec4(r, g, b, a));
 }
+
+static std::tuple<bool, bool> ImGuiCheckbox(const char* label, bool value) {
+    bool pressed = ImGui::Checkbox(label, &value);
+    return std::tuple<bool, bool>(pressed, value);
+}
+
+char inputBuffer[CONSOLE_INPUT_BUFFER_COUNT];
+static std::tuple<bool, char*> ImGuiInputText(const char* label) {
+    bool pressed = ImGui::InputText(label, inputBuffer, IM_ARRAYSIZE(inputBuffer), ImGuiInputTextFlags_EnterReturnsTrue, 0, 0);
+    return std::tuple<bool, char*>(pressed, inputBuffer);
+}
+
+static std::tuple<f32, f32> ImGuiGetCursorScreenPos() {
+    ImVec2 position = ImGui::GetCursorScreenPos();
+    return std::tuple<f32, f32>(position.x, position.y);
+}
+
+static void ImGuiAddImage(ImDrawList* drawList, i32 id, f32 x, f32 y, f32 width, f32 height) {
+    drawList->AddImage((ImTextureID)id, ImVec2(x, y), ImVec2(x + width, y + height));
+}
 #endif
 
-void ScriptingInitBindings()
+void ScriptingBindings()
 {
     // #NOTE (Juan): Lua
     lua["LoadScriptFile"] = sol::resolve<void(const char*)>(LoadScriptFile);
@@ -406,7 +466,14 @@ void ScriptingInitBindings()
     // #NOTE (Juan): Render
     lua["DrawClear"] = DrawClear;
     lua["DrawColor"] = DrawColor;
+    lua["DrawDefaultTransparent"] = sol::resolve<void()>(DrawTransparent);
+    lua["DrawTransparent"] = sol::resolve<void(u32, u32, u32, u32, u32, u32)>(DrawTransparent);
+    lua["DrawTransparentDisable"] = DrawTransparentDisable;
     lua["DrawSetLayer"] = DrawSetLayer;
+    lua["DrawSetTransform"] = DrawSetTransform;
+    lua["DrawPushTransform"] = DrawPushTransform;
+    lua["DrawPopTransform"] = DrawPopTransform;
+    lua["DrawDefaultTransform"] = DrawDefaultTransform;
     lua["DrawLineWidth"] = DrawLineWidth;
     lua["DrawLine"] = DrawLine;
     lua["DrawTriangle"] = DrawTriangle;
@@ -418,13 +485,10 @@ void ScriptingInitBindings()
     lua["DrawImageUV"] = DrawImageUV;
     lua["DrawImage9Slice"] = DrawImage9Slice;
     lua["DrawAtlasSprite"] = DrawAtlasSprite;
-    lua["DrawDefaultTransparent"] = sol::resolve<void()>(DrawTransparent);
-    lua["DrawTransparent"] = sol::resolve<void(u32, u32, u32, u32, u32, u32)>(DrawTransparent);
-    lua["DrawTransparentDisable"] = DrawTransparentDisable;
     lua["DrawSetFont"] = DrawSetFont;
     lua["DrawChar"] = DrawChar;
     lua["DrawString"] = DrawString;
-    lua["DrawStyledString"] = sol::resolve<void(f32, f32, f32, f32, const char*, u32)>(DrawStyledString);
+    lua["DrawStyledString"] = DrawStyledString;
     lua["ClearInputBuffer"] = ClearInputBuffer;
     lua["DrawStringInput"] = DrawStringInput;
     lua["DrawButton"] = DrawButton;
@@ -448,7 +512,9 @@ void ScriptingInitBindings()
     lua["ImageRenderFlag_KeepRatioX"] = ImageRenderFlag_KeepRatioX;
     lua["ImageRenderFlag_KeepRatioY"] = ImageRenderFlag_KeepRatioY;
 
+    lua["TextRenderFlag_Left"] = TextRenderFlag_Left;
     lua["TextRenderFlag_Center"] = TextRenderFlag_Center;
+    lua["TextRenderFlag_Right"] = TextRenderFlag_Right;
     lua["TextRenderFlag_LetterWrap"] = TextRenderFlag_LetterWrap;
     lua["TextRenderFlag_WordWrap"] = TextRenderFlag_WordWrap;
 
@@ -567,6 +633,7 @@ void ScriptingInitBindings()
 
     // #NOTE (Juan): Serialization
     lua["SaveData"] = SaveData;
+    
     lua["SaveGetString"] = SaveGetString;
     lua["SaveSetString"] = SaveSetString;
     lua["SaveGetBool"] = SaveGetBool;
@@ -577,6 +644,17 @@ void ScriptingInitBindings()
     lua["SaveSetF32"] = SaveSetF32;
     lua["SaveGetV2"] = SaveGetV2;
     lua["SaveSetV2"] = SaveSetV2;
+
+    lua["EditorSaveGetString"] = EditorSaveGetString;
+    lua["EditorSaveSetString"] = EditorSaveSetString;
+    lua["EditorSaveGetBool"] = EditorSaveGetBool;
+    lua["EditorSaveSetBool"] = EditorSaveSetBool;
+    lua["EditorSaveGetI32"] = EditorSaveGetI32;
+    lua["EditorSaveSetI32"] = EditorSaveSetI32;
+    lua["EditorSaveGetF32"] = EditorSaveGetF32;
+    lua["EditorSaveSetF32"] = EditorSaveSetF32;
+    lua["EditorSaveGetV2"] = EditorSaveGetV2;
+    lua["EditorSaveSetV2"] = EditorSaveSetV2;
     
     // #NOTE (Juan): Runtime
     lua["RuntimeQuit"] = RuntimeQuit;
@@ -585,17 +663,17 @@ void ScriptingInitBindings()
 #ifdef GAME_EDITOR
     lua["ChangeLogFlag"] = ChangeLogFlag_;
 
-    lua["EditorLogFlag_PERFORMANCE"] = EditorLogFlag_PERFORMANCE;
-    lua["EditorLogFlag_RENDER"] = EditorLogFlag_RENDER;
-    lua["EditorLogFlag_MEMORY"] = EditorLogFlag_MEMORY;
-    lua["EditorLogFlag_TEXTURE"] = EditorLogFlag_TEXTURE;
-    lua["EditorLogFlag_SOUND"] = EditorLogFlag_SOUND;
-    lua["EditorLogFlag_INPUT"] = EditorLogFlag_INPUT;
-    lua["EditorLogFlag_TIME"] = EditorLogFlag_TIME;
-    lua["EditorLogFlag_LUA"] = EditorLogFlag_LUA;
+    lua["LogFlag_PERFORMANCE"] = LogFlag_PERFORMANCE;
+    lua["LogFlag_RENDER"] = LogFlag_RENDER;
+    lua["LogFlag_MEMORY"] = LogFlag_MEMORY;
+    lua["LogFlag_TEXTURE"] = LogFlag_TEXTURE;
+    lua["LogFlag_SOUND"] = LogFlag_SOUND;
+    lua["LogFlag_INPUT"] = LogFlag_INPUT;
+    lua["LogFlag_TIME"] = LogFlag_TIME;
+    lua["LogFlag_LUA"] = LogFlag_LUA;
 
-    lua["EditorLogFlag_GAME"] = EditorLogFlag_GAME;
-    lua["EditorLogFlag_SCRIPTING"] = EditorLogFlag_SCRIPTING;
+    lua["LogFlag_GAME"] = LogFlag_GAME;
+    lua["LogFlag_SCRIPTING"] = LogFlag_SCRIPTING;
 
     lua["ImGuiCond_FirstUseEver"] = ImGuiCond_FirstUseEver;
 
@@ -611,6 +689,7 @@ void ScriptingInitBindings()
     lua["ImGuiInputFloat"] = ImGuiInputFloat;
     lua["ImGuiSmallButton"] = ImGui::SmallButton;
     lua["ImGuiButton"] = ImGuiButton;
+    lua["ImGuiImage"] = ImGuiImage;
     lua["ImGuiImageButton"] = ImGuiImageButton;
     lua["ImGuiPushStyleColor"] = ImGuiPushStyleColor;
     lua["ImGuiCol_Button"] = ImGuiCol_Button;
@@ -619,6 +698,13 @@ void ScriptingInitBindings()
     lua["ImGuiPopItemWidth"] = ImGui::PopItemWidth;
     lua["ImGuiPushID"] = sol::resolve<void(const char*)>(ImGui::PushID);
     lua["ImGuiPopID"] = ImGui::PopID;
+    lua["ImGuiBeginMenu"] = ImGui::BeginMenu;
+    lua["ImGuiEndMenu"] = ImGui::EndMenu;
+    lua["ImGuiCheckbox"] = ImGuiCheckbox;
+    lua["ImGuiInputText"] = ImGuiInputText;
+    lua["ImGuiGetWindowDrawList"] = ImGui::GetWindowDrawList;
+    lua["ImGuiGetCursorScreenPos"] = ImGuiGetCursorScreenPos;
+    lua["ImGuiAddImage"] = ImGuiAddImage;
 #endif
 }
 
@@ -673,6 +759,7 @@ void ScriptingMathBindings()
     sol::usertype<transform2D> transform2D_usertype = lua.new_usertype<transform2D>("transform2D");
     transform2D_usertype["position"] = &transform2D::position;
     transform2D_usertype["scale"] = &transform2D::scale;
+    transform2D_usertype["angle"] = &transform2D::angle;
 
     // #NOTE (Juan): GameMath
     lua["V2"] = V2;

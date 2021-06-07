@@ -1,6 +1,7 @@
 #ifndef FOLDERMAP_H
 #define FOLDERMAP_H
 
+const char* ATLAS = "atlas/";
 const char* DATA = "data/";
 const char* FONTS = "fonts/";
 const char* IMAGES = "images/";

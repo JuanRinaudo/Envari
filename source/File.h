@@ -53,7 +53,7 @@ static void UnloadFileFromMemory(char* fileBuffer)
 // void* cBuffer = malloc(cBufferSize);
 // LARGE_INTEGER performanceStart;
 // LARGE_INTEGER performanceEnd;
-// for(int i = 0; i < 4; ++i) {
+// for(i32 i = 0; i < 4; ++i) {
 //     QueryPerformanceCounter(&performanceStart);
 //     size_t cSize = ZSTD_compress(cBuffer, cBufferSize, (void*)defaultFont, fSize, i);
 //     QueryPerformanceCounter(&performanceEnd);

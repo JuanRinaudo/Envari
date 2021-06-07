@@ -1,6 +1,22 @@
 #ifndef GAMESTRUCTS_H
 #define GAMESTRUCTS_H
 
+enum LogFlag {
+    LogFlag_NONE = 1 << 0,
+    LogFlag_PERFORMANCE = 1 << 1,
+    LogFlag_RENDER = 1 << 2,
+    LogFlag_MEMORY = 1 << 3,
+    LogFlag_TEXTURE = 1 << 4,
+    LogFlag_SOUND = 1 << 5,
+    LogFlag_INPUT = 1 << 6,
+    LogFlag_TIME = 1 << 7,
+    LogFlag_LUA = 1 << 8,
+
+    LogFlag_SYSTEM = 1 << 16,
+    LogFlag_GAME = 1 << 17,
+    LogFlag_SCRIPTING = 1 << 18,
+};
+
 // #NOTE (Juan): Render
 struct GLRenderBuffer {
     u32 vertexArray;
@@ -64,6 +80,7 @@ enum ConsoleLogType
 {
     ConsoleLogType_NORMAL,
     ConsoleLogType_COMMAND,
+    ConsoleLogType_WARNING,
     ConsoleLogType_ERROR,
 };
 
@@ -72,6 +89,9 @@ enum RenderType
     RenderType_RenderTempData,
     RenderType_RenderClear,
     RenderType_RenderColor,
+    RenderType_RenderSetTransform,
+    RenderType_RenderPushTransform,
+    RenderType_RenderPopTransform,
     RenderType_RenderLayer,
     RenderType_RenderLineWidth,
     RenderType_RenderTransparent,
@@ -108,9 +128,11 @@ enum ImageRenderFlag {
 };
 
 enum TextRenderFlag {
-    TextRenderFlag_Center = 1 << 1,
-    TextRenderFlag_LetterWrap = 1 << 2,
-    TextRenderFlag_WordWrap = 1 << 3,
+    TextRenderFlag_Left = 1 << 1,
+    TextRenderFlag_Center = 1 << 2,
+    TextRenderFlag_Right = 1 << 3,
+    TextRenderFlag_LetterWrap = 1 << 4,
+    TextRenderFlag_WordWrap = 1 << 5,
 };
 
 struct RenderHeader
@@ -141,16 +163,27 @@ struct RenderColor
     v4 color;
 };
 
+struct RenderSetTransform
+{
+    RenderHeader header;
+    transform2D transform;
+};
+
+struct RenderPushTransform
+{
+    RenderHeader header;
+    transform2D transform;
+};
+
+struct RenderPopTransform
+{
+    RenderHeader header;
+};
+
 struct RenderLayer
 {
     RenderHeader header;
     u32 layer;
-};
-
-struct RenderLineWidth
-{
-    RenderHeader header;
-    float width;
 };
 
 struct RenderTransparent
@@ -163,6 +196,12 @@ struct RenderTransparent
     u32 dstRGB;
     u32 srcAlpha;
     u32 dstAlpha;
+};
+
+struct RenderLineWidth
+{
+    RenderHeader header;
+    float width;
 };
 
 struct RenderLine
@@ -183,14 +222,14 @@ struct RenderTriangle
 struct RenderRectangle
 {
     RenderHeader header;
-    v2 position;
-    v2 scale;
+    v2 origin;
+    v2 size;
 };
 
 struct RenderCircle
 {
     RenderHeader header;
-    v2 position;
+    v2 origin;
     f32 radius;
     u32 segments;
 };
@@ -207,16 +246,15 @@ struct RenderTextureParameters
 struct RenderTexture
 {
     RenderHeader header;
-    v2 position;
-    v2 scale;
+    v2 origin;
+    v2 size;
     u32 textureID;
 };
 
 struct RenderImage
 {
     RenderHeader header;
-    v2 position;
-    v2 scale;
+    v2 origin;
     char* filepath;
     size_t filepathSize;
 };
@@ -224,8 +262,7 @@ struct RenderImage
 struct RenderImageUV
 {
     RenderHeader header;
-    v2 position;
-    v2 scale;
+    v2 origin;
     v2 uvMin;
     v2 uvMax;
     char* filepath;
@@ -235,8 +272,8 @@ struct RenderImageUV
 struct RenderImage9Slice
 {
     RenderHeader header;
-    v2 position;
-    v2 endPosition;
+    v2 origin;
+    v2 endOrigin;
     f32 slice;
     char* filepath;
     size_t filepathSize;
@@ -245,8 +282,7 @@ struct RenderImage9Slice
 struct RenderAtlasSprite
 {
     RenderHeader header;
-    v2 position;
-    v2 scale;
+    v2 origin;
     char* filepath;
     size_t filepathSize;
     char* atlasName;
@@ -264,15 +300,14 @@ struct RenderFont
 struct RenderChar
 {
     RenderHeader header;
-    v2 position;
-    v2 scale;
+    v2 origin;
     char singleChar;
 };
 
 struct RenderText
 {
     RenderHeader header;
-    v2 position;
+    v2 origin;
     char* string;
     size_t stringSize;
 };
@@ -280,8 +315,8 @@ struct RenderText
 struct RenderStyledText
 {
     RenderHeader header;
-    v2 position;
-    v2 endPosition;
+    v2 origin;
+    v2 endOrigin;
     char* string;
     size_t stringSize;
 };
@@ -346,6 +381,9 @@ struct Render {
     v2 windowPosition;
     v2 windowSize;
     u32 defaultFontID;
+
+    m33 transformStack[TRANSFORM_STACK_SIZE];
+    u32 transformIndex;
 };
 
 struct Camera {

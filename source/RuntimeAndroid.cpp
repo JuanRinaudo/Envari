@@ -17,8 +17,8 @@
 #define GL_PROFILE_GLES3
 #include "Game.h"
 
-#ifdef LUA_SCRIPTING_ENABLED
-#include "ScriptingBindings.cpp"
+#ifdef LUA_ENABLED
+#include "LUAScriptingBindings.cpp"
 #endif
 
 SDL_Window* sdlWindow;
@@ -39,7 +39,7 @@ static void CheckInput() {
     }
 }
 
-int main(int argc, char *argv[])
+i32 main(i32 argc, char *argv[])
 {
     size_t permanentStorageSize = Megabytes(32);
     void* permanentStorage = malloc(permanentStorageSize);
@@ -119,15 +119,8 @@ int main(int argc, char *argv[])
     // SDL_GL_SetSwapInterval(vsync);
 
     const char* glsl_version = 0;
-    
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO();
-    ImGui::StyleColorsDark();
-    ImGui_ImplSDL2_InitForOpenGL(sdlWindow, glContext);
-    ImGui_ImplOpenGL3_Init(glsl_version);
 
-// #ifdef LUA_SCRIPTING_ENABLED
+// #ifdef LUA_ENABLED
 //     ScriptingInit();
 // #endif
 
@@ -167,13 +160,8 @@ int main(int argc, char *argv[])
 //             }
 //         }
 
-        ImGuiIO imguiIO = ImGui::GetIO();
-        bool mouseEnabled = !imguiIO.WantCaptureMouse;
-        bool keyboardEnabled = !imguiIO.WantCaptureKeyboard;
-        
         SDL_Event event;
         while(SDL_PollEvent(&event)) {
-            ImGui_ImplSDL2_ProcessEvent(&event);
             switch (event.type) {
                 case SDL_QUIT: {
                     gameState->game.running = false;
@@ -233,11 +221,7 @@ int main(int argc, char *argv[])
 
         gameState->time.lastFrameGameTime = gameState->time.gameTime;
 
-        ImGui_ImplOpenGL3_NewFrame();
-        ImGui_ImplSDL2_NewFrame(sdlWindow);
-        ImGui::NewFrame();
-
-// #ifdef LUA_SCRIPTING_ENABLED
+// #ifdef LUA_ENABLED
 //         ScriptingWatchChanges();
 // #endif
 
@@ -287,9 +271,6 @@ int main(int argc, char *argv[])
         glViewport(0,0, gameState->render.width, gameState->render.height);
         glClearColor(1, 1, 0, 1);
         glClear(GL_COLOR_BUFFER_BIT);
-
-        ImGui::Render();
-        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         
         SDL_GL_SwapWindow(sdlWindow);
 

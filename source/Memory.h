@@ -17,7 +17,7 @@ inline void ZeroSize(size_t size, void *pointer)
 #define PushSize(arena, size) PushSize_(arena, size)
 void* PushSize_(MemoryArena *arena, size_t size)
 {
-    Assert(arena->used + size < arena->size, "Not enoguh space in memory arena for allocation");
+    AssertMessage(arena->used + size < arena->size, "Not enoguh space in memory arena for allocation");
     void *result = arena->base + arena->used;
     arena->used += size;
 
@@ -139,15 +139,15 @@ static TemporaryMemory BeginTemporaryMemory(MemoryArena *arena)
 static void EndTemporaryMemory(TemporaryMemory *tempMemory)
 {
     MemoryArena *arena = tempMemory->arena;
-    Assert(arena->used >= tempMemory->used, "Ended temp memory missmatch");
+    AssertMessage(arena->used >= tempMemory->used, "Ended temp memory missmatch");
     arena->used -= tempMemory->used;
-    Assert(arena->tempCount > 0, "");
+    Assert(arena->tempCount > 0);
     --arena->tempCount;
 }
 
 static void CheckArena(MemoryArena *arena)
 {
-    Assert(arena->tempCount == 0, "");
+    Assert(arena->tempCount == 0);
 }
 
 #endif

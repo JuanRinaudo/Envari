@@ -1,7 +1,7 @@
 #ifndef DEFINES_H
 #define DEFINES_H
 
-#define InvalidCodePath Assert(!"InvalidCodePath", "InvalidCodePath");
+#define InvalidCodePath Assert(!"InvalidCodePath");
 #define InvalidDefaultCase default: {InvalidCodePath;} break;
 
 // NOTE(Juan): Types
@@ -28,6 +28,8 @@
 
 #define KEY_COUNT 512
 #define MOUSE_COUNT 8
+
+#define TRANSFORM_STACK_SIZE 16
 
 #define DATA_MAX_TOKEN_COUNT 256
 
@@ -114,17 +116,27 @@ typedef double f64;
 
 #if __EMSCRIPTEN__
     #ifdef GAME_SLOW
-        #define Assert(Expression, Message) if(!(Expression)) { *(volatile i32 *)0 = 0; }
+        #ifndef Assert
+        #define Assert(Expression) if(!(Expression)) { *(volatile i32 *)0 = 0; }
+        #endif
+        #ifndef AssertMessage
+        #define AssertMessage(Expression, Message) if(!(Expression)) { *(volatile i32 *)0 = 0; }
+        #endif
     #else
-        #define Assert(Expression, Message)
+        #define Assert(Expression)
+        #define AssertMessage(Expression, Message)
     #endif
 #else
     #ifdef GAME_SLOW
         #ifndef Assert
-        #define Assert(Expression, Message) if(!(Expression)) { *(i32 *)0 = 0; }
+        #define Assert(Expression) if(!(Expression)) { *(volatile i32 *)0 = 0; }
+        #endif
+        #ifndef AssertMessage
+        #define AssertMessage(Expression, Message) if(!(Expression)) { *(i32 *)0 = 0; }
         #endif
     #else
-        #define Assert(Expression, Message)
+        #define Assert(Expression)
+        #define AssertMessage(Expression, Message)
     #endif
 #endif
 

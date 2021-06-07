@@ -1,5 +1,5 @@
-#ifndef SCRIPTING_H
-#define SCRIPTING_H
+#ifndef LUA_SCRIPTING_H
+#define LUA_SCRIPTING_H
 
 #define RunLUAProtectedFunction(FUNCTION) sol::protected_function Func ## FUNCTION (lua[#FUNCTION]); \
 if(Func ## FUNCTION .valid()) { \
@@ -11,7 +11,7 @@ if(Func ## FUNCTION .valid()) { \
     } \
 } \
 else { \
-    LogError("Error on script '"#FUNCTION"', not valid"); \
+    LogWarning("Warning: Function '"#FUNCTION"', not valid"); \
 }
 
 #ifdef GAME_EDITOR
@@ -21,15 +21,13 @@ size_t watchListSize = 0;
 u32 watchFiles = 0;
 #endif
 
-#ifdef LUA_SCRIPTING_ENABLED
 extern "C" {
     #include "luasocket.h"
     #include "mime.h"
 }
 
-extern void ScriptingInitBindings();
+extern void ScriptingBindings();
 extern void ScriptingMathBindings();
-#endif
 
 void LoadScriptFile(const char* filePath)
 {
@@ -37,16 +35,16 @@ void LoadScriptFile(const char* filePath)
 
     if(loadResult.valid()) {
         sol::protected_function_result result = loadResult();
-        if(result.valid()) {
-        }
-        else {
+        if(!result.valid()) {
             sol::error luaError = loadResult;
             std::string errorReport = luaError.what();
+            LogError(errorReport.c_str());
         }
     }
     else {
         sol::error luaError = loadResult;
         std::string errorReport = luaError.what();
+        LogError(errorReport.c_str());
     }
 
     #ifdef GAME_EDITOR
@@ -125,10 +123,22 @@ void LoadLUALibrary(sol::lib library)
 
 void ScriptingInit()
 {
+    lua.script("function Error(message) return \"ERROR: \" .. message end");
+    sol::protected_function::set_default_handler(lua["Error"]);
+
     lua.set_panic(sol::c_call<decltype(&ScriptingPanic), &ScriptingPanic>);
 	lua.set_exception_handler(&ScriptingExceptionHandler);
 
-    ScriptingInitBindings();
+    ScriptingBindings();
+}
+
+static u32 ScriptingUpdate()
+{
+    ChangeLogFlag(LogFlag_SCRIPTING);
+
+    RunLUAProtectedFunction(Update)
+
+    return 1;
 }
 
 #ifdef GAME_EDITOR
@@ -198,10 +208,85 @@ void ScriptingWatchChanges()
 #if GAME_EDITOR
 void GetWatchValue(i32 watchType, char* name, char* valueBuffer)
 {
-    lua_getglobal(lua, name);
+    u32 type = LUA_TNIL;
+    bool parsingArrayIndex = false;
+    if(strchr(name, '.') || strchr(name, '[')) {
+        char innerBuffer[WATCH_BUFFER_SIZE_EXT];
+        u32 nameIndex = 0;
+        u32 bufferIndex = 0;
+        u32 nameSize = strlen(name);
+        bool firstSection = true;
+        while(nameIndex < nameSize) {
+            if(name[nameIndex] == '[' || name[nameIndex] == ']' || name[nameIndex] == '.') {
+                innerBuffer[bufferIndex] = 0;
+                if(firstSection) {
+                    type = lua_getglobal(lua, innerBuffer);
+                    firstSection = false;
+                    bufferIndex = 0;
+                }
+                
+                if(name[nameIndex] == '[' || name[nameIndex] == '.') {
+                    if(bufferIndex > 0) {
+                        type = lua_getfield(lua, -1, innerBuffer);
+                    }
+
+                    if(name[nameIndex] == '[') {
+                        parsingArrayIndex = true;
+                    }
+                }
+                else if(name[nameIndex] == ']') {
+                    if(parsingArrayIndex) {
+                        innerBuffer[bufferIndex] = 0;
+                        parsingArrayIndex = false;
+                        i32 index = strtol(innerBuffer, 0, 10);
+                        type = lua_rawgeti(lua, -1, index);
+                        bufferIndex = 0;
+
+                        if(type == LUA_TNIL) {
+                            // #TODO (Juan): Handle nil
+                            return;
+                        }
+                    }
+                    else {
+                        return;
+                    }
+                }
+                else {
+                    return;
+                }
+
+                if(type == LUA_TNIL) {
+                    // #TODO (Juan): Handle nil
+                    return;
+                }
+
+                bufferIndex = 0;
+            }
+            else {
+                innerBuffer[bufferIndex] = name[nameIndex];
+                ++bufferIndex;
+            }
+
+            ++nameIndex;
+        }
+
+        if(bufferIndex > 0) {
+            innerBuffer[bufferIndex] = 0;
+            type = lua_getfield(lua, -1, innerBuffer);
+        }
+    }
+    else {
+        type = lua_getglobal(lua, name);
+    }
+        
+    if(type == LUA_TNIL || parsingArrayIndex) {
+        // #TODO (Juan): Handle error
+        return;
+    }
+
     if(watchType == WatchType_AUTO) {
         if(lua_isinteger(lua, -1)) {
-            int value = (int)lua_tointeger(lua, -1);
+            i32 value = (i32)lua_tointeger(lua, -1);
             sprintf(valueBuffer, "%d", value);
         }
         else if(lua_isnumber(lua, -1)) {
@@ -216,9 +301,18 @@ void GetWatchValue(i32 watchType, char* name, char* valueBuffer)
             const char* value = lua_tostring(lua, -1);
             sprintf(valueBuffer, "%s", value);
         }
+        else if(lua_istable(lua, -1)) {
+            u64 length = lua_rawlen(lua, -1);
+            if(length) {
+                sprintf(valueBuffer, "[array](%llu)", length);
+            }
+            else {
+                sprintf(valueBuffer, "[table]");
+            }
+        }
     }
     else if(watchType == WatchType_INT && lua_isinteger(lua, -1)) {
-        int value = (int)lua_tointeger(lua, -1);
+        i32 value = (i32)lua_tointeger(lua, -1);
         sprintf(valueBuffer, "%d", value);
     }
     else if(watchType == WatchType_FLOAT && lua_isnumber(lua, -1)) {

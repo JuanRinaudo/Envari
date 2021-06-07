@@ -87,7 +87,7 @@ i32 CALLBACK WinMain(
     
     GL_DefaultAssets();
 
-#ifdef LUA_SCRIPTING_ENABLED
+#ifdef LUA_ENABLED
     ScriptingInit();
 #endif
     

@@ -90,6 +90,7 @@ struct transform2D
 {
     v2 position;
     v2 scale;
+    f32 angle;
 };
 
 #endif

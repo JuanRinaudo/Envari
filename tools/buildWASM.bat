@@ -27,13 +27,13 @@ REM To build lualib.a the compiler inside scr/Makefile needs to change from gcc 
 
 @echo Start time %time%
 @REM -ftime-report ^
-@REM em++ Envari\source\ScriptingBindings.cpp -IEnvari\LUA\include -std=c++17 -o build\html5\ScriptingBindings.o
+@REM em++ Envari\source\LUAScriptingBindings.cpp -IEnvari\LUA\include -std=c++17 -o build\html5\LUAScriptingBindings.o
 em++ -IEnvari\LUA\include Envari\source\RuntimeWASM.cpp Envari\LUA\include\liblua.a ^
     -gsource-map ^
     -O2 ^
     --pre-js buildassets/html5/prejs.js ^
     --source-map-base http://localhost:8888/ ^
-    -DLUA_SCRIPTING_ENABLED=1 ^
+    -DLUA_ENABLED=1 ^
     -s ERROR_ON_UNDEFINED_SYMBOLS=0 ^
     -s USE_SDL=2 ^
     -s ALLOW_MEMORY_GROWTH=1 ^

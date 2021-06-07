@@ -480,6 +480,93 @@ m33 IdM33()
     return result;
 }
 
+m33 TranslationM33(f32 x, f32 y)
+{
+    m33 result = {};
+
+    result._00 = 1;
+    result._01 = 0;
+    result._02 = 0;
+    result._10 = 0;
+    result._11 = 1;
+    result._12 = 0;
+    result._20 = x;
+    result._21 = y;
+    result._22 = 1;
+
+    return result;
+}
+
+m33 TranslationM33(v2 vector)
+{
+    return TranslationM33(vector.x, vector.y);
+}
+
+m33 ScaleM33(f32 x, f32 y)
+{
+    m33 result = {};
+
+    result._00 = x;
+    result._01 = 0;
+    result._02 = 0;
+    result._10 = 0;
+    result._11 = y;
+    result._12 = 0;
+    result._20 = 0;
+    result._21 = 0;
+    result._22 = 1;
+
+    return result;
+}
+
+m33 ScaleM33(v2 vector)
+{
+    return ScaleM33(vector.x, vector.y);
+}
+
+m33 operator * (m33 b, m33 a)
+{
+    m33 result;
+
+    for(i32 x = 0; x < 3; ++x) {
+        for(i32 y = 0; y < 3; ++y) {
+            f32 value = 0;
+
+            for(i32 i = 0; i < 3; ++i) {
+                value += a.e[y * 3 + i] * b.e[3 * i + x];
+            }  
+
+            result.e[y * 3 + x] = value;
+        }
+    }
+
+    return(result);
+}
+
+m33 &operator *= (m33 &a, m33 b)
+{
+    a = b * a;
+
+    return(a);
+}
+
+m33 RotateM33(f32 angle)
+{
+    m33 result = {};
+
+    result._00 = Cos(angle);
+    result._01 = Sin(angle);
+    result._02 = 0;
+    result._10 = -Sin(angle);
+    result._11 = Cos(angle);
+    result._12 = 0;
+    result._20 = 0;
+    result._21 = 0;
+    result._22 = 1;
+
+    return result;
+}
+
 // #NOTE(Juan): matrix4x4
 
 m44 M44(
@@ -506,6 +593,30 @@ m44 M44(
     result._31 = _31;
     result._32 = _32;
     result._33 = _33;
+
+    return result;
+}
+
+m44 M44(m33 a)
+{
+    m44 result = {};
+
+    result._00 = a._00;
+    result._01 = a._01;
+    result._02 = a._02;
+    result._03 = 0;
+    result._10 = a._10;
+    result._11 = a._11;
+    result._12 = a._12;
+    result._13 = 0;
+    result._20 = 0;
+    result._21 = 0;
+    result._22 = 1;
+    result._23 = 0;
+    result._30 = a._20;
+    result._31 = a._21;
+    result._32 = a._22;
+    result._33 = 1;
 
     return result;
 }
@@ -656,7 +767,7 @@ m44 PerspectiveProjection(f32 fovY, f32 aspect, f32 nearPlane, f32 farPlane)
 
 // #NOTE(Juan): transform2D
 
-transform2D Transform2D(f32 posX, f32 posY, f32 scaleX, f32 scaleY)
+transform2D Transform2D(f32 posX, f32 posY, f32 scaleX, f32 scaleY, f32 angle)
 {
     transform2D transform;
     transform.position = V2(posX, posY);

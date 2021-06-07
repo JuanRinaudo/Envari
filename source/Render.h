@@ -57,6 +57,38 @@ void DrawColor(f32 red = 0, f32 green = 0, f32 blue = 0, f32 alpha = 1)
     color->color = V4(red, green, blue, alpha);
 }
 
+void DrawSetLayer(u32 targetLayer, bool transparent)
+{
+    AssertMessage(targetLayer >= 0 && targetLayer < 32, "Incorrect target layer");
+
+    RenderLayer *layer = RenderPushElement(&renderTemporaryMemory, RenderLayer);
+    layer->layer = targetLayer;
+
+    renderState.usedLayers |= 1 << targetLayer;
+    renderState.transparentLayers |= (transparent ? 1 : 0) << targetLayer;
+}
+
+void DrawSetTransform(f32 posX = 0, f32 posY = 0, f32 scaleX = 1, f32 scaleY = 1, f32 angle = 0)
+{    
+    RenderSetTransform *setTransform = RenderPushElement(&renderTemporaryMemory, RenderSetTransform);
+    setTransform->transform.position = V2(posX, posY);
+    setTransform->transform.scale = V2(scaleX, scaleY);
+    setTransform->transform.angle = angle;
+}
+
+void DrawPushTransform(f32 posX = 0, f32 posY = 0, f32 scaleX = 1, f32 scaleY = 1, f32 angle = 0)
+{    
+    RenderPushTransform *pushTransform = RenderPushElement(&renderTemporaryMemory, RenderPushTransform);
+    pushTransform->transform.position = V2(posX, posY);
+    pushTransform->transform.scale = V2(scaleX, scaleY);
+    pushTransform->transform.angle = angle;
+}
+
+void DrawPopTransform()
+{    
+    RenderPopTransform *transform = RenderPushElement(&renderTemporaryMemory, RenderPopTransform);
+}
+
 void DrawTransparent()
 {
     RenderTransparent *transparent = RenderPushElement(&renderTemporaryMemory, RenderTransparent);
@@ -93,15 +125,6 @@ void DrawTransparentDisable()
     transparent->dstAlpha = 0;
 }
 
-void DrawSetLayer(u32 targetLayer, bool transparent)
-{
-    RenderLayer *layer = RenderPushElement(&renderTemporaryMemory, RenderLayer);
-    layer->layer = targetLayer;
-
-    renderState.usedLayers |= 1 << targetLayer;
-    renderState.transparentLayers |= (transparent ? 1 : 0) << targetLayer;
-}
-
 void DrawLineWidth(f32 width = 1)
 {
     RenderLineWidth *line = RenderPushElement(&renderTemporaryMemory, RenderLineWidth);
@@ -123,17 +146,17 @@ void DrawTriangle(f32 p1X, f32 p1Y, f32 p2X, f32 p2Y, f32 p3X, f32 p3Y)
     triangle->point3 = V2(p3X, p3Y);
 }
 
-void DrawRectangle(f32 posX, f32 posY, f32 scaleX, f32 scaleY)
+void DrawRectangle(f32 posX, f32 posY, f32 sizeX, f32 sizeY)
 {
     RenderRectangle *rectangle = RenderPushElement(&renderTemporaryMemory, RenderRectangle);
-    rectangle->position = V2(posX, posY);
-    rectangle->scale = V2(scaleX, scaleY);
+    rectangle->origin = V2(posX, posY);
+    rectangle->size = V2(sizeX, sizeY);
 }
 
-void DrawCircle(f32 posX, f32 posY, f32 radius, i32 segments)
+void DrawCircle(f32 posX, f32 posY, f32 radius, u32 segments)
 {
     RenderCircle *circle = RenderPushElement(&renderTemporaryMemory, RenderCircle);
-    circle->position = V2(posX, posY);
+    circle->origin = V2(posX, posY);
     circle->radius = radius;
     circle->segments = segments;
 }
@@ -147,29 +170,27 @@ void DrawTextureParameters(u32 wrapS, u32 wrapT, u32 minFilter, u32 magFilter)
     textureParameters->magFilter = magFilter;
 }
 
-void DrawTexture(f32 posX, f32 posY, f32 scaleX, f32 scaleY, u32 textureID)
+void DrawTexture(f32 posX, f32 posY, f32 sizeX, f32 sizeY, u32 textureID)
 {
     RenderTexture *texture = RenderPushElement(&renderTemporaryMemory, RenderTexture);
-    texture->position = V2(posX, posY);
-    texture->scale = V2(scaleX, scaleY);
+    texture->origin = V2(posX, posY);
+    texture->size = V2(sizeX, sizeY);
     texture->textureID = textureID;
 }
 
-void DrawImage(f32 posX, f32 posY, f32 scaleX, f32 scaleY, const char* filepath, u32 renderFlags = 0)
+void DrawImage(f32 posX, f32 posY, const char* filepath, u32 renderFlags = 0)
 {
     RenderImage *image = RenderPushElement(&renderTemporaryMemory, RenderImage);
     image->header.renderFlags = renderFlags;
-    image->position = V2(posX, posY);
-    image->scale = V2(scaleX, scaleY);
+    image->origin = V2(posX, posY);
     image->filepath = PushString(&renderTemporaryMemory, filepath, &image->filepathSize);
     image->header.size += image->filepathSize;
 }
 
-void DrawImageUV(f32 posX, f32 posY, f32 scaleX, f32 scaleY, f32 uvX, f32 uvY, f32 uvEndX, f32 uvEndY, const char* filepath)
+void DrawImageUV(f32 posX, f32 posY, f32 uvX, f32 uvY, f32 uvEndX, f32 uvEndY, const char* filepath)
 {
     RenderImageUV *image = RenderPushElement(&renderTemporaryMemory, RenderImageUV);
-    image->position = V2(posX, posY);
-    image->scale = V2(scaleX, scaleY);
+    image->origin = V2(posX, posY);
     image->uvMin = V2(uvX, uvY);
     image->uvMax = V2(uvEndX, uvEndY);
     image->filepath = PushString(&renderTemporaryMemory, filepath, &image->filepathSize);
@@ -179,18 +200,17 @@ void DrawImageUV(f32 posX, f32 posY, f32 scaleX, f32 scaleY, f32 uvX, f32 uvY, f
 void DrawImage9Slice(f32 posX, f32 posY, f32 endX, f32 endY, f32 slice, const char* filepath)
 {
     RenderImage9Slice *image = RenderPushElement(&renderTemporaryMemory, RenderImage9Slice);
-    image->position = V2(posX, posY);
-    image->endPosition = V2(endX, endY);
+    image->origin = V2(posX, posY);
+    image->endOrigin = V2(endX, endY);
     image->slice = slice;
     image->filepath = PushString(&renderTemporaryMemory, filepath, &image->filepathSize);
     image->header.size += image->filepathSize;
 }
 
-void DrawAtlasSprite(f32 posX, f32 posY, f32 scaleX, f32 scaleY, const char* filepath, const char* atlasName, const char* key)
+void DrawAtlasSprite(f32 posX, f32 posY, const char* filepath, const char* atlasName, const char* key)
 {
     RenderAtlasSprite *atlas = RenderPushElement(&renderTemporaryMemory, RenderAtlasSprite);
-    atlas->position = V2(posX, posY);
-    atlas->scale = V2(scaleX, scaleY);
+    atlas->origin = V2(posX, posY);
     atlas->filepath = PushString(&renderTemporaryMemory, filepath, &atlas->filepathSize);
     atlas->atlasName = PushString(&renderTemporaryMemory, atlasName, &atlas->atlasNameSize);
     atlas->spriteKey = PushString(&renderTemporaryMemory, key, &atlas->spriteKeySize);
@@ -203,38 +223,27 @@ void DrawSetFont(i32 fontID)
     font->fontID = fontID;
 }
 
-void DrawChar(f32 posX, f32 posY, f32 scaleX, f32 scaleY, const char singleChar)
+void DrawChar(f32 posX, f32 posY, const char singleChar)
 {
     RenderChar *renderChar = RenderPushElement(&renderTemporaryMemory, RenderChar);
-    renderChar->position = V2(posX, posY);
-    renderChar->scale = V2(scaleX, scaleY);
+    renderChar->origin = V2(posX, posY);
     renderChar->singleChar = singleChar;
 }
 
 void DrawString(f32 posX, f32 posY, const char* string, u32 renderFlags)
 {
     RenderText *text = RenderPushElement(&renderTemporaryMemory, RenderText);
-    text->position = V2(posX, posY);
-    text->string = PushString(&renderTemporaryMemory, string, &text->stringSize);
-    text->header.size += text->stringSize;
-}
-
-void DrawStyledString(f32 posX, f32 posY, f32 endX, f32 endY, char* string, u32 renderFlags = 0)
-{    
-    RenderStyledText *text = RenderPushElement(&renderTemporaryMemory, RenderStyledText);
-    text->header.renderFlags = renderFlags;
-    text->position = V2(posX, posY);
-    text->endPosition = V2(endX, endY);
+    text->origin = V2(posX, posY);
     text->string = PushString(&renderTemporaryMemory, string, &text->stringSize);
     text->header.size += text->stringSize;
 }
 
 void DrawStyledString(f32 posX, f32 posY, f32 endX, f32 endY, const char* string, u32 renderFlags = 0)
-{
+{    
     RenderStyledText *text = RenderPushElement(&renderTemporaryMemory, RenderStyledText);
     text->header.renderFlags = renderFlags;
-    text->position = V2(posX, posY);
-    text->endPosition = V2(endX, endY);
+    text->origin = V2(posX, posY);
+    text->endOrigin = V2(endX, endY);
     text->string = PushString(&renderTemporaryMemory, string, &text->stringSize);
     text->header.size += text->stringSize;
 }
@@ -245,15 +254,19 @@ void ClearInputBuffer()
     ZeroSize(TEXT_INPUT_BUFFER_COUNT, gameState->input.textInputBuffer);
 }
 
-bool DrawStringInput(f32 posX, f32 posY, f32 endX, f32 endY, const char* baseText, i32 maxSize = 0)
+bool DrawStringInput(f32 posX, f32 posY, f32 endX, f32 endY, const char* baseText, u32 maxSize = 0)
 {
     if(maxSize == 0) {
         maxSize = TEXT_INPUT_BUFFER_COUNT;
     }
 
     if(gameState->input.textInputBuffer[0] != 0) {
-        char* text = RenderPushString(&renderTemporaryMemory, gameState->input.textInputBuffer, maxSize);
-        DrawStyledString(posX, posY, endX, endY, text, 0);
+        char inputText[TEXT_INPUT_BUFFER_COUNT];
+        strcpy(inputText, gameState->input.textInputBuffer);
+        if (FloorToInt(gameState->time.gameTime * 5) % 2 == 0) {
+            strcat(inputText, "_");
+        }
+        DrawStyledString(posX, posY, endX, endY, inputText, 0);
     }
     else {
         DrawColor(0.75f, 0.75f, 0.75f, 0.75f);
@@ -267,7 +280,7 @@ bool DrawStringInput(f32 posX, f32 posY, f32 endX, f32 endY, const char* baseTex
         textShift = -32;
     }
 
-    int scancode = SDL_SCANCODE_A;
+    i32 scancode = SDL_SCANCODE_A;
     while(scancode <= SDL_SCANCODE_KP_PERIOD) {
         if(gameState->input.keyState[scancode] == KEY_PRESSED) {
             char keyCode = (char)SDL_GetKeyFromScancode((SDL_Scancode)scancode);
@@ -298,6 +311,43 @@ bool DrawStringInput(f32 posX, f32 posY, f32 endX, f32 endY, const char* baseTex
     else {
         return false;
     }
+}
+
+bool DrawButton(f32 posX, f32 posY, f32 endX, f32 endY, f32 slice, const char* string, const char* buttonUp, const char* buttonDown)
+{
+    bool mouseOver = MouseOverRectangle(Rectangle2MinMax(posX, posY, endX, endY));
+    bool mouseDown = gameState->input.mouseState[1] == KEY_DOWN;
+    bool mouseReleased = gameState->input.mouseState[1] == KEY_RELEASED;
+    DrawImage9Slice(posX, posY, endX, endY, slice, mouseOver && mouseDown ? buttonDown : buttonUp);
+    DrawStyledString(posX, posY, endX, endY, string, TextRenderFlag_Center | TextRenderFlag_WordWrap);
+    return mouseOver && mouseReleased;
+}
+
+i32 DrawMultibutton(f32 posX, f32 posY, f32 endX, f32 height, f32 slice, f32 yPadding, const char* options, const char* buttonUp, const char* buttonDown)
+{
+    i32 optionIndex = 0;
+    i32 buttonCount = 0;
+    i32 pressedIndex = -1;
+    char* text = 0;
+    while(options[optionIndex] != 0) {
+        f32 buttonY = buttonCount * (height + yPadding);
+        
+        i32 searchIndex = optionIndex;
+        while(options[searchIndex] != 0 && options[searchIndex] != '\r') {
+            ++searchIndex;
+        }
+        u32 size = searchIndex - optionIndex;
+        text = RenderPushString(&renderTemporaryMemory, options + optionIndex, size);
+        optionIndex = searchIndex + 1;
+
+        if(DrawButton(posX, posY + buttonY, endX, posY + buttonY + height, slice, text, buttonUp, buttonDown)) {
+            pressedIndex = buttonCount;
+        }
+
+        ++buttonCount;
+    }
+
+    return pressedIndex;
 }
 
 void DrawSetUniform(u32 locationID, UniformType type)
@@ -353,43 +403,6 @@ void DrawOverrideIndices(u32* indices, u32 count)
     override->header.size += override->size;
 }
 
-bool DrawButton(f32 posX, f32 posY, f32 endX, f32 endY, f32 slice, const char* string, const char* buttonUp, const char* buttonDown)
-{
-    bool mouseOver = MouseOverRectangle(Rectangle2MinMax(posX, posY, endX, endY));
-    bool mouseDown = gameState->input.mouseState[1] == KEY_DOWN;
-    bool mouseReleased = gameState->input.mouseState[1] == KEY_RELEASED;
-    DrawImage9Slice(posX, posY, endX, endY, slice, mouseOver && mouseDown ? buttonDown : buttonUp);
-    DrawStyledString(posX, posY, endX, endY, string, TextRenderFlag_Center | TextRenderFlag_WordWrap);
-    return mouseOver && mouseReleased;
-}
-
-i32 DrawMultibutton(f32 posX, f32 posY, f32 endX, f32 height, f32 slice, f32 yPadding, const char* options, const char* buttonUp, const char* buttonDown)
-{
-    i32 optionIndex = 0;
-    i32 buttonCount = 0;
-    i32 pressedIndex = -1;
-    char* text = 0;
-    while(options[optionIndex] != 0) {
-        f32 buttonY = buttonCount * (height + yPadding);
-        
-        i32 searchIndex = optionIndex;
-        while(options[searchIndex] != 0 && options[searchIndex] != '\r') {
-            ++searchIndex;
-        }
-        u32 size = searchIndex - optionIndex;
-        text = RenderPushString(&renderTemporaryMemory, options + optionIndex, size);
-        optionIndex = searchIndex + 1;
-
-        if(DrawButton(posX, posY + buttonY, endX, posY + buttonY + height, slice, text, buttonUp, buttonDown)) {
-            pressedIndex = buttonCount;
-        }
-
-        ++buttonCount;
-    }
-
-    return pressedIndex;
-}
-
 void Begin2D(u32 frameBufferID, u32 width, u32 height)
 {
     renderState.lastRenderID = 0;
@@ -407,6 +420,7 @@ void Begin2D(u32 frameBufferID, u32 width, u32 height)
 	glBindFramebuffer(GL_FRAMEBUFFER, frameBufferID);
 	glViewport(0,0, width, height);
     
+    DrawSetTransform();
     DrawTextureParameters(DEFAULT_WRAP_S, DEFAULT_WRAP_T, DEFAULT_MIN_FILTER, DEFAULT_MAG_FILTER);    
     DrawSetLayer(0, true);
     if(gameState->render.defaultFontID != 0) {

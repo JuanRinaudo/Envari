@@ -31,13 +31,13 @@
 #include "Game.h"
 #include "PlatformCommon.h"
 
-#ifdef LUA_SCRIPTING_ENABLED
-#include "ScriptingBindings.cpp"
+#ifdef LUA_ENABLED
+#include "LUAScriptingBindings.cpp"
 #endif
 
 static void main_loop();
 
-int main(int argc, char** argv)
+i32 main(i32 argc, char** argv)
 {
     size_t permanentStorageSize = Megabytes(32);
     void* permanentStorage = malloc(permanentStorageSize);
@@ -80,7 +80,7 @@ int main(int argc, char** argv)
     
     GL_DefaultAssets();
 
-#ifdef LUA_SCRIPTING_ENABLED
+#ifdef LUA_ENABLED
     ScriptingInit();
 #endif
     

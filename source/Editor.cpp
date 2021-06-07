@@ -1,6 +1,6 @@
 const char* watchTypeNames[] = { "Auto", "Int", "Float", "Bool", "Char", "String" };
 
-EditorLogFlag currentLogFlag = EditorLogFlag_NONE;
+LogFlag currentLogFlag = LogFlag_NONE;
 
 static void ClearLog(ConsoleWindow* console)
 {
@@ -29,7 +29,7 @@ static void LogString(ConsoleWindow* console, const char* log, ConsoleLogType ty
 
 void Log_(ConsoleWindow* console, ConsoleLogType type, const char* file, u32 line, const char* fmt, ...)
 {
-    if(currentLogFlag == EditorLogFlag_NONE || (currentLogFlag & console->logFlags) > 0) {
+    if(currentLogFlag == LogFlag_NONE || (currentLogFlag & console->logFlags) > 0) {
         char buffer[1024];
         va_list args;
         va_start(args, fmt);
@@ -42,7 +42,9 @@ void Log_(ConsoleWindow* console, ConsoleLogType type, const char* file, u32 lin
 
 extern void ChangeLogFlag_(u32 newFlag)
 {
-    currentLogFlag = (EditorLogFlag)newFlag;
+    #if GAME_EDITOR && GAME_SLOW
+    currentLogFlag = (LogFlag)newFlag;
+    #endif
 }
 
 static void EditorInit(ConsoleWindow* console)
@@ -53,12 +55,12 @@ static void EditorInit(ConsoleWindow* console)
     console->commands.push_back("HELP");
     console->commands.push_back("HISTORY");
     console->commands.push_back("CLEAR");
-#ifdef LUA_SCRIPTING_ENABLED
+#ifdef LUA_ENABLED
     console->commands.push_back("LUA");
 #endif
     console->autoScroll = true;
     console->scrollToBottom = false;
-    console->logFlags = EditorLogFlag_NONE;
+    console->logFlags = LogFlag_NONE;
 
     console->open = true;
     
@@ -112,14 +114,11 @@ static void EditorInit(TimeDebuggerWindow* debugger)
     
 }
 
-#ifdef LUA_SCRIPTING_ENABLED
+#ifdef LUA_ENABLED
 static void EditorInit(LUADebuggerWindow* debugger)
 {
-    debugger->watching = true;
-
-    if(TableHasKey(initialConfig, INITLUASCRIPT)) {
-        debugger->currentFile = (char*)LoadFileToMemory(TableGetString(&initialConfig, INITLUASCRIPT), FILE_MODE_READ_BINARY, &debugger->currentFileSize);
-    }
+    debugger->codeOpen = true;
+    debugger->watchOpen = true;
 }
 #endif
 
@@ -128,7 +127,7 @@ static void EditorInit(HelpWindow* help)
     
 }
 
-static i32 TextEditCallback(ConsoleWindow* console, ImGuiInputTextCallbackData* data)
+static i32 TextEditCallback(ImGuiInputTextCallbackData* data)
 {
     switch (data->EventFlag) {
         case ImGuiInputTextFlags_CallbackCompletion: {
@@ -145,15 +144,15 @@ static i32 TextEditCallback(ConsoleWindow* console, ImGuiInputTextCallbackData* 
 
             // Build a list of candidates
             ImVector<const char*> candidates;
-            for (i32 i = 0; i < console->commands.Size; i++) {
-                if (Strnicmp(console->commands[i], word_start, (int)(word_end-word_start)) == 0) {
-                    candidates.push_back(console->commands[i]);
+            for (i32 i = 0; i < editorConsole.commands.Size; i++) {
+                if (Strnicmp(editorConsole.commands[i], word_start, (i32)(word_end-word_start)) == 0) {
+                    candidates.push_back(editorConsole.commands[i]);
                 }
             }
 
             if (candidates.Size == 0) {
                 // No match
-                Log("No match for \"%.*s\"!\n", (int)(word_end-word_start), word_start);
+                Log("No match for \"%.*s\"!\n", (i32)(word_end-word_start), word_start);
             }
             else if (candidates.Size == 1) {
                 // Single match. Delete the beginning of the word and replace it entirely so we've got nice casing
@@ -194,26 +193,26 @@ static i32 TextEditCallback(ConsoleWindow* console, ImGuiInputTextCallbackData* 
         }
         case ImGuiInputTextFlags_CallbackHistory: {
             // Example of HISTORY
-            const i32 prev_history_pos = console->historyPos;
+            const i32 prev_history_pos = editorConsole.historyPos;
             if (data->EventKey == ImGuiKey_UpArrow) {
-                if (console->historyPos == -1) {
-                    console->historyPos = console->history.Size - 1;
+                if (editorConsole.historyPos == -1) {
+                    editorConsole.historyPos = editorConsole.history.Size - 1;
                 }
-                else if (console->historyPos > 0) {
-                    console->historyPos--;
+                else if (editorConsole.historyPos > 0) {
+                    editorConsole.historyPos--;
                 }
             }
             else if (data->EventKey == ImGuiKey_DownArrow) {
-                if (console->historyPos != -1) {
-                    if (++console->historyPos >= console->history.Size) {
-                        console->historyPos = -1;
+                if (editorConsole.historyPos != -1) {
+                    if (++editorConsole.historyPos >= editorConsole.history.Size) {
+                        editorConsole.historyPos = -1;
                     }
                 }
             }
 
             // A better implementation would preserve the data on the current input line along with cursor position.
-            if (prev_history_pos != console->historyPos) {
-                const char* history_str = (console->historyPos >= 0) ? console->history[console->historyPos] : "";
+            if (prev_history_pos != editorConsole.historyPos) {
+                const char* history_str = (editorConsole.historyPos >= 0) ? editorConsole.history[editorConsole.historyPos] : "";
                 data->DeleteChars(0, data->BufTextLen);
                 data->InsertChars(0, history_str);
             }
@@ -224,8 +223,7 @@ static i32 TextEditCallback(ConsoleWindow* console, ImGuiInputTextCallbackData* 
 
 static i32 TextEditCallbackStub(ImGuiInputTextCallbackData* data)
 {
-    ConsoleWindow* console = (ConsoleWindow*)data->UserData;
-    return TextEditCallback(console, data);
+    return TextEditCallback(data);
 }
 
 static void ExecCommand(ConsoleWindow* console, const char* command_line)
@@ -269,7 +267,7 @@ static void ExecCommand(ConsoleWindow* console, const char* command_line)
             Log("%3d: %s\n", i, console->history[i]);
         }
     }
-#ifdef LUA_SCRIPTING_ENABLED
+#ifdef LUA_ENABLED
     else if (Stricmp(command, "LUA") == 0) {
         lua.script(command_line + argumentStart);
     }
@@ -282,9 +280,35 @@ static void ExecCommand(ConsoleWindow* console, const char* command_line)
     console->scrollToBottom = true;
 }
 
-static void EditorLogMenuButton(ConsoleWindow* console, const char* flagName, u32 flag) {
+static void EditorLogMenuButton(ConsoleWindow* console, const char* flagName, u32 flag)
+{
     bool value = (console->logFlags & flag) > 0;
     if (ImGui::Checkbox(flagName, &value)) { console->logFlags = (value ? console->logFlags | flag : console->logFlags & ~flag); }
+}
+
+static void PushConsoleStyleColor(ConsoleLogType type)
+{
+    switch(type) {
+        case ConsoleLogType_NORMAL: {
+            
+        } break;
+        case ConsoleLogType_ERROR: {
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.4f, 0.4f, 1.0f));
+        } break;
+        case ConsoleLogType_WARNING: {
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.95f, 0.3f, 1.0f));
+        } break;
+        case ConsoleLogType_COMMAND: {
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.8f, 0.6f, 1.0f));
+        } break;
+    }
+}
+
+static void PopConsoleStyleColor(ConsoleLogType type)
+{
+    if (type != ConsoleLogType_NORMAL) {
+        ImGui::PopStyleColor();
+    }
 }
 
 static u32 GameInit();
@@ -334,8 +358,9 @@ static void EditorDraw(ConsoleWindow* console)
             if (ImGui::Checkbox("Input", &editorInputDebugger.open)) { EditorInit(&editorInputDebugger); }
             if (ImGui::Checkbox("Time", &editorTimeDebugger.open)) { EditorInit(&editorTimeDebugger); }
             if (ImGui::Checkbox("Sound", &editorSoundDebugger.open)) { EditorInit(&editorSoundDebugger); }
-#ifdef LUA_SCRIPTING_ENABLED
+#ifdef LUA_ENABLED
             if (ImGui::Checkbox("LUA", &editorLUADebugger.open)) { EditorInit(&editorLUADebugger); }
+            RunLUAProtectedFunction(EditorConsoleDebugBar)
 #endif
             ImGui::EndMenu();
         }
@@ -369,18 +394,18 @@ static void EditorDraw(ConsoleWindow* console)
     
     if (ImGui::BeginPopup("LogFlagPopup"))
     {
-        EditorLogMenuButton(console, "Performance", EditorLogFlag_PERFORMANCE);
-        EditorLogMenuButton(console, "Render", EditorLogFlag_RENDER);
-        EditorLogMenuButton(console, "Memory", EditorLogFlag_MEMORY);
-        EditorLogMenuButton(console, "Texture", EditorLogFlag_TEXTURE);
-        EditorLogMenuButton(console, "Sound", EditorLogFlag_SOUND);
-        EditorLogMenuButton(console, "Input", EditorLogFlag_INPUT);
-        EditorLogMenuButton(console, "Time", EditorLogFlag_TIME);
-        EditorLogMenuButton(console, "LUA", EditorLogFlag_LUA);
+        EditorLogMenuButton(console, "Performance", LogFlag_PERFORMANCE);
+        EditorLogMenuButton(console, "Render", LogFlag_RENDER);
+        EditorLogMenuButton(console, "Memory", LogFlag_MEMORY);
+        EditorLogMenuButton(console, "Texture", LogFlag_TEXTURE);
+        EditorLogMenuButton(console, "Sound", LogFlag_SOUND);
+        EditorLogMenuButton(console, "Input", LogFlag_INPUT);
+        EditorLogMenuButton(console, "Time", LogFlag_TIME);
+        EditorLogMenuButton(console, "LUA", LogFlag_LUA);
         
-        EditorLogMenuButton(console, "System", EditorLogFlag_SYSTEM);
-        EditorLogMenuButton(console, "Game", EditorLogFlag_GAME);
-        EditorLogMenuButton(console, "Scripting", EditorLogFlag_SCRIPTING);
+        EditorLogMenuButton(console, "System", LogFlag_SYSTEM);
+        EditorLogMenuButton(console, "Game", LogFlag_GAME);
+        EditorLogMenuButton(console, "Scripting", LogFlag_SCRIPTING);
 
         ImGui::EndMenu();
     }
@@ -419,17 +444,7 @@ static void EditorDraw(ConsoleWindow* console)
             continue;
         }
 
-        switch(currentLog->type) {
-            case ConsoleLogType_NORMAL: {
-                
-            } break;
-            case ConsoleLogType_ERROR: {
-                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.4f, 0.4f, 1.0f));
-            } break;
-            case ConsoleLogType_COMMAND: {
-                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.8f, 0.6f, 1.0f));
-            } break;
-        }
+        PushConsoleStyleColor(currentLog->type);
 
         i32 lastIndex = 0;
         i32 index = 0;
@@ -450,9 +465,7 @@ static void EditorDraw(ConsoleWindow* console)
         }
         ImGui::TextUnformatted(currentLog->log + lastIndex, currentLog->log + currentLog->logSize - 1);
         
-        if (currentLog->type != ConsoleLogType_NORMAL) {
-            ImGui::PopStyleColor();
-        }
+        PopConsoleStyleColor(currentLog->type);
     }
 
     ImGui::NextColumn();
@@ -463,17 +476,7 @@ static void EditorDraw(ConsoleWindow* console)
             continue;
         }
         
-        switch(currentLog->type) {
-            case ConsoleLogType_NORMAL: {
-                
-            } break;
-            case ConsoleLogType_ERROR: {
-                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.4f, 0.4f, 1.0f));
-            } break;
-            case ConsoleLogType_COMMAND: {
-                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.8f, 0.6f, 1.0f));
-            } break;
-        }
+        PushConsoleStyleColor(currentLog->type);
         
         ImGui::Text("%d", currentLog->count);
 
@@ -482,9 +485,7 @@ static void EditorDraw(ConsoleWindow* console)
             inspectedLog = currentLog;
         }
         
-        if (currentLog->type != ConsoleLogType_NORMAL) {
-            ImGui::PopStyleColor();
-        }
+        PopConsoleStyleColor(currentLog->type);
     }
 
     if (inspectedLog && ImGui::BeginPopup("LogDetails")) {
@@ -513,7 +514,7 @@ static void EditorDraw(ConsoleWindow* console)
 
     // Command-line
     bool reclaim_focus = false;
-    if (ImGui::InputText("Input", console->inputBuffer, IM_ARRAYSIZE(console->inputBuffer), ImGuiInputTextFlags_EnterReturnsTrue|ImGuiInputTextFlags_CallbackCompletion|ImGuiInputTextFlags_CallbackHistory, &TextEditCallbackStub, (void*)&console)) {
+    if (ImGui::InputText("Input", console->inputBuffer, IM_ARRAYSIZE(console->inputBuffer), ImGuiInputTextFlags_EnterReturnsTrue|ImGuiInputTextFlags_CallbackCompletion|ImGuiInputTextFlags_CallbackHistory, &TextEditCallbackStub)) {
         char* s = console->inputBuffer;
         Strtrim(s);
         if (s[0])
@@ -647,7 +648,7 @@ static void EditorDraw(PerformanceDebuggerWindow* debugger)
     if(!debugger->open) { return; }
     ImGui::SetNextWindowSize(ImVec2(400,300), ImGuiCond_FirstUseEver);
 
-    if (!ImGui::Begin("Performance Debugger", &debugger->open)) {
+    if (!ImGui::Begin("Performance", &debugger->open)) {
         ImGui::End();
         return;
     }
@@ -663,7 +664,7 @@ static void EditorDraw(RenderDebuggerWindow* debugger)
     if(!debugger->open) { return; }
     ImGui::SetNextWindowSize(ImVec2(400,300), ImGuiCond_FirstUseEver);
 
-    if (!ImGui::Begin("Render Debugger", &debugger->open)) {
+    if (!ImGui::Begin("Render", &debugger->open)) {
         ImGui::End();
         return;
     }
@@ -784,12 +785,12 @@ static void EditorDraw(RenderDebuggerWindow* debugger)
                 }
                 case RenderType_RenderRectangle: {
                     RenderRectangle *rectangle = (RenderRectangle *)renderHeader;
-                    ImGui::Text("Rectangle -> Position: %.3f %.3f, Scale: %.3f %.3f", rectangle->position.x, rectangle->position.y, rectangle->scale.x, rectangle->scale.y);
+                    ImGui::Text("Rectangle -> Position: %.3f %.3f, Scale: %.3f %.3f", rectangle->origin.x, rectangle->origin.y, rectangle->size.x, rectangle->size.y);
                     break;
                 }
                 case RenderType_RenderCircle: {
                     RenderCircle *circle = (RenderCircle *)renderHeader;
-                    ImGui::Text("Circle -> Position: %.3f %.3f, Radius: %.3f, Segments: %.3f", circle->position.x, circle->position.y, circle->radius, circle->segments);
+                    ImGui::Text("Circle -> Position: %.3f %.3f, Radius: %.3f, Segments: %.3f", circle->origin.x, circle->origin.y, circle->radius, circle->segments);
                     break;\
                 }
                 case RenderType_RenderTextureParameters: {
@@ -800,35 +801,33 @@ static void EditorDraw(RenderDebuggerWindow* debugger)
                 }
                 case RenderType_RenderTexture: {
                     RenderTexture *texture = (RenderTexture *)renderHeader;
-                    ImGui::Text("Texture -> Position: %.3f %.3f, Scale: %.3f %.3f, ID: %u", texture->position.x, texture->position.y, texture->scale.x, texture->scale.y,
+                    ImGui::Text("Texture -> Position: %.3f %.3f, Scale: %.3f %.3f, ID: %u", texture->origin.x, texture->origin.y, texture->size.x, texture->size.y,
                         texture->textureID);
                     break;
                 }
                 case RenderType_RenderImage: {
                     RenderImage *image = (RenderImage *)renderHeader;
-                    ImGui::Text("Image -> Position: %.3f %.3f, Scale: %.3f %.3f,\n\tFile: %s", image->position.x, image->position.y, image->scale.x, image->scale.y, 
-                        image->filepath);
+                    ImGui::Text("Image -> Position: %.3f %.3f,\n\tFile: %s", image->origin.x, image->origin.y, image->filepath);
                     break;
                 }
                 case RenderType_RenderImageUV: {
                     RenderImageUV *imageUV = (RenderImageUV *)renderHeader;
-                    ImGui::Text("Image UV -> Position: %.3f %.3f, Scale: %.3f %.3f, UVMin: %.3f %.3f, UVMax: %.3f %.3f,\n\tFile: %s", imageUV->position.x, imageUV->position.y,
-                        imageUV->scale.x, imageUV->scale.y, 
+                    ImGui::Text("Image UV -> Position: %.3f %.3f, UVMin: %.3f %.3f, UVMax: %.3f %.3f,\n\tFile: %s", imageUV->origin.x, imageUV->origin.y,
                         imageUV->uvMin.x, imageUV->uvMin.y, imageUV->uvMax.x, imageUV->uvMax.y,
                         imageUV->filepath);
                     break;
                 }
                 case RenderType_RenderImage9Slice: {
                     RenderImage9Slice *image9Slice = (RenderImage9Slice *)renderHeader;
-                    ImGui::Text("9 Slice -> Position: %.3f %.3f, End Position: %.3f %.3f, Slice: %.3f,\n\tFile: %s", image9Slice->position.x, image9Slice->position.y,
-                        image9Slice->endPosition.x, image9Slice->endPosition.y,
+                    ImGui::Text("9 Slice -> Position: %.3f %.3f, End Position: %.3f %.3f, Slice: %.3f,\n\tFile: %s", image9Slice->origin.x, image9Slice->origin.y,
+                        image9Slice->endOrigin.x, image9Slice->endOrigin.y,
                         image9Slice->slice, image9Slice->filepath);
                     break;
                 }
                 case RenderType_RenderAtlasSprite: {
                     RenderAtlasSprite *atlas = (RenderAtlasSprite *)renderHeader;
-                    ImGui::Text("Atlas Sprite -> Position: %.3f %.3f, Scale: %.3f %.3f,\n\tFile: %s\n\tAtlas: %s Sprite: %s", atlas->position.x, atlas->position.y, 
-                        atlas->scale.x, atlas->scale.y, atlas->filepath, atlas->atlasName, atlas->spriteKey);
+                    ImGui::Text("Atlas Sprite -> Position: %.3f %.3f,\n\tFile: %s\n\tAtlas: %s\n\tSprite: %s", atlas->origin.x, atlas->origin.y, 
+                        atlas->filepath, atlas->atlasName, atlas->spriteKey);
                     break;
                 }
                 case RenderType_RenderFont: {
@@ -838,19 +837,19 @@ static void EditorDraw(RenderDebuggerWindow* debugger)
                 }
                 case RenderType_RenderChar: {
                     RenderChar *renderChar = (RenderChar *)renderHeader;
-                    ImGui::Text("Char -> Position: %.3f %.3f, Scale: %.3f %.3f, Char: %c", renderChar->position.x, renderChar->position.y, renderChar->scale.x, renderChar->scale.y,
+                    ImGui::Text("Char -> Position: %.3f %.3f, Char: %c", renderChar->origin.x, renderChar->origin.y,
                         renderChar->singleChar);
                     break;
                 }
                 case RenderType_RenderText: {
                     RenderText *text = (RenderText *)renderHeader;
-                    ImGui::Text("Text -> Position: %.3f %.3f, String: %s,\n\tSize: %u", text->position.x, text->position.y,
+                    ImGui::Text("Text -> Position: %.3f %.3f, String: %s,\n\tSize: %u", text->origin.x, text->origin.y,
                         text->string, text->stringSize);
                     break;
                 }
                 case RenderType_RenderStyledText: {
                     RenderStyledText *styledText = (RenderStyledText *)renderHeader;
-                    ImGui::Text("Styled Text -> Position: %.3f %.3f, String: %s,\n\tSize: %u, Center: %u, LetterWrap: %u, WordWrap: %u", styledText->position.x, styledText->position.y,
+                    ImGui::Text("Styled Text -> Position: %.3f %.3f, String: %s,\n\tSize: %u, Center: %u, LetterWrap: %u, WordWrap: %u", styledText->origin.x, styledText->origin.y,
                         styledText->string, styledText->stringSize, (styledText->header.renderFlags & TextRenderFlag_Center) > 0,
                         (styledText->header.renderFlags & TextRenderFlag_LetterWrap) > 0, (styledText->header.renderFlags & TextRenderFlag_WordWrap) > 0
                     );
@@ -898,7 +897,7 @@ static void EditorDraw(RenderDebuggerWindow* debugger)
                 }
             }
 
-            Assert(renderHeader->size > 0, "Editor render loop error: header has no size");
+            AssertMessage(renderHeader->size > 0, "Editor render loop error: header has no size");
             renderHeader = (RenderHeader *)((u8 *)renderHeader + renderHeader->size);
         }
     }
@@ -911,7 +910,7 @@ static void EditorDraw(MemoryDebuggerWindow* debugger)
     if(!debugger->open) { return; }
     ImGui::SetNextWindowSize(ImVec2(400,300), ImGuiCond_FirstUseEver);
 
-    if (!ImGui::Begin("Memory Debugger", &debugger->open)) {
+    if (!ImGui::Begin("Memory", &debugger->open)) {
         ImGui::End();
         return;
     }
@@ -935,9 +934,9 @@ static void EditorDraw(MemoryDebuggerWindow* debugger)
         ImGui::Text("Quota peak non page pool usage: %d", debugger->memoryCounters.QuotaPeakNonPagedPoolUsage);
     }
 
-#if LUA_SCRIPTING_ENABLED
+#if LUA_ENABLED
     ImGui::Separator();
-    ImGui::Text("LUA Memory: %d", (int)lua.memory_used());
+    ImGui::Text("LUA Memory: %d", (i32)lua.memory_used());
     if (ImGui::SmallButton("Force GC")) {
         lua.collect_garbage();
     }
@@ -951,7 +950,7 @@ static void EditorDraw(TextureDebuggerWindow* debugger)
     if(!debugger->open) { return; }
     ImGui::SetNextWindowSize(ImVec2(400,300), ImGuiCond_FirstUseEver);
 
-    if (!ImGui::Begin("Texture Debugger", &debugger->open)) {
+    if (!ImGui::Begin("Texture", &debugger->open)) {
         ImGui::End();
         return;
     }
@@ -1051,7 +1050,7 @@ static void EditorDraw(SoundDebuggerWindow* debugger)
     if(!debugger->open) { return; }
     ImGui::SetNextWindowSize(ImVec2(400,300), ImGuiCond_FirstUseEver);
 
-    if (!ImGui::Begin("Sound debugger", &debugger->open)) {
+    if (!ImGui::Begin("Sound", &debugger->open)) {
         ImGui::End();
         return;
     }
@@ -1113,7 +1112,7 @@ static void EditorDraw(InputDebuggerWindow* debugger)
     if(!debugger->open) { return; }
     ImGui::SetNextWindowSize(ImVec2(400,300), ImGuiCond_FirstUseEver);
 
-    if (!ImGui::Begin("Input debugger", &debugger->open)) {
+    if (!ImGui::Begin("Input", &debugger->open)) {
         ImGui::End();
         return;
     }
@@ -1129,7 +1128,7 @@ static void EditorDraw(InputDebuggerWindow* debugger)
 
     ImGui::TextUnformatted("Mouse");
     ImGui::PushItemWidth(elementSize);
-    for(int i = 0; i < MOUSE_COUNT; ++i) {
+    for(i32 i = 0; i < MOUSE_COUNT; ++i) {
         if(i > 0 && i < MOUSE_COUNT && i % 10 != 0) {
             ImGui::SameLine();
         }
@@ -1141,7 +1140,7 @@ static void EditorDraw(InputDebuggerWindow* debugger)
     }
 
     ImGui::TextUnformatted("Keyboard");
-    for(int i = 0; i < KEY_COUNT; ++i) {
+    for(i32 i = 0; i < KEY_COUNT; ++i) {
         if(i > 0 && i < KEY_COUNT &&  i % 10 != 0) {
             ImGui::SameLine();
         }
@@ -1161,7 +1160,7 @@ static void EditorDraw(TimeDebuggerWindow* debugger)
     if(!debugger->open) { return; }
     ImGui::SetNextWindowSize(ImVec2(400,300), ImGuiCond_FirstUseEver);
 
-    if (!ImGui::Begin("Time debugger", &debugger->open)) {
+    if (!ImGui::Begin("Time", &debugger->open)) {
         ImGui::End();
         return;
     }
@@ -1191,240 +1190,276 @@ static void EditorDraw(TimeDebuggerWindow* debugger)
     ImGui::End();
 }
 
-#ifdef LUA_SCRIPTING_ENABLED
+#ifdef LUA_ENABLED
 static void EditorDraw(LUADebuggerWindow* debugger)
 {
-    if(!debugger->open) { return; }
-    ImGui::SetNextWindowSize(ImVec2(400,300), ImGuiCond_FirstUseEver);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+    ImGuiID dockspaceID = ImGui::GetID("Dockspace");
 
-    if (!ImGui::Begin("LUA Debugger", &debugger->open, ImGuiWindowFlags_MenuBar))
-    {
-        ImGui::PopStyleVar();
-        ImGui::End();
-        return;
-    }
-    ImGui::PopStyleVar();
-
-    DebugMenuAction menuAction = DebugMenuAction_NONE;
-    if (ImGui::BeginMenuBar())
-    {
-        // if (ImGui::BeginMenu("File"))
-        // {
-        //     ImGui::EndMenu();
-        // }
-        
-        if (ImGui::BeginMenu("Go"))
+    if(debugger->open) {
+        ImGui::SetNextWindowSize(ImVec2(400,300), ImGuiCond_FirstUseEver);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+        if (ImGui::Begin("LUA", &debugger->open, ImGuiWindowFlags_MenuBar))
         {
-            if (ImGui::MenuItem("Go to function")) {
-                menuAction = DebugMenuAction_GO_TO_FUNCTION;
-            }
-            ImGui::EndMenu();
-        }
-        
-        if(ImGui::BeginMenu("Debug")) {
-            if(debugger->debugging) {
-                if (ImGui::MenuItem("Stop", "F5")) {
-                    debugger->debugging = false;
-                    Log("Debugging stopped");
-                }
-                if (ImGui::MenuItem("Step", "F10")) {
-                    
-                }
-            }
-            else {
-                if (ImGui::MenuItem("Start", "F5")) {
-                    debugger->debugging = true;
-                    Log("Debugging started");
+            ImGui::PopStyleVar();
 
-                    ScriptingDebugStart();
-                    
-                    LoadLUALibrary(sol::lib::debug);
-                }
-            }
-
-            ImGui::Checkbox("Watch variables", &debugger->watching);
-
-            ImGui::Separator();
-            if (ImGui::MenuItem("Break on function")) {
-                menuAction = DebugMenuAction_BREAK_ON_FUNCTION;
-            }
-            
-            ImGui::EndMenu();
-        }
-
-        ImGui::EndMenuBar();
-    }
-
-    if(menuAction == DebugMenuAction_GO_TO_FUNCTION) { ImGui::OpenPopup("GoToFunction"); }
-    if(menuAction == DebugMenuAction_BREAK_ON_FUNCTION) { ImGui::OpenPopup("BreakOnFunction"); }
-
-    if (ImGui::BeginPopup("GoToFunction"))
-    {
-        ImGui::Text("Go to function");
-
-        if (ImGui::InputText("Input", debugger->inputBuffer, IM_ARRAYSIZE(debugger->inputBuffer), ImGuiInputTextFlags_EnterReturnsTrue, 0, 0)) {
-            char* s = debugger->inputBuffer;
-
-	        lua_Debug debugInfo;
-            i32 function = lua_getglobal(lua, debugger->inputBuffer);
-            if(function > 0) {
-                lua_getinfo(lua, ">S", &debugInfo);
-                Log("Function found %s:%d", debugInfo.source, debugInfo.linedefined);
-
-                if(debugger->currentFile) {
-                    UnloadFileFromMemory(debugger->currentFile);
-                }
-
-                debugger->currentFile = (char*)LoadFileToMemory(debugInfo.source + 1, FILE_MODE_READ_BINARY, &debugger->currentFileSize);
-            }
-            else {
-                Log("Function not found %s", debugger->inputBuffer);
-            }
-
-            ImGui::CloseCurrentPopup();
-        }
-
-        ImGui::EndPopup();
-    }
-
-    if (ImGui::BeginPopup("BreakOnFunction"))
-    {
-        ImGui::Text("Break on function");
-        
-        if (ImGui::InputText("Input", debugger->inputBuffer, IM_ARRAYSIZE(debugger->inputBuffer), ImGuiInputTextFlags_EnterReturnsTrue, 0, 0)) {
-            char* s = debugger->inputBuffer;
-
-	        lua_Debug debugInfo;
-            i32 function = lua_getglobal(lua, debugger->inputBuffer);
-            if(function > 0) {
-                lua_getinfo(lua, ">S", &debugInfo);
-                Log("Function found %s:%d", debugInfo.source, debugInfo.linedefined);
-
-                // lua_sethook(lua, 0, 0, 0);
-                // lua_sethook(lua, function, LUA_MASKCALL, 0);
-            }
-            else {
-                Log("Function not found %s", debugger->inputBuffer);
-            }
-
-            ImGui::CloseCurrentPopup();
-        }
-
-        ImGui::EndPopup();
-    }
-
-    ImVec2 contentMin = ImGui::GetWindowContentRegionMin();
-    ImVec2 contentMax = ImGui::GetWindowContentRegionMax();
-    f32 height = contentMax.y - contentMin.y;
-    
-    if (ImGui::BeginTabBar("LoadedFiles", ImGuiTabBarFlags_Reorderable | ImGuiTabBarFlags_FittingPolicyScroll))
-    {
-        i32 nameIndex = 0;
-        i32 watchIndex = 0;
-        char name[LUA_FILENAME_MAX];
-        while(watchIndex < watchListSize) {
-            if(watchList[watchIndex] == '@') {
-                name[nameIndex] = 0;
-
-                if (ImGui::BeginTabItem(name))
-                {
-                    debugger->currentFile = (char*)LoadFileToMemory(name, FILE_MODE_READ_BINARY, &debugger->currentFileSize);
-                    ImGui::EndTabItem();
-                }
-
-                nameIndex = -1;
-            }
-            else {
-                name[nameIndex] = watchList[watchIndex];
-            }
-            nameIndex++;
-            watchIndex++;
-        }
-        ImGui::EndTabBar();
-    }
-
-    ImGui::BeginChild("LUA Code", ImVec2(contentMax.x, height * (debugger->watching ? 0.5f : 1)), false);
-    if(debugger->currentFile) {
-        ImVec2 size = ImGui::GetWindowSize();
-        i32 line = 1;
-        i32 index = 0;
-
-        ImGui::BeginColumns("Text Editor", 2, ImGuiColumnsFlags_NoResize | ImGuiColumnsFlags_NoBorder);
-        f32 lineSize = size.x * 0.1f;
-        ImGui::SetColumnWidth(0, lineSize);
-        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
-        ImGui::Dummy(ImVec2(0, 3));
-        while(index <= debugger->currentFileSize) {
-            if(debugger->currentFile[index] == '\r') { ++index; }
-            if(debugger->currentFile[index] == '\n' || debugger->currentFile[index] == 0) {
-                ImGui::Text("%d         ", line);
-                ++line;
-            }
-            ++index;
-        }
-
-        ImGui::NextColumn();
-
-        index = 0;
-        i32 lastIndex = 0;
-        ImGui::Dummy(ImVec2(0, 3));
-        while(index <= debugger->currentFileSize) {
-            if(debugger->currentFile[index] == '\r') { ++index; }
-            if(debugger->currentFile[index] == '\n' || debugger->currentFile[index] == 0) {
-                ImGui::TextUnformatted(debugger->currentFile + lastIndex, debugger->currentFile + index);
-                lastIndex = index + 1;
-                ++line;
-            }
-            ++index;
-        }
-        // size.x -= lineSize;
-        // ImGui::InputTextMultiline("", debugger->currentFile, debugger->currentFileSize, size);
-
-        ImGui::PopStyleVar();
-        ImGui::EndColumns();
-    }
-    else {
-        ImGui::Text("No file loaded");
-    }
-    ImGui::EndChild();
-
-    if(debugger->watching) {
-        ImGui::Separator();
-        ImGui::BeginChild("Watch Window", ImVec2(0, 0), false, ImGuiWindowFlags_AlwaysUseWindowPadding);
-        ImGui::Text("Watching");
-        char valueBuffer[64];
-        for(i32 i = 0; i < WATCH_BUFFER_COUNT; ++i) {
-            valueBuffer[0] = '\0';
-
-            ImGui::PushID(i);
-            ImGui::PushItemWidth(contentMax.x * 0.3f);
-            char* test = debugger->watchBuffer + i * WATCH_BUFFER_SIZE_EXT;
-            ImGui::InputText("##Input", test, WATCH_BUFFER_SIZE);
-            ImGui::SameLine();
-            ImGui::PushItemWidth(contentMax.x * 0.3f);
-            if (ImGui::BeginCombo("##Combo", watchTypeNames[debugger->watchType[i]]))
+            DebugMenuAction menuAction = DebugMenuAction_NONE;
+            if (ImGui::BeginMenuBar())
             {
-                for (int n = 0; n < ArrayCount(watchTypeNames); n++)
+                // if (ImGui::BeginMenu("File"))
+                // {
+                //     ImGui::EndMenu();
+                // }
+                
+                if (ImGui::BeginMenu("Go"))
                 {
-                    const bool is_selected = (debugger->watchType[i] == n);
-                    if (ImGui::Selectable(watchTypeNames[n], is_selected))
-                        debugger->watchType[i] = n;
-
-                    if (is_selected)
-                        ImGui::SetItemDefaultFocus();
+                    if (ImGui::MenuItem("Go to function")) {
+                        menuAction = DebugMenuAction_GO_TO_FUNCTION;
+                    }
+                    ImGui::EndMenu();
                 }
-                ImGui::EndCombo();
+                
+                if(ImGui::BeginMenu("Debug")) {
+                    if(debugger->debugging) {
+                        if (ImGui::MenuItem("Stop", "F5")) {
+                            debugger->debugging = false;
+                            Log("Debugging stopped");
+                        }
+                        if (ImGui::MenuItem("Step", "F10")) {
+                            
+                        }
+                    }
+                    else {
+                        if (ImGui::MenuItem("Start", "F5")) {
+                            debugger->debugging = true;
+                            Log("Debugging started");
+
+                            ScriptingDebugStart();
+                            
+                            LoadLUALibrary(sol::lib::debug);
+                        }
+                    }
+
+                    ImGui::Checkbox("Code editor", &debugger->codeOpen);
+                    ImGui::Checkbox("Watch variables", &debugger->watchOpen);
+
+                    ImGui::Separator();
+                    if (ImGui::MenuItem("Break on function")) {
+                        menuAction = DebugMenuAction_BREAK_ON_FUNCTION;
+                    }
+                    
+                    ImGui::EndMenu();
+                }
+
+                ImGui::EndMenuBar();
             }
-            ImGui::SameLine();
-            GetWatchValue(debugger->watchType[i], debugger->watchBuffer + i * WATCH_BUFFER_SIZE_EXT, valueBuffer);
-            ImGui::TextUnformatted(valueBuffer);
-            ImGui::PopID();
+
+            if(menuAction == DebugMenuAction_GO_TO_FUNCTION) { ImGui::OpenPopup("GoToFunction"); }
+            if(menuAction == DebugMenuAction_BREAK_ON_FUNCTION) { ImGui::OpenPopup("BreakOnFunction"); }
+
+            if (ImGui::BeginPopup("GoToFunction"))
+            {
+                ImGui::Text("Go to function");
+
+                if (ImGui::InputText("Input", debugger->inputBuffer, IM_ARRAYSIZE(debugger->inputBuffer), ImGuiInputTextFlags_EnterReturnsTrue, 0, 0)) {
+                    char* s = debugger->inputBuffer;
+
+                    lua_Debug debugInfo;
+                    i32 function = lua_getglobal(lua, debugger->inputBuffer);
+                    if(function > 0) {
+                        lua_getinfo(lua, ">S", &debugInfo);
+                        Log("Function found %s:%d", debugInfo.source, debugInfo.linedefined);
+
+                        if(debugger->currentFileBuffer) {
+                            UnloadFileFromMemory(debugger->currentFileBuffer);
+                        }
+
+                        strcpy(debugger->currentFileName, debugInfo.source + 1);
+
+                        if(&debugger->currentFileBuffer) { UnloadFileFromMemory(debugger->currentFileBuffer); }
+                        debugger->currentFileBuffer = (char*)LoadFileToMemory(debugInfo.source + 1, FILE_MODE_READ_BINARY, &debugger->currentFileBufferSize);
+                    }
+                    else {
+                        Log("Function not found %s", debugger->inputBuffer);
+                    }
+
+                    ImGui::CloseCurrentPopup();
+                }
+
+                ImGui::EndPopup();
+            }
+
+            if (ImGui::BeginPopup("BreakOnFunction"))
+            {
+                ImGui::Text("Break on function");
+                
+                if (ImGui::InputText("Input", debugger->inputBuffer, IM_ARRAYSIZE(debugger->inputBuffer), ImGuiInputTextFlags_EnterReturnsTrue, 0, 0)) {
+                    char* s = debugger->inputBuffer;
+
+                    lua_Debug debugInfo;
+                    i32 function = lua_getglobal(lua, debugger->inputBuffer);
+                    if(function > 0) {
+                        lua_getinfo(lua, ">S", &debugInfo);
+                        Log("Function found %s:%d", debugInfo.source, debugInfo.linedefined);
+
+                        // lua_sethook(lua, 0, 0, 0);
+                        // lua_sethook(lua, function, LUA_MASKCALL, 0);
+                    }
+                    else {
+                        Log("Function not found %s", debugger->inputBuffer);
+                    }
+
+                    ImGui::CloseCurrentPopup();
+                }
+
+                ImGui::EndPopup();
+            }
+
+            ImGui::DockSpace(dockspaceID, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode);
         }
-        ImGui::EndChild();
+        else {
+            ImGui::PopStyleVar();
+        }
+
+        ImGui::End();
     }
 
-    ImGui::End();
+    const char* luaCodeWindowName = "LUA Code";
+    if(debugger->codeOpen) {
+        ImGui::SetNextWindowSize(ImVec2(400,300), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowDockID(dockspaceID, ImGuiCond_FirstUseEver);
+        if(ImGui::Begin(luaCodeWindowName, &debugger->codeOpen), ImGuiWindowFlags_DockNodeHost) {
+            char selectedFilename[LUA_FILENAME_MAX];
+            if (ImGui::BeginTabBar("LoadedFiles", ImGuiTabBarFlags_Reorderable | ImGuiTabBarFlags_FittingPolicyScroll)) {
+                i32 nameIndex = 0;
+                i32 watchIndex = 0;
+                char name[LUA_FILENAME_MAX];
+                while(watchIndex < watchListSize) {
+                    if(watchList[watchIndex] == '@') {
+                        name[nameIndex] = 0;
+
+                        bool tabOpen = true;
+                        if (ImGui::BeginTabItem(name, &tabOpen, ImGuiTabItemFlags_NoCloseButton))
+                        {
+                            if(tabOpen) {
+                                strcpy(selectedFilename, name);
+                            }
+                            ImGui::EndTabItem();
+                        }
+
+                        nameIndex = -1;
+                    }
+                    else {
+                        name[nameIndex] = watchList[watchIndex];
+                    }
+                    nameIndex++;
+                    watchIndex++;
+                }
+                ImGui::EndTabBar();
+            }
+
+            if(strcmp(selectedFilename, debugger->currentFileName)) {
+                strcpy(debugger->currentFileName, selectedFilename);
+                
+                if(&debugger->currentFileBuffer) { UnloadFileFromMemory(debugger->currentFileBuffer); }
+                debugger->currentFileBuffer = (char*)LoadFileToMemory(debugger->currentFileName, FILE_MODE_READ_BINARY, &debugger->currentFileBufferSize);
+            }
+
+            if(debugger->currentFileBuffer) {
+                // ImGui::InputTextMultiline("##source", debugger->currentFileBuffer, strlen(debugger->currentFileBuffer), ImVec2(-FLT_MIN, ImGui::GetTextLineHeight() * 16), ImGuiInputTextFlags_AllowTabInput);
+
+                ImVec2 size = ImGui::GetWindowSize();
+                i32 line = 1;
+                i32 index = 0;
+                ImGui::BeginColumns("Text Editor", 2, ImGuiColumnsFlags_NoResize | ImGuiColumnsFlags_NoBorder);
+                f32 lineSize = size.x * 0.1f;
+                ImGui::SetColumnWidth(0, lineSize);
+                ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
+                ImGui::Dummy(ImVec2(0, 3));
+                while(index <= debugger->currentFileBufferSize) {
+                    if(debugger->currentFileBuffer[index] == '\r') { ++index; }
+                    if(debugger->currentFileBuffer[index] == '\n' || debugger->currentFileBuffer[index] == 0) {
+                        ImGui::Text("%d         ", line);
+                        ++line;
+                    }
+                    ++index;
+                }
+
+                ImGui::NextColumn();
+
+                index = 0;
+                i32 lastIndex = 0;
+                ImGui::Dummy(ImVec2(0, 3));
+                while(index <= debugger->currentFileBufferSize) {
+                    if(debugger->currentFileBuffer[index] == '\r') { ++index; }
+                    if(debugger->currentFileBuffer[index] == '\n' || debugger->currentFileBuffer[index] == 0) {
+                        ImGui::TextUnformatted(debugger->currentFileBuffer + lastIndex, debugger->currentFileBuffer + index);
+                        lastIndex = index + 1;
+                        ++line;
+                    }
+                    ++index;
+                }
+                // size.x -= lineSize;
+
+                ImGui::PopStyleVar();
+                ImGui::EndColumns();
+            }
+            else {
+                ImGui::Text("No file loaded");
+            }
+        }
+
+        ImGui::End();
+    }
+
+    const char* watchWindowName = "LUA Watch";
+    if(debugger->watchOpen) {
+        ImGui::SetNextWindowSize(ImVec2(400,300), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowDockID(dockspaceID, ImGuiCond_FirstUseEver);
+        if(ImGui::Begin(watchWindowName, &debugger->watchOpen)) {
+            char valueBuffer[64];
+            for(i32 i = 0; i < WATCH_BUFFER_COUNT; ++i) {
+                valueBuffer[0] = '\0';
+
+                ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(2, 2));
+
+                ImVec2 contentMin = ImGui::GetWindowContentRegionMin();
+                ImVec2 contentMax = ImGui::GetWindowContentRegionMax();
+                float contentWidth = contentMax.x - contentMin.x;
+
+                ImGui::PushID(i);
+                ImGui::PushItemWidth(contentWidth * 0.3f);
+                char* watchSubBuffer = debugger->watchBuffer + i * WATCH_BUFFER_SIZE_EXT;
+                ImGui::InputText("##Input", watchSubBuffer, WATCH_BUFFER_SIZE);
+                ImGui::SameLine();
+                ImGui::PushItemWidth(contentWidth * 0.2f - 2);
+                if (ImGui::BeginCombo("##Combo", watchTypeNames[debugger->watchType[i]]))
+                {
+                    for (i32 n = 0; n < ArrayCount(watchTypeNames); n++)
+                    {
+                        const bool is_selected = (debugger->watchType[i] == n);
+                        if (ImGui::Selectable(watchTypeNames[n], is_selected))
+                            debugger->watchType[i] = n;
+
+                        if (is_selected)
+                            ImGui::SetItemDefaultFocus();
+                    }
+                    ImGui::EndCombo();
+                }
+                ImGui::SameLine();
+                char* watchName = debugger->watchBuffer + i * WATCH_BUFFER_SIZE_EXT;
+                if(*watchName != 0) {
+                    GetWatchValue(debugger->watchType[i], watchName, valueBuffer);
+                }
+                ImGui::PushItemWidth(contentWidth * 0.5f - 4);
+                ImGui::TextUnformatted(valueBuffer);
+                ImGui::PopID();
+
+                ImGui::PopStyleVar();
+            }
+        }
+
+        ImGui::End();
+    }
 }
 #endif
 
@@ -1452,7 +1487,7 @@ static void EditorDraw(HelpWindow* help)
     SDL_GetVersion(&linked);
 
     ImGui::Text("Version: %d.%d.%d (%s)", ENVARI_MAYOR_VERSION, ENVARI_MINOR_VERSION, ENVARI_MICRO_VERSION, ENVARI_PLATFORM);
-#ifdef LUA_SCRIPTING_ENABLED
+#ifdef LUA_ENABLED
     ImGui::Text("LUA Version: %s", LUA_RELEASE);
     ImGui::Text("SOL Version: %s", SOL_VERSION_STRING);
 #endif
@@ -1466,10 +1501,7 @@ static void EditorDraw(HelpWindow* help)
 }
 
 static void EditorInit()
-{
-    SerializableTable* editorSave = 0;
-    DeserializeTable(&permanentState->arena, &editorSave, "editor.save");
-    
+{    
     char loadNameBuffer[128];
 
     // editorConsole.open = TableGetBool(&editorSave, "editorConsoleOpen");
@@ -1505,7 +1537,7 @@ static void EditorInit()
     EditorInit(&editorSoundDebugger);
     soundMuted = TableGetBool(&editorSave, "editorSoundDebuggersoundMuted");
 
-#ifdef LUA_SCRIPTING_ENABLED
+#ifdef LUA_ENABLED
     editorLUADebugger.open = TableGetBool(&editorSave, "editorLUADebuggerOpen");
     EditorInit(&editorLUADebugger);
     
@@ -1516,8 +1548,10 @@ static void EditorInit()
 #endif
 }
 
-static void EditorDrawAllOpen()
+static void EditorDrawAll()
 {
+    ImGui::DockSpaceOverViewport(ImGui::GetMainViewport());
+
     EditorDraw(&editorConsole);
     EditorDraw(&editorPreview);
     EditorDraw(&assetsWindow);
@@ -1528,7 +1562,7 @@ static void EditorDrawAllOpen()
     EditorDraw(&editorInputDebugger);
     EditorDraw(&editorTimeDebugger);
     EditorDraw(&editorSoundDebugger);
-#ifdef LUA_SCRIPTING_ENABLED
+#ifdef LUA_ENABLED
     EditorDraw(&editorLUADebugger);
 #endif
     EditorDraw(&editorHelp);
@@ -1542,7 +1576,6 @@ static void EditorEnd()
 {
     char saveNameBuffer[128];
     
-    SerializableTable* editorSave = 0;
     TableSetBool(&permanentState->arena, &editorSave, "editorConsoleOpen", editorConsole.open);
     TableSetI32(&permanentState->arena, &editorSave, "editorLogFlags", editorConsole.logFlags);
     TableSetBool(&permanentState->arena, &editorSave, "editorPreviewOpen", editorPreview.open);
@@ -1555,7 +1588,7 @@ static void EditorEnd()
     TableSetBool(&permanentState->arena, &editorSave, "editorTimeDebuggerOpen", editorTimeDebugger.open);
     TableSetBool(&permanentState->arena, &editorSave, "editorSoundDebuggerOpen", editorSoundDebugger.open);
     TableSetBool(&permanentState->arena, &editorSave, "editorSoundDebuggersoundMuted", soundMuted);
-#ifdef LUA_SCRIPTING_ENABLED
+#ifdef LUA_ENABLED
     TableSetBool(&permanentState->arena, &editorSave, "editorLUADebuggerOpen", editorLUADebugger.open);
     for(i32 i = 0; i < WATCH_BUFFER_COUNT; ++i) {
         sprintf(saveNameBuffer, "editorLUADebuggerWatching%d", i);
