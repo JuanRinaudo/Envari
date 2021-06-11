@@ -426,8 +426,9 @@ struct Input
     i32 mouseWheel;
     char textInputBuffer[TEXT_INPUT_BUFFER_COUNT];
     i32 textInputIndex;
-    u8 mouseState[MOUSE_COUNT];
-    u8 keyState[KEY_COUNT];
+    char mouseState[MOUSE_COUNT];
+    char keyState[KEY_COUNT];
+    char textInputEvent[TEXT_INPUT_EVENT_SIZE];
 };
 
 struct Data {

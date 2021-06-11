@@ -4,6 +4,7 @@
 #include "Miniaudio/miniaudio.h"
 #include "ZSTD/zstddeclib.c"
 #include "Defines.h"
+#include "UTF8.h"
 #include "MemoryStructs.h"
 #include "Memory.h"
 

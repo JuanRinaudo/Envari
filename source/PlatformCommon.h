@@ -18,6 +18,8 @@ bool mouseEnabled = true;
 bool keyboardEnabled = true;
 
 static void CheckInput() {
+    ZeroSize(TEXT_INPUT_EVENT_SIZE, gameState->input.textInputEvent);
+
     for(i32 key = 0; key < KEY_COUNT; ++key) {
         u8 keyState = gameState->input.keyState[key];
         if(keyState == KEY_PRESSED) { gameState->input.keyState[key] = KEY_DOWN; }
@@ -242,6 +244,9 @@ static i32 ProcessEvent(const SDL_Event* event)
                 gameState->input.keyState[event->key.keysym.scancode] = KEY_RELEASED;
             }
             break;
+        }
+        case SDL_TEXTINPUT: {
+            strcpy(gameState->input.textInputEvent, event->text.text);
         }
         default:
             return 0;       

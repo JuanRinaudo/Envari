@@ -119,6 +119,7 @@ static void EditorInit(LUADebuggerWindow* debugger)
 {
     debugger->codeOpen = true;
     debugger->watchOpen = true;
+    debugger->stackOpen = true;
 }
 #endif
 
@@ -743,142 +744,117 @@ static void EditorDraw(RenderDebuggerWindow* debugger)
                 case RenderType_RenderTempData: {
                     RenderTempData *tempData = (RenderTempData *)renderHeader;
                     ImGui::Text("Temp Data");
-                    break;
-                }
+                } break;
                 case RenderType_RenderClear: {
                     RenderClear *clear = (RenderClear *)renderHeader;
                     ImGui::Text("Clear -> %.3f, %.3f, %.3f, %.3f", clear->color.r, clear->color.g, clear->color.b, clear->color.a);
-                    break;
-                }
+                } break;
                 case RenderType_RenderColor: {
                     RenderColor *color = (RenderColor *)renderHeader;
                     ImGui::Text("Color -> %.3f, %.3f, %.3f, %.3f", color->color.r, color->color.g, color->color.b, color->color.a);
-                    break;
-                }
+                } break;
                 case RenderType_RenderLayer: {
                     RenderLayer *layer = (RenderLayer *)renderHeader;
                     ImGui::Text("Layer -> %d", layer->layer);
-                    break;
-                }
+                } break;
                 case RenderType_RenderTransparent: {                    
                     RenderTransparent *transparent = (RenderTransparent *)renderHeader;
                     ImGui::Text("Transparent -> On: %u, Mode: %u %u, RGB: %u %u, Alpha: %u %u", transparent->enabled, transparent->modeRGB, transparent->modeAlpha, 
                         transparent->srcRGB, transparent->dstRGB, transparent->srcAlpha, transparent->dstAlpha);
-                    break;
-                }
+                } break;
                 case RenderType_RenderLineWidth: {
                     RenderLineWidth *line = (RenderLineWidth *)renderHeader;
                     ImGui::Text("Line Width -> %.3f", line->width);
-                    break;
-                }
+                } break;
                 case RenderType_RenderLine: {
                     RenderLine *line = (RenderLine *)renderHeader;
                     ImGui::Text("Line -> Start: %.3f %.3f, End: %.3f %.3f", line->start.x, line->start.y, line->end.x, line->end.y);
-                    break;
-                }
+                } break;
                 case RenderType_RenderTriangle: {
                     RenderTriangle *triangle = (RenderTriangle *)renderHeader;
                     ImGui::Text("Triangle -> P1: %.3f %.3f, P2: %.3f %.3f, P3: %.3f %.3f", triangle->point1.x, triangle->point1.y,
                         triangle->point2.x, triangle->point2.y,
                         triangle->point3.x, triangle->point3.y);
-                    break;
-                }
+                } break;
                 case RenderType_RenderRectangle: {
                     RenderRectangle *rectangle = (RenderRectangle *)renderHeader;
                     ImGui::Text("Rectangle -> Position: %.3f %.3f, Scale: %.3f %.3f", rectangle->origin.x, rectangle->origin.y, rectangle->size.x, rectangle->size.y);
-                    break;
-                }
+                } break;
                 case RenderType_RenderCircle: {
                     RenderCircle *circle = (RenderCircle *)renderHeader;
                     ImGui::Text("Circle -> Position: %.3f %.3f, Radius: %.3f, Segments: %.3f", circle->origin.x, circle->origin.y, circle->radius, circle->segments);
-                    break;\
-                }
+                } break;
                 case RenderType_RenderTextureParameters: {
                     RenderTextureParameters *textureParameters = (RenderTextureParameters *)renderHeader;
                     ImGui::Text("Texture Parameters -> %u, %u, %u, %u", textureParameters->wrapS, textureParameters->wrapT,
                         textureParameters->minFilter, textureParameters->magFilter);
-                    break;
-                }
+                } break;
                 case RenderType_RenderTexture: {
                     RenderTexture *texture = (RenderTexture *)renderHeader;
                     ImGui::Text("Texture -> Position: %.3f %.3f, Scale: %.3f %.3f, ID: %u", texture->origin.x, texture->origin.y, texture->size.x, texture->size.y,
                         texture->textureID);
-                    break;
-                }
+                } break;
                 case RenderType_RenderImage: {
                     RenderImage *image = (RenderImage *)renderHeader;
                     ImGui::Text("Image -> Position: %.3f %.3f,\n\tFile: %s", image->origin.x, image->origin.y, image->filepath);
-                    break;
-                }
+                } break;
                 case RenderType_RenderImageUV: {
                     RenderImageUV *imageUV = (RenderImageUV *)renderHeader;
                     ImGui::Text("Image UV -> Position: %.3f %.3f, UVMin: %.3f %.3f, UVMax: %.3f %.3f,\n\tFile: %s", imageUV->origin.x, imageUV->origin.y,
                         imageUV->uvMin.x, imageUV->uvMin.y, imageUV->uvMax.x, imageUV->uvMax.y,
                         imageUV->filepath);
-                    break;
-                }
+                } break;
                 case RenderType_RenderImage9Slice: {
                     RenderImage9Slice *image9Slice = (RenderImage9Slice *)renderHeader;
                     ImGui::Text("9 Slice -> Position: %.3f %.3f, End Position: %.3f %.3f, Slice: %.3f,\n\tFile: %s", image9Slice->origin.x, image9Slice->origin.y,
                         image9Slice->endOrigin.x, image9Slice->endOrigin.y,
                         image9Slice->slice, image9Slice->filepath);
-                    break;
-                }
+                } break;
                 case RenderType_RenderAtlasSprite: {
                     RenderAtlasSprite *atlas = (RenderAtlasSprite *)renderHeader;
                     ImGui::Text("Atlas Sprite -> Position: %.3f %.3f,\n\tFile: %s\n\tAtlas: %s\n\tSprite: %s", atlas->origin.x, atlas->origin.y, 
                         atlas->filepath, atlas->atlasName, atlas->spriteKey);
-                    break;
-                }
+                } break;
                 case RenderType_RenderFont: {
                     RenderFont *font = (RenderFont *)renderHeader;
                     ImGui::Text("Font ID: %d", font->fontID);
-                    break;
-                }
+                } break;
                 case RenderType_RenderChar: {
                     RenderChar *renderChar = (RenderChar *)renderHeader;
                     ImGui::Text("Char -> Position: %.3f %.3f, Char: %c", renderChar->origin.x, renderChar->origin.y,
                         renderChar->singleChar);
-                    break;
-                }
+                } break;
                 case RenderType_RenderText: {
                     RenderText *text = (RenderText *)renderHeader;
                     ImGui::Text("Text -> Position: %.3f %.3f, String: %s,\n\tSize: %u", text->origin.x, text->origin.y,
                         text->string, text->stringSize);
-                    break;
-                }
+                } break;
                 case RenderType_RenderStyledText: {
                     RenderStyledText *styledText = (RenderStyledText *)renderHeader;
                     ImGui::Text("Styled Text -> Position: %.3f %.3f, String: %s,\n\tSize: %u, Center: %u, LetterWrap: %u, WordWrap: %u", styledText->origin.x, styledText->origin.y,
                         styledText->string, styledText->stringSize, (styledText->header.renderFlags & TextRenderFlag_Center) > 0,
                         (styledText->header.renderFlags & TextRenderFlag_LetterWrap) > 0, (styledText->header.renderFlags & TextRenderFlag_WordWrap) > 0
                     );
-                    break;
-                }
+                } break;
                 case RenderType_RenderSetUniform: {
                     RenderSetUniform *uniform = (RenderSetUniform *)renderHeader;
                     ImGui::Text("Set Uniform");
-                    break;
-                }
+                } break;
                 case RenderType_RenderOverrideProgram: {
                     RenderOverrideProgram *program = (RenderOverrideProgram *)renderHeader;
                     ImGui::Text("Override Program");
-                    break;
-                }
+                } break;
                 case RenderType_RenderOverrideVertices: {
                     RenderOverrideVertices *vertices = (RenderOverrideVertices *)renderHeader;
                     ImGui::Text("Override Vertices");
-                    break;
-                }
+                } break;
                 case RenderType_RenderOverrideIndices: {
                     RenderOverrideIndices *indices = (RenderOverrideIndices *)renderHeader;
                     ImGui::Text("Override Indices");
-                    break;
-                }
+                } break;
                 default: {
                     ImGui::Text("Unknown render command! Header Type %d, Size %d", renderHeader->type, renderHeader->size);
-                    break;
-                }
+                } break;
             }
 
             if(stylePushed) { ImGui::PopStyleColor(); }
@@ -937,6 +913,9 @@ static void EditorDraw(MemoryDebuggerWindow* debugger)
 #if LUA_ENABLED
     ImGui::Separator();
     ImGui::Text("LUA Memory: %d", (i32)lua.memory_used());
+    ImGui::Text("Supports CG Incremental: %s", lua.supports_gc_mode(sol::gc_mode::incremental) ? "true" : "false");
+    ImGui::Text("Supports CG Generational: %s", lua.supports_gc_mode(sol::gc_mode::generational) ? "true" : "false");
+    ImGui::Text("CG On: %s", lua.is_gc_on() ? "true" : "false");
     if (ImGui::SmallButton("Force GC")) {
         lua.collect_garbage();
     }
@@ -1241,6 +1220,7 @@ static void EditorDraw(LUADebuggerWindow* debugger)
 
                     ImGui::Checkbox("Code editor", &debugger->codeOpen);
                     ImGui::Checkbox("Watch variables", &debugger->watchOpen);
+                    ImGui::Checkbox("Stack", &debugger->stackOpen);
 
                     ImGui::Separator();
                     if (ImGui::MenuItem("Break on function")) {
@@ -1460,6 +1440,42 @@ static void EditorDraw(LUADebuggerWindow* debugger)
 
         ImGui::End();
     }
+
+    const char* stackWindowName = "LUA Stack";
+    if(debugger->stackOpen) {
+        ImGui::SetNextWindowSize(ImVec2(400,300), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowDockID(dockspaceID, ImGuiCond_FirstUseEver);
+        if(ImGui::Begin(stackWindowName, &debugger->stackOpen)) {
+            i32 top=lua_gettop(lua);
+            for (i32 i = 1; i <= top; i++) {
+                ImGui::Text("%d\t%s\t", i, luaL_typename(lua,i));
+                switch (lua_type(lua, i)) {
+                    case LUA_TNUMBER:
+                    {
+                        ImGui::Text("%g\n",lua_tonumber(lua,i));
+                    } break;
+                    case LUA_TSTRING:
+                    {
+                        ImGui::Text("%s\n",lua_tostring(lua,i));
+                    } break;
+                    case LUA_TBOOLEAN:
+                    {
+                        ImGui::Text("%s\n", (lua_toboolean(lua, i) ? "true" : "false"));
+                    } break;
+                    case LUA_TNIL:
+                    {
+                        ImGui::Text("%s\n", "nil");
+                    } break;
+                    default:
+                    {
+                        ImGui::Text("%p\n",lua_topointer(lua,i));
+                    } break;
+                }
+            }
+        }
+
+        ImGui::End();
+    }
 }
 #endif
 
@@ -1540,6 +1556,9 @@ static void EditorInit()
 #ifdef LUA_ENABLED
     editorLUADebugger.open = TableGetBool(&editorSave, "editorLUADebuggerOpen");
     EditorInit(&editorLUADebugger);
+    editorLUADebugger.codeOpen = TableGetBool(&editorSave, "editorLUADebuggerCodeOpen");
+    editorLUADebugger.watchOpen = TableGetBool(&editorSave, "editorLUADebuggerWatchOpen");
+    editorLUADebugger.stackOpen = TableGetBool(&editorSave, "editorLUADebuggerStackOpen");
     
     for(i32 i = 0; i < WATCH_BUFFER_COUNT; ++i) {
         sprintf(loadNameBuffer, "editorLUADebuggerWatching%d", i);
@@ -1590,6 +1609,9 @@ static void EditorEnd()
     TableSetBool(&permanentState->arena, &editorSave, "editorSoundDebuggersoundMuted", soundMuted);
 #ifdef LUA_ENABLED
     TableSetBool(&permanentState->arena, &editorSave, "editorLUADebuggerOpen", editorLUADebugger.open);
+    TableSetBool(&permanentState->arena, &editorSave, "editorLUADebuggerCodeOpen", editorLUADebugger.codeOpen);
+    TableSetBool(&permanentState->arena, &editorSave, "editorLUADebuggerWatchOpen", editorLUADebugger.watchOpen);
+    TableSetBool(&permanentState->arena, &editorSave, "editorLUADebuggerStackOpen", editorLUADebugger.stackOpen);
     for(i32 i = 0; i < WATCH_BUFFER_COUNT; ++i) {
         sprintf(saveNameBuffer, "editorLUADebuggerWatching%d", i);
         TableSetString(&permanentState->arena, &editorSave, saveNameBuffer, editorLUADebugger.watchBuffer + i * WATCH_BUFFER_SIZE_EXT);

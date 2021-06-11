@@ -436,8 +436,8 @@ void ScriptingBindings()
     input_usertype["mouseScreenPosition"] = &Input::mouseScreenPosition;
     input_usertype["mouseWheel"] = &Input::mouseWheel;
     input_usertype["textInputBuffer"] = sol::property([](Input &input) { return input.textInputBuffer; });
-    input_usertype["keyState"] = sol::property([](Input &input) { return &input.keyState; });
-    input_usertype["mouseState"] = sol::property([](Input &input) { return &input.mouseState; });
+    input_usertype["keyState"] = sol::property([](Input &input) { return input.keyState; });
+    input_usertype["mouseState"] = sol::property([](Input &input) { return input.mouseState; });
     lua["input"] = &gameState->input;
 
     lua["SetCustomCursor"] = SetCustomCursor;
@@ -772,7 +772,7 @@ void ScriptingMathBindings()
     lua["IdM22"] = IdM22;
     lua["M33"] = M33;
     lua["IdM33"] = IdM33;
-    lua["M44"] = M44;
+    lua["M44"] = sol::resolve<m44(f32, f32, f32, f32, f32, f32, f32, f32, f32, f32, f32, f32, f32, f32, f32, f32)>(M44);
     lua["IdM44"] = IdM44;
 
     lua["Transform2D"] = Transform2D;

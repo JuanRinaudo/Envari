@@ -280,28 +280,26 @@ bool DrawStringInput(f32 posX, f32 posY, f32 endX, f32 endY, const char* baseTex
         textShift = -32;
     }
 
-    i32 scancode = SDL_SCANCODE_A;
-    while(scancode <= SDL_SCANCODE_KP_PERIOD) {
+    i32 scancode = SDL_SCANCODE_RETURN;
+    while(scancode <= SDL_SCANCODE_SPACE) {
         if(gameState->input.keyState[scancode] == KEY_PRESSED) {
             char keyCode = (char)SDL_GetKeyFromScancode((SDL_Scancode)scancode);
             if(keyCode == '\b' && gameState->input.textInputIndex > 0) {
-                --gameState->input.textInputIndex;
+                u32 utfSize = GetUTF8SizeBackwards(gameState->input.textInputBuffer + gameState->input.textInputIndex, gameState->input.textInputBuffer);
+                gameState->input.textInputIndex -= utfSize;
                 gameState->input.textInputBuffer[gameState->input.textInputIndex] = 0;
             }
-            else if(gameState->input.textInputIndex < maxSize && keyCode >= ' ' && keyCode <= '~') {
-                if(keyCode >= 'a' && keyCode <= 'z') {
-                    gameState->input.textInputBuffer[gameState->input.textInputIndex] = keyCode + textShift;
-                }
-                else {
-                    gameState->input.textInputBuffer[gameState->input.textInputIndex] = keyCode;
-                }
-                ++gameState->input.textInputIndex;
-            }
         }
-
         scancode++;
-        if(scancode == SDL_SCANCODE_SLASH) { // #NOTE (Juan): Jump after slash to KP_DIVIDE
-            scancode = SDL_SCANCODE_KP_DIVIDE;
+    }
+
+    if(gameState->input.textInputEvent[0] != 0) {
+        u32 utfSize = 0;
+        u32 currentChar = GetUTF8Char(gameState->input.textInputEvent, &utfSize);
+
+        if(currentChar <= FONT_CHAR_SIZE && utfSize != 0) {
+            strcpy(gameState->input.textInputBuffer + gameState->input.textInputIndex, gameState->input.textInputEvent);
+            gameState->input.textInputIndex += utfSize;
         }
     }
 

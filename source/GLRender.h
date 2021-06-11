@@ -1,8 +1,9 @@
 #ifndef GLRENDER_H
 #define GLRENDER_H
 
-#define DEFAULT_FONT_ATLAS_WIDTH 512
-#define DEFAULT_FONT_ATLAS_HEIGHT 512
+#define DEFAULT_FONT_ATLAS_WIDTH 1024
+#define DEFAULT_FONT_ATLAS_HEIGHT 1024
+
 #define INFO_LOG_BUFFER_SIZE 512
 
 #ifdef GL_PROFILE_GLES3
@@ -166,6 +167,19 @@ GLTexture GL_LoadTextureFile(const char *texturePath)
     glUniform2f(textureSizeLocation, (f32)texture.width, (f32)texture.height);
     
     return texture;
+}
+
+void GL_UnloadTextureFile(const char *texturePath)
+{
+    i32 index = (i32)shgeti(textureCache, texturePath);
+    GLTexture texture;
+    if(index > -1) {
+        texture = shget(textureCache, texturePath);
+        glDeleteTextures(1, &texture.textureID);
+        shdel(textureCache, texturePath);
+    } else {
+        LogWarning("Trying to unload a texture (%s) that is not loaded", texturePath);
+    }
 }
 
 static TextureAtlas GL_LoadAtlas(const char *atlasKey)
@@ -503,25 +517,31 @@ static void GL_WatchChanges()
     #endif
 }
 
-static void GetBakedQuad(FontAtlas *font, i32 char_index, float *xpos, float *ypos, stbtt_aligned_quad *q)
+static bool GetBakedQuad(FontAtlas *font, u32 charIndex, float *xpos, float *ypos, stbtt_aligned_quad *q)
 {
-   f32 ipw = 1.0f / font->width;
-   f32 iph = 1.0f / font->height;
-   const stbtt_bakedchar *b = font->charData + char_index;
-   f32 round_x = Floor((*xpos + b->xoff) + 0.5f);
-   f32 round_y = Floor((*ypos + b->yoff) + 0.5f);
+    if(charIndex >= 0 && charIndex < FONT_CHAR_SIZE) {
+        f32 ipw = 1.0f / font->width;
+        f32 iph = 1.0f / font->height;
+        const stbtt_bakedchar *b = font->charData + charIndex;
+        f32 round_x = Floor((*xpos + b->xoff) + 0.5f);
+        f32 round_y = Floor((*ypos + b->yoff) + 0.5f);
 
-   q->x0 = round_x;
-   q->y0 = round_y;
-   q->x1 = round_x + b->x1 - b->x0;
-   q->y1 = round_y + b->y1 - b->y0;
+        q->x0 = round_x;
+        q->y0 = round_y;
+        q->x1 = round_x + b->x1 - b->x0;
+        q->y1 = round_y + b->y1 - b->y0;
 
-   q->s0 = b->x0 * ipw;
-   q->t0 = b->y0 * iph;
-   q->s1 = b->x1 * ipw;
-   q->t1 = b->y1 * iph;
+        q->s0 = b->x0 * ipw;
+        q->t0 = b->y0 * iph;
+        q->s1 = b->x1 * ipw;
+        q->t1 = b->y1 * iph;
 
-   *xpos += b->xadvance;
+        *xpos += b->xadvance;
+        return true;
+    }
+    else {
+        return false;
+    }
 }
 
 static void CalculateCharacterOffset(FontAtlas *font, char singleChar, f32 *posX, f32 *posY, u32 *lineCharacterCount)
@@ -1268,10 +1288,11 @@ static void GL_Render()
                 stbtt_aligned_quad quad;
 
                 u32 lineCharacterCount = 0;
-                for(i32 i = 0; i < text->stringSize - 1; ++i) {
-                    char currentChar = text->string[i];
+                u32 utfSize = 1;
+                for(u32 i = 0; i < text->stringSize - 1; i += utfSize) {
+                    u32 currentChar = GetUTF8Char(text->string + i, &utfSize);
 
-                    CalculateCharacterOffset(&currentFont, currentChar, &posX, &posY, &lineCharacterCount);
+                    CalculateCharacterOffset(&currentFont, (char)currentChar, &posX, &posY, &lineCharacterCount);
                     GetBakedQuad(&currentFont, currentChar - SPECIAL_ASCII_CHAR_OFFSET, &posX, &posY, &quad);
                     CreateQuadPosUV(quad.x0, quad.y0, quad.x1, quad.y1, quad.s0, quad.t0, quad.s1, quad.t1);
 
@@ -1330,12 +1351,13 @@ static void GL_Render()
                 u32 lastWordIndex;
 
                 u32 lineCharacterCount = 0;
-                for(u32 i = 0; i < styledText->stringSize - 1; ++i) {
-                    char currentChar = styledText->string[i];
+                u32 utfSize = 1;
+                for(u32 i = 0; i < styledText->stringSize - 1; i += utfSize) {
+                    u32 currentChar = GetUTF8Char(styledText->string + i, &utfSize);
                     
-                    CalculateCharacterOffset(&currentFont, currentChar, &posX, &posY, &lineCharacterCount);
+                    CalculateCharacterOffset(&currentFont, (char)currentChar, &posX, &posY, &lineCharacterCount);
 
-                    char normalizedChar = currentChar - SPECIAL_ASCII_CHAR_OFFSET;
+                    u32 normalizedChar = currentChar - SPECIAL_ASCII_CHAR_OFFSET;
                     if(normalizedChar >= 0) {
                         if(wordWrap) {
                             f32 wordEndOrigin = posX;

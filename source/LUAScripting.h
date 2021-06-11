@@ -11,7 +11,7 @@ if(Func ## FUNCTION .valid()) { \
     } \
 } \
 else { \
-    LogWarning("Warning: Function '"#FUNCTION"', not valid"); \
+    LogWarning("Function '"#FUNCTION"', not valid"); \
 }
 
 #ifdef GAME_EDITOR
@@ -208,6 +208,7 @@ void ScriptingWatchChanges()
 #if GAME_EDITOR
 void GetWatchValue(i32 watchType, char* name, char* valueBuffer)
 {
+    i32 pushCount = 0;
     u32 type = LUA_TNIL;
     bool parsingArrayIndex = false;
     if(strchr(name, '.') || strchr(name, '[')) {
@@ -221,6 +222,7 @@ void GetWatchValue(i32 watchType, char* name, char* valueBuffer)
                 innerBuffer[bufferIndex] = 0;
                 if(firstSection) {
                     type = lua_getglobal(lua, innerBuffer);
+                    pushCount++;
                     firstSection = false;
                     bufferIndex = 0;
                 }
@@ -228,6 +230,7 @@ void GetWatchValue(i32 watchType, char* name, char* valueBuffer)
                 if(name[nameIndex] == '[' || name[nameIndex] == '.') {
                     if(bufferIndex > 0) {
                         type = lua_getfield(lua, -1, innerBuffer);
+                        pushCount++;
                     }
 
                     if(name[nameIndex] == '[') {
@@ -240,23 +243,28 @@ void GetWatchValue(i32 watchType, char* name, char* valueBuffer)
                         parsingArrayIndex = false;
                         i32 index = strtol(innerBuffer, 0, 10);
                         type = lua_rawgeti(lua, -1, index);
+                        pushCount++;
                         bufferIndex = 0;
 
                         if(type == LUA_TNIL) {
                             // #TODO (Juan): Handle nil
+                            lua_pop(lua, pushCount);
                             return;
                         }
                     }
                     else {
+                        lua_pop(lua, pushCount);
                         return;
                     }
                 }
                 else {
+                    lua_pop(lua, pushCount);
                     return;
                 }
 
                 if(type == LUA_TNIL) {
                     // #TODO (Juan): Handle nil
+                    lua_pop(lua, pushCount);
                     return;
                 }
 
@@ -273,14 +281,17 @@ void GetWatchValue(i32 watchType, char* name, char* valueBuffer)
         if(bufferIndex > 0) {
             innerBuffer[bufferIndex] = 0;
             type = lua_getfield(lua, -1, innerBuffer);
+            pushCount++;
         }
     }
     else {
         type = lua_getglobal(lua, name);
+        pushCount++;
     }
         
     if(type == LUA_TNIL || parsingArrayIndex) {
         // #TODO (Juan): Handle error
+        lua_pop(lua, pushCount);
         return;
     }
 
@@ -327,6 +338,8 @@ void GetWatchValue(i32 watchType, char* name, char* valueBuffer)
         const char* value = lua_tostring(lua, -1);
         sprintf(valueBuffer, "%s", value);
     }
+
+    lua_pop(lua, pushCount);
 }
 #endif
 

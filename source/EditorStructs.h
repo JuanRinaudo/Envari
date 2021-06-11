@@ -157,8 +157,9 @@ struct LUADebuggerWindow
     char* currentFileBuffer;
     u32 currentFileBufferSize;
 
-    bool codeOpen;    
+    bool codeOpen;
     bool watchOpen;
+    bool stackOpen;
 
     i32 watchType[WATCH_BUFFER_COUNT];
     char watchBuffer[WATCH_BUFFER_SIZE_EXT * WATCH_BUFFER_COUNT];

@@ -35,6 +35,7 @@
 
 #define CONSOLE_INPUT_BUFFER_COUNT 256
 
+#define TEXT_INPUT_EVENT_SIZE 32
 #define TEXT_INPUT_BUFFER_COUNT 256
 #define LUA_FILENAME_MAX 256
 
@@ -44,7 +45,7 @@
 #define KEY_DOWN 3
 
 #define SPECIAL_ASCII_CHAR_OFFSET 32
-#define FONT_CHAR_SIZE 96
+#define FONT_CHAR_SIZE 512
 
 typedef int8_t i8;
 typedef int16_t i16;
