@@ -701,6 +701,7 @@ void ScriptingBindings()
     lua["ImGuiBeginMenu"] = ImGui::BeginMenu;
     lua["ImGuiEndMenu"] = ImGui::EndMenu;
     lua["ImGuiCheckbox"] = ImGuiCheckbox;
+    lua["ImGuiTextUnformatted"] = ImGui::TextUnformatted;
     lua["ImGuiInputText"] = ImGuiInputText;
     lua["ImGuiGetWindowDrawList"] = ImGui::GetWindowDrawList;
     lua["ImGuiGetCursorScreenPos"] = ImGuiGetCursorScreenPos;

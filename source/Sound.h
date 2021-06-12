@@ -30,11 +30,12 @@ void SoundStop(SoundInstance* sound)
         
         instance->playing = false;
         instance->index = -1;
-        ma_decoder_uninit(instance->decoder);
         free(instance->filepath);
         instance->filepath = 0;
         free(instance->decoder);
         instance->decoder = 0;
+        
+        ma_decoder_uninit(instance->decoder);
 
         soundMix[index] = soundMix[soundMixIndex];
         soundMix[index].index = index;
