@@ -440,7 +440,7 @@ void DrawOverrideIndices(u32* indices, u32 count)
     override->header.size += override->size;
 }
 
-void Begin2D(u32 frameBufferID, u32 width, u32 height)
+void ResetRenderState()
 {
     renderState->lastRenderID = 0;
     renderState->usedLayers = 0;
@@ -450,6 +450,11 @@ void Begin2D(u32 frameBufferID, u32 width, u32 height)
     renderState->overridingVertices = false;
     renderState->overridingIndices = false;
     renderState->generateMipMaps = true;
+}
+
+void Begin2D(u32 frameBufferID, u32 width, u32 height)
+{
+    ResetRenderState();
     renderTemporaryMemory = BeginTemporaryMemory(&temporalState->arena);
     
     RenderHeader *clearFirstHeader = (RenderHeader *)renderTemporaryMemory.arena->base;

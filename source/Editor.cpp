@@ -729,7 +729,7 @@ static void EditorDraw(RenderDebuggerWindow* debugger)
     b32 targetChanged = debugger->renderDebugTargetChanged;
     debugger->renderDebugTargetChanged = false;
 
-    if(ImGui::CollapsingHeader("Render Queue")) {        
+    if(ImGui::TreeNode("Render Queue")) {        
         RenderHeader *renderHeader = (RenderHeader *)renderTemporaryMemory.arena->base;
         if(!editorState->editorFrameRunning) {
             renderHeader = editorState->savedRenderHeader;
@@ -915,11 +915,18 @@ static void EditorDraw(RenderDebuggerWindow* debugger)
             AssertMessage(renderHeader->size > 0, "Editor render loop error: header has no size");
             renderHeader = (RenderHeader *)((u8 *)renderHeader + renderHeader->size);
         }
+        
+        ImGui::TreePop();
     }
 
-    if(ImGui::CollapsingHeader("Render State")) {
-        if(ImGui::CollapsingHeader("Render Style")) {
-            ImGui::Text("Render Style");
+    if(ImGui::TreeNode("Render State")) {
+        if(ImGui::TreeNode("Render Style")) {
+            ImGui::Text("Sliced Path: %s", renderState->style.slicedFilepath);
+            ImGui::Text("Sliced Hovered Path: %s", renderState->style.slicedHoveredFilepath);
+            ImGui::Text("Sliced Down Path: %s", renderState->style.slicedDownFilepath);
+            ImGui::Text("Slice: %spx", renderState->style.slice);
+
+            ImGui::TreePop();
         }
 
         ImGui::Text("Last Render ID: %d", renderState->lastRenderID);
@@ -935,6 +942,8 @@ static void EditorDraw(RenderDebuggerWindow* debugger)
         ImGui::Text("Overriding Vertices: %u", renderState->overridingVertices);
         ImGui::Text("Overriding Indices: %u", renderState->overridingIndices);
         ImGui::Text("Generate MipMaps: %u", renderState->generateMipMaps);
+
+        ImGui::TreePop();
     }
 
     ImGui::End();
@@ -959,7 +968,7 @@ static void EditorDraw(MemoryDebuggerWindow* debugger)
     ImGui::Text("Memory: %d", debugger->memoryCounters.WorkingSetSize);
     ImGui::Text("Peak memory: %d", debugger->memoryCounters.PeakWorkingSetSize);
 
-    if(ImGui::CollapsingHeader("Page Data")) {
+    if(ImGui::TreeNode("Page Data")) {
         ImGui::Text("Page faults: %d", debugger->memoryCounters.PageFaultCount);
         ImGui::Text("Page file usage: %d", debugger->memoryCounters.PagefileUsage);
         ImGui::Text("Peak page file usage: %d", debugger->memoryCounters.PeakPagefileUsage);
@@ -967,6 +976,8 @@ static void EditorDraw(MemoryDebuggerWindow* debugger)
         ImGui::Text("Quota non page pool usage: %d", debugger->memoryCounters.QuotaNonPagedPoolUsage);
         ImGui::Text("Quota peak page pool usage: %d", debugger->memoryCounters.QuotaPeakPagedPoolUsage);
         ImGui::Text("Quota peak non page pool usage: %d", debugger->memoryCounters.QuotaPeakNonPagedPoolUsage);
+    
+        ImGui::TreePop();
     }
 
 #if LUA_ENABLED
@@ -1113,7 +1124,8 @@ static void EditorDraw(SoundDebuggerWindow* debugger)
         ImGui::PlotLines("", debugger->bufferToShow + channelIndex * BUFFER_CHANNEL_TO_SHOW_SIZE, BUFFER_CHANNEL_TO_SHOW_SIZE, editorSoundDebugger.bufferOffset, title, soundRangeMin, soundRangeMax, ImVec2(width, 80));
     }
     
-    if(ImGui::CollapsingHeader("Sound cache")) {
+    if(ImGui::TreeNode("Sound cache")) {
+        ImGui::Text("Sound cache needs to be reimplemented");
         // i32 soundCacheSize = shlen(soundCache);
         // ImGui::Text("Sound Cache ID: %d / %d", debugger->cacheIndex + 1, soundCacheSize);
 
@@ -1140,6 +1152,8 @@ static void EditorDraw(SoundDebuggerWindow* debugger)
         //     ImGui::Text("ChannelMap: %d", cacheItem.value->internalChannelMap);
         //     ImGui::Text("SampleRate: %d", cacheItem.value->internalSampleRate);
         // }
+
+        ImGui::TreePop();
     }
 
     ImGui::End();

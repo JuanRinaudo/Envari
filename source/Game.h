@@ -91,6 +91,7 @@ static u32 GameInit()
     gameState->camera.projection = OrtographicProjection(gameState->camera.size, gameState->camera.ratio, gameState->camera.nearPlane, gameState->camera.farPlane);
 
     renderState = PushStruct(&permanentState->arena, RenderState);
+    ResetRenderState();
 
 #ifdef LUA_ENABLED
     ChangeLogFlag(LogFlag_SCRIPTING);
