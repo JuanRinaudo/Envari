@@ -1,3 +1,6 @@
+#ifndef EDITOR_CPP
+#define EDITOR_CPP
+
 const char* watchTypeNames[] = { "Auto", "Int", "Float", "Bool", "Char", "String" };
 
 LogFlag currentLogFlag = LogFlag_NONE;
@@ -814,8 +817,8 @@ static void EditorDraw(RenderDebuggerWindow* debugger)
                 } break;
                 case RenderType_RenderTextureParameters: {
                     RenderTextureParameters *textureParameters = (RenderTextureParameters *)renderHeader;
-                    ImGui::Text("Texture Parameters -> %u, %u, %u, %u", textureParameters->wrapS, textureParameters->wrapT,
-                        textureParameters->minFilter, textureParameters->magFilter);
+                    ImGui::Text("Texture Parameters -> %s, %s, %s, %s", GetWrapTypeName(textureParameters->wrapS), GetWrapTypeName(textureParameters->wrapT),
+                        GetFilteringTypeName(textureParameters->minFilter), GetFilteringTypeName(textureParameters->magFilter));
                 } break;
                 case RenderType_RenderTexture: {
                     RenderTexture *texture = (RenderTexture *)renderHeader;
@@ -912,6 +915,26 @@ static void EditorDraw(RenderDebuggerWindow* debugger)
             AssertMessage(renderHeader->size > 0, "Editor render loop error: header has no size");
             renderHeader = (RenderHeader *)((u8 *)renderHeader + renderHeader->size);
         }
+    }
+
+    if(ImGui::CollapsingHeader("Render State")) {
+        if(ImGui::CollapsingHeader("Render Style")) {
+            ImGui::Text("Render Style");
+        }
+
+        ImGui::Text("Last Render ID: %d", renderState->lastRenderID);
+        ImGui::Text("Render Color: R %.3f, G %.3f, B %.3f, A %.3f", renderState->renderColor.r, renderState->renderColor.g, renderState->renderColor.b, renderState->renderColor.a);
+        ImGui::Text("Used Layers: %u", renderState->usedLayers);
+        ImGui::Text("Transparent Layers: %u", renderState->transparentLayers);
+        ImGui::Text("Texture Wrap S: %s", GetWrapTypeName(renderState->wrapS));
+        ImGui::Text("Texture Wrap T: %s", GetWrapTypeName(renderState->wrapT));
+        ImGui::Text("Texture Min Filter: %s", GetFilteringTypeName(renderState->minFilter));
+        ImGui::Text("Texture Mag Filter: %s", GetFilteringTypeName(renderState->magFilter));
+        ImGui::Text("Current Program: %u", renderState->currentProgram);
+        ImGui::Text("Override Program: %u", renderState->overrideProgram);
+        ImGui::Text("Overriding Vertices: %u", renderState->overridingVertices);
+        ImGui::Text("Overriding Indices: %u", renderState->overridingIndices);
+        ImGui::Text("Generate MipMaps: %u", renderState->generateMipMaps);
     }
 
     ImGui::End();
@@ -1658,3 +1681,5 @@ static void EditorEnd()
 #endif
     SerializeTable(&editorSave, "editor.save");
 }
+
+#endif

@@ -1,6 +1,8 @@
 #ifndef EDITOR_H
 #define EDITOR_H
 
+#include "EditorUtils.h"
+
 static i32   Stricmp(const char* str1, const char* str2)         { i32 d; while ((d = toupper(*str2) - toupper(*str1)) == 0 && *str1) { str1++; str2++; } return d; }
 static i32   Strnicmp(const char* str1, const char* str2, i32 n) { i32 d = 0; while (n > 0 && (d = toupper(*str2) - toupper(*str1)) == 0 && *str1) { str1++; str2++; n--; } return d; }
 static char* Strdup(const char *str, size_t *len)                { *len = strlen(str) + 1; void* buf = malloc(*len); IM_ASSERT(buf); return (char*)memcpy(buf, (const void*)str, *len); }
