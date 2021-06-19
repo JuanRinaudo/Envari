@@ -12,7 +12,7 @@ const char* GetSceneFilepath()
 
 void UnloadLUAScene()
 {
-    GL_CleanCache();
+    CleanCache();
 
     if(sceneFilepath[0] != 0) {
         strcpy(sceneFilepath, "");

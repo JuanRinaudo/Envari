@@ -18,7 +18,7 @@
 
 DataTable* initialConfig = NULL;
 
-RenderState renderState;
+RenderState *renderState;
 
 Data *gameState;
 PermanentData *permanentState;
@@ -89,6 +89,8 @@ static u32 GameInit()
     gameState->camera.farPlane = 100.0;
     gameState->camera.view = IdM44();
     gameState->camera.projection = OrtographicProjection(gameState->camera.size, gameState->camera.ratio, gameState->camera.nearPlane, gameState->camera.farPlane);
+
+    renderState = PushStruct(&permanentState->arena, RenderState);
 
 #ifdef LUA_ENABLED
     ChangeLogFlag(LogFlag_SCRIPTING);

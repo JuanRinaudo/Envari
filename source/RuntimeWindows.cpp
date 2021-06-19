@@ -81,11 +81,11 @@ i32 CALLBACK WinMain(
         return -1;
     }
 
-    GL_Init();
+    Init();
 
     CreateFramebuffer();
     
-    GL_DefaultAssets();
+    DefaultAssets();
 
 #ifdef LUA_ENABLED
     ScriptingInit();
@@ -114,7 +114,7 @@ i32 CALLBACK WinMain(
         ScriptingUpdate();
         GameUpdate();
 
-        GL_Render();
+        RenderPass();
 
         End2D();
 

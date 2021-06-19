@@ -18,6 +18,10 @@ const char* shaderPath = "shaders/glcore";
 #include "Default/Font.h"
 #endif
 
+static m44 view;
+static m44 projection;
+static m33 model;
+
 static GLRenderBuffer quadBuffer;
 static GLRenderBuffer overrideBuffer;
 static GLRenderBuffer customBuffer;
@@ -78,18 +82,23 @@ static i32 watchedProgramsCount = 0;
 static WatchedProgram watchedPrograms[50];
 #endif
 
-static bool GL_CheckVendor(const char* vendor)
+static MemoryArena* GetTargetArena(bool permanentAsset)
+{
+    return permanentAsset ? &permanentState->arena : &sceneState->arena;
+}
+
+static bool CheckVendor(const char* vendor)
 {
     const char* glVendor = (char*)glGetString(GL_VENDOR);
     return strcmp(glVendor, vendor) == 0;
 }
 
-static void GL_CleanCache()
+static void CleanCache()
 {
     // #TODO (Juan): Implement
 }
 
-static i32 GL_TotalGPUMemoryKB()
+static i32 TotalGPUMemoryKB()
 {
     i32 totalMemoryInKB = 0;
     if(currentVendor == GL_VENDOR_NVIDIA) {
@@ -102,7 +111,7 @@ static i32 GL_TotalGPUMemoryKB()
     return totalMemoryInKB;
 }
 
-static i32 GL_AvailableGPUMemoryKB()
+static i32 AvailableGPUMemoryKB()
 {
     i32 availableMemoryInKB = 0;    
     if(currentVendor == GL_VENDOR_NVIDIA) {
@@ -115,7 +124,7 @@ static i32 GL_AvailableGPUMemoryKB()
     return availableMemoryInKB;
 }
 
-static u32 GL_TextureFromMemory(u8 *data, i32 width, i32 height, u32 channels)
+static u32 TextureFromMemory(u8 *data, i32 width, i32 height, u32 channels)
 {
     AssertMessage(width > 0 && height > 0, "Texture loading error: Image has no width or height");
 
@@ -130,19 +139,21 @@ static u32 GL_TextureFromMemory(u8 *data, i32 width, i32 height, u32 channels)
 
     glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
 #ifndef MIPMAP_DISABLED
-    glGenerateMipmap(GL_TEXTURE_2D);
+    if(renderState->generateMipMaps) {
+        glGenerateMipmap(GL_TEXTURE_2D);
+    }
 #endif
 
     return textureID;
 }
 
-void GL_BindTextureID(u32 textureID, f32 width, f32 height)
+void BindTextureID(u32 textureID, f32 width, f32 height)
 {
     glBindTexture(GL_TEXTURE_2D, textureID);
     glUniform2f(textureSizeLocation, width, height);
-} 
+}
 
-GLTexture GL_LoadTextureFile(const char *texturePath)
+GLTexture LoadTextureFile(const char *texturePath, bool permanentAsset = false)
 {
     i32 index = (i32)shgeti(textureCache, texturePath);
     GLTexture texture;
@@ -152,13 +163,13 @@ GLTexture GL_LoadTextureFile(const char *texturePath)
         i32 width, height, channels;
         u8 *data = stbi_load(texturePath, &width, &height, &channels, 0);
 
-        u32 textureID = GL_TextureFromMemory(data, width, height, channels);
+        u32 textureID = TextureFromMemory(data, width, height, channels);
 
         texture.textureID = textureID;
         texture.width = width;
         texture.height = height;
         texture.channels = channels;
-        shput(textureCache, PushString(&sceneState->arena, texturePath), texture);
+        shput(textureCache, PushString(GetTargetArena(permanentAsset), texturePath), texture);
 
         stbi_image_free(data);
     }
@@ -169,7 +180,31 @@ GLTexture GL_LoadTextureFile(const char *texturePath)
     return texture;
 }
 
-void GL_UnloadTextureFile(const char *texturePath)
+v2 TextureSize(const char* texturePath)
+{
+    i32 index = (i32)shgeti(textureCache, texturePath);
+    if(index > -1) {
+        GLTexture texture = shget(textureCache, texturePath);
+        return V2((f32)texture.width, (f32)texture.height);
+    }
+    else {
+        LogWarning("Texture (%s) is not found", texturePath);
+    }
+
+    return V2(0, 0);
+}
+
+v2 TextureSize(u32 textureID)
+{
+    glBindTexture(GL_TEXTURE_2D, textureID);
+    f32 width, height;
+    glGetTexLevelParameterfv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &width);
+    glGetTexLevelParameterfv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &height);
+
+    return V2(width, height);
+}
+
+void UnloadTextureFile(const char *texturePath)
 {
     i32 index = (i32)shgeti(textureCache, texturePath);
     GLTexture texture;
@@ -182,7 +217,7 @@ void GL_UnloadTextureFile(const char *texturePath)
     }
 }
 
-static TextureAtlas GL_LoadAtlas(const char *atlasKey)
+static TextureAtlas LoadAtlas(const char *atlasKey, bool permanentAsset = false)
 {
     i32 index = (i32)shgeti(atlasCache, atlasKey);
     if(index > -1) {
@@ -198,12 +233,12 @@ static TextureAtlas GL_LoadAtlas(const char *atlasKey)
             char* token = NextToken(&tokenizer);
 
             if(tokenizer.tokenLineCount == 0) {
-                keyPointer = PushString(&sceneState->arena, tokenizer.tokenBuffer, tokenizer.tokenBufferIndex);
+                keyPointer = PushString(GetTargetArena(permanentAsset), tokenizer.tokenBuffer, tokenizer.tokenBufferIndex);
 
-                i32 x = strtol(NextToken(&tokenizer), 0, 10);
-                i32 y = strtol(NextToken(&tokenizer), 0, 10);
-                i32 width = strtol(NextToken(&tokenizer), 0, 10);
-                i32 height = strtol(NextToken(&tokenizer), 0, 10);
+                i32 x = StringToInt(NextToken(&tokenizer));
+                i32 y = StringToInt(NextToken(&tokenizer));
+                i32 width = StringToInt(NextToken(&tokenizer));
+                i32 height = StringToInt(NextToken(&tokenizer));
                 
                 shput(atlas.sprites, keyPointer, Rectangle2((f32)x, (f32)y, (f32)width, (f32)height));
             }
@@ -217,7 +252,7 @@ static TextureAtlas GL_LoadAtlas(const char *atlasKey)
     }
 }
 
-static u32 GL_LoadFont(u32 fontID, FontAtlas *atlas)
+static u32 LoadFont(u32 fontID, FontAtlas *atlas)
 {
     i32 index = (i32)hmgeti(fontCache, fontID);
     if(index > -1) {
@@ -260,7 +295,7 @@ u32 quadIndices[] = {
     1, 2, 3
 };
 
-static void GL_InitFramebuffer(i32 bufferWidth, i32 bufferHeight)
+static void InitFramebuffer(i32 bufferWidth, i32 bufferHeight)
 {
     glGenFramebuffers(1, &gameState->render.frameBuffer);
     glGenTextures(1, &gameState->render.renderBuffer);
@@ -300,7 +335,7 @@ void WritePNG(char *filename, i32 x, i32 y, i32 comp, void *data, i32 stride_byt
 }
 
 #ifndef PLATFORM_WASM
-void GL_DumpTexture(const char *filepath, i32 textureID, u32 width, u32 height)
+void DumpTexture(const char *filepath, i32 textureID, u32 width, u32 height)
 {
     u8* data = (u8*)malloc(width * height * 3);
     glBindTexture(GL_TEXTURE_2D, textureID);
@@ -312,10 +347,10 @@ void GL_DumpTexture(const char *filepath, i32 textureID, u32 width, u32 height)
 }
 #endif
 
-u32 GL_GenerateBitmapFontStrip(const char *filepath, const char* glyphs, u32 glyphWidth, u32 glyphHeight)
+u32 GenerateBitmapFontStrip(const char *filepath, const char* glyphs, u32 glyphWidth, u32 glyphHeight)
 {
     size_t data_size = 0;
-    GLTexture texture = GL_LoadTextureFile(filepath);
+    GLTexture texture = LoadTextureFile(filepath);
 
     size_t glyphCount = strlen(glyphs);
 
@@ -346,7 +381,7 @@ u32 GL_GenerateBitmapFontStrip(const char *filepath, const char* glyphs, u32 gly
     return result.fontTextureID;
 }
 
-i32 GL_GenerateFont(void* data, size_t data_size, const char *filepath, f32 fontSize, u32 width, u32 height)
+i32 GenerateFont(void* data, size_t data_size, const char *filepath, f32 fontSize, u32 width, u32 height)
 {
     FontAtlas result;
     result.lineHeight = fontSize;
@@ -368,16 +403,16 @@ i32 GL_GenerateFont(void* data, size_t data_size, const char *filepath, f32 font
     return result.fontTextureID;
 }
 
-u32 GL_GenerateFont(const char *filepath, f32 fontSize, u32 width, u32 height)
+u32 GenerateFont(const char *filepath, f32 fontSize, u32 width, u32 height)
 {
     size_t data_size = 0;
     void* data = LoadFileToMemory(filepath, FILE_MODE_READ_BINARY, &data_size);
 
-    return GL_GenerateFont(data, data_size, filepath, fontSize, width, height);
+    return GenerateFont(data, data_size, filepath, fontSize, width, height);
 }
 
 //GL_VERTEX_SHADER GL_FRAGMENT_SHADER
-static bool GL_LoadShader(u32 shaderType, const char* filepath, u32* shaderID, size_t* sourceSize)
+static bool LoadShader(u32 shaderType, const char* filepath, u32* shaderID, size_t* sourceSize)
 {
     *shaderID = glCreateShader(shaderType);
             
@@ -411,13 +446,13 @@ static bool GL_LoadShader(u32 shaderType, const char* filepath, u32* shaderID, s
     return success;
 }
 
-u32 GL_CompileProgram(const char *vertexShaderPath, const char *fragmentShaderPath)
+u32 CompileProgram(const char *vertexShaderPath, const char *fragmentShaderPath)
 {
     // NOTE(Juan): Shaders
     u32 vertexShader, fragmentShader;
     size_t vertexShaderSize, fragmentShaderSize;
-    GL_LoadShader(GL_VERTEX_SHADER, vertexShaderPath, &vertexShader, &vertexShaderSize);
-    GL_LoadShader(GL_FRAGMENT_SHADER, fragmentShaderPath, &fragmentShader, &fragmentShaderSize);
+    LoadShader(GL_VERTEX_SHADER, vertexShaderPath, &vertexShader, &vertexShaderSize);
+    LoadShader(GL_FRAGMENT_SHADER, fragmentShaderPath, &fragmentShader, &fragmentShaderSize);
 
     i32 shaderProgram = glCreateProgram();
 
@@ -454,7 +489,7 @@ u32 GL_CompileProgram(const char *vertexShaderPath, const char *fragmentShaderPa
     return shaderProgram;
 }
 
-u32 GL_CompileProgramPlatform(const char *vertexShaderPlatform, const char *fragmentShaderPlatform)
+u32 CompileProgramPlatform(const char *vertexShaderPlatform, const char *fragmentShaderPlatform)
 {
     char* vertexShaderPath = PushString(&temporalState->arena, SHADER_PREFIX, sizeof(SHADER_PREFIX) - 1);
     PushString(&temporalState->arena, vertexShaderPlatform);
@@ -462,10 +497,10 @@ u32 GL_CompileProgramPlatform(const char *vertexShaderPlatform, const char *frag
     char* fragmentShaderPath = PushString(&temporalState->arena, SHADER_PREFIX, sizeof(SHADER_PREFIX) - 1);
     PushString(&temporalState->arena, fragmentShaderPlatform);
     
-    return GL_CompileProgram(vertexShaderPath, fragmentShaderPath);
+    return CompileProgram(vertexShaderPath, fragmentShaderPath);
 }
 
-static void GL_WatchChanges()
+static void WatchChanges()
 {
     #ifdef GAME_EDITOR
     for(i32 i = 0; i < watchedProgramsCount; ++i) {
@@ -487,10 +522,10 @@ static void GL_WatchChanges()
             
             i32 success;
 
-            success = GL_LoadShader(GL_VERTEX_SHADER, watched.vertexFilepath, &watched.vertexShader, &vertexSouceSize);
+            success = LoadShader(GL_VERTEX_SHADER, watched.vertexFilepath, &watched.vertexShader, &vertexSouceSize);
 
             if(success) {
-                success = GL_LoadShader(GL_FRAGMENT_SHADER, watched.fragmentFilepath, &watched.fragmentShader, &fragmentSouceSize);
+                success = LoadShader(GL_FRAGMENT_SHADER, watched.fragmentFilepath, &watched.fragmentShader, &fragmentSouceSize);
             }
 
             if(success) {
@@ -681,9 +716,9 @@ static void UseProgram(u32 programID)
         }
     #endif
 
-    if(renderState.overrideProgram) { programID = renderState.overrideProgram; }
+    if(renderState->overrideProgram) { programID = renderState->overrideProgram; }
 
-    if(programID != renderState.currentProgram) {
+    if(programID != renderState->currentProgram) {
         #ifdef GAME_EDITOR
         editorRenderDebugger.programChanges++;
         #endif
@@ -699,7 +734,7 @@ static void UseProgram(u32 programID)
         glUniform2f(bufferSizeLocation, gameState->render.bufferSize.x, gameState->render.bufferSize.y);
         timeLocation = glGetUniformLocation(programID, "time");
 
-        renderState.currentProgram = programID;
+        renderState->currentProgram = programID;
     }
 
     if(timeLocation != 0)
@@ -710,10 +745,10 @@ static void UseProgram(u32 programID)
 
 static void SetupTextureParameters(u32 textureTarget)
 {
-    glTexParameteri(textureTarget, GL_TEXTURE_WRAP_S, renderState.wrapS);
-    glTexParameteri(textureTarget, GL_TEXTURE_WRAP_T, renderState.wrapT);
-    glTexParameteri(textureTarget, GL_TEXTURE_MIN_FILTER, renderState.minFilter);
-    glTexParameteri(textureTarget, GL_TEXTURE_MAG_FILTER, renderState.magFilter);
+    glTexParameteri(textureTarget, GL_TEXTURE_WRAP_S, renderState->wrapS);
+    glTexParameteri(textureTarget, GL_TEXTURE_WRAP_T, renderState->wrapT);
+    glTexParameteri(textureTarget, GL_TEXTURE_MIN_FILTER, renderState->minFilter);
+    glTexParameteri(textureTarget, GL_TEXTURE_MAG_FILTER, renderState->magFilter);
 }
 
 static m33 SetupModelMatrix(v2 origin = V2(0, 0), v2 size = V2(1, 1), f32 angle = 0)
@@ -727,11 +762,11 @@ static m33 SetupModelMatrix(v2 origin = V2(0, 0), v2 size = V2(1, 1), f32 angle 
     return matrix;
 }
 
-static void SetupMVPUniforms(u32 programID, v4 color, m33 model, m44 view, m44 projection)
+static void SetupMVPUniforms(u32 programID, v4 color)
 {
-    if(renderState.overrideProgram) { programID = renderState.overrideProgram; }
+    if(renderState->overrideProgram) { programID = renderState->overrideProgram; }
 
-    glUniform4f(colorLocation, renderState.renderColor.r, renderState.renderColor.g, renderState.renderColor.b, renderState.renderColor.a);
+    glUniform4f(colorLocation, renderState->renderColor.r, renderState->renderColor.g, renderState->renderColor.b, renderState->renderColor.a);
 
     m44 mvp = (projection * view) * M44(model);
 
@@ -740,21 +775,21 @@ static void SetupMVPUniforms(u32 programID, v4 color, m33 model, m44 view, m44 p
 
 static void BindBuffer()
 {
-    if(renderState.overridingVertices || renderState.overridingIndices) {
+    if(renderState->overridingVertices || renderState->overridingIndices) {
         glBindVertexArray(overrideBuffer.vertexArray);
     }
     else {
         glBindVertexArray(quadBuffer.vertexArray);
     }
 
-    if(renderState.overridingVertices) {
+    if(renderState->overridingVertices) {
         glBindBuffer(GL_ARRAY_BUFFER, overrideBuffer.vertexBuffer);
     }
     else {
         glBindBuffer(GL_ARRAY_BUFFER, quadBuffer.vertexBuffer);
     }
 
-    if(renderState.overridingIndices) {
+    if(renderState->overridingIndices) {
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, overrideBuffer.indexBuffer);
     }
     else {
@@ -762,12 +797,12 @@ static void BindBuffer()
     }
 }
 
-static void GL_Init()
+static void Init()
 {
-    coloredProgram = GL_CompileProgramPlatform(COLORED_VERT, COLORED_FRAG);
-    fontProgram = GL_CompileProgramPlatform(TEXTURED_VERT, FONT_FRAG);
-    texturedProgram = GL_CompileProgramPlatform(TEXTURED_VERT, TEXTURED_FRAG);
-    textured9SliceProgram = GL_CompileProgramPlatform(TEXTURED_VERT, TEXTURED9SLICE_FRAG);
+    coloredProgram = CompileProgramPlatform(COLORED_VERT, COLORED_FRAG);
+    fontProgram = CompileProgramPlatform(TEXTURED_VERT, FONT_FRAG);
+    texturedProgram = CompileProgramPlatform(TEXTURED_VERT, TEXTURED_FRAG);
+    textured9SliceProgram = CompileProgramPlatform(TEXTURED_VERT, TEXTURED9SLICE_FRAG);
     
     dimensionsLocation = glGetUniformLocation(textured9SliceProgram, "dimensions");
     borderLocation = glGetUniformLocation(textured9SliceProgram, "border");
@@ -792,37 +827,151 @@ static void GL_Init()
     glGenBuffers(1, &customBuffer.indexBuffer);
 
     // #NOTE(Juan): Check GPU vendor
-    if(GL_CheckVendor(GL_STRING_VENDOR_NVIDIA)) {
+    if(CheckVendor(GL_STRING_VENDOR_NVIDIA)) {
         currentVendor = GL_VENDOR_NVIDIA;
     }
-    else if(GL_CheckVendor(GL_STRING_VENDOR_ATI)) {
+    else if(CheckVendor(GL_STRING_VENDOR_ATI)) {
         currentVendor = GL_VENDOR_ATI;
     }
 }
 
-static void GL_DefaultAssets()
+static void DefaultAssets()
 {
 #ifndef NO_DEFAULT_FONT
-    gameState->render.defaultFontID = GL_GenerateFont(defaultFont, sizeof(defaultFont), "defaultFont", 64, DEFAULT_FONT_ATLAS_WIDTH, DEFAULT_FONT_ATLAS_HEIGHT);
+    gameState->render.defaultFontID = GenerateFont(defaultFont, sizeof(defaultFont), "defaultFont", 64, DEFAULT_FONT_ATLAS_WIDTH, DEFAULT_FONT_ATLAS_HEIGHT);
 #endif
 }
 
-static void GL_Render()
+static void RenderStyledText_(RenderStyledText* styledText)
+{
+    UseProgram(fontProgram);
+
+    BindTextureID(currentFont.fontTextureID, (f32)currentFont.width, (f32)currentFont.height);
+    SetupTextureParameters(GL_TEXTURE_2D);
+
+    v2 containerSize = V2(styledText->endOrigin.x - styledText->origin.x, styledText->endOrigin.y - styledText->origin.y);
+    v2 textSize = CalculateTextSize(&currentFont, styledText->string, styledText->stringSize, containerSize.x);
+
+    v2 origin = V2(styledText->origin.x, styledText->origin.y);
+
+    if((styledText->header.renderFlags & TextRenderFlag_Left) > 0) {
+        origin.y -= (containerSize.y - textSize.y) * 0.5f;  
+    }
+    else if((styledText->header.renderFlags & TextRenderFlag_Center) > 0) {
+        origin.x += (containerSize.x - textSize.x) * 0.5f;
+        origin.y -= (containerSize.y - textSize.y) * 0.5f;
+    }
+    else if((styledText->header.renderFlags & TextRenderFlag_Right) > 0) {
+        origin.x += (containerSize.x - textSize.x);
+        origin.y -= (containerSize.y - textSize.y) * 0.5f;
+    }                
+
+    model = SetupModelMatrix(origin);
+    SetupMVPUniforms(texturedProgram, renderState->renderColor);
+
+    f32 posX = 0;
+    f32 posY = currentFont.lineHeight;
+    stbtt_aligned_quad quad;
+
+    bool letterWrap = (styledText->header.renderFlags & TextRenderFlag_LetterWrap) > 0;
+    bool wordWrap = (styledText->header.renderFlags & TextRenderFlag_WordWrap) > 0;
+
+    u32 lastWordIndex;
+
+    u32 lineCharacterCount = 0;
+    u32 utfSize = 1;
+    for(u32 i = 0; i < styledText->stringSize - 1; i += utfSize) {
+        u32 currentChar = GetUTF8Char(styledText->string + i, &utfSize);
+        
+        CalculateCharacterOffset(&currentFont, (char)currentChar, &posX, &posY, &lineCharacterCount);
+
+        u32 normalizedChar = currentChar - SPECIAL_ASCII_CHAR_OFFSET;
+        if(normalizedChar >= 0) {
+            if(wordWrap) {
+                f32 wordEndOrigin = posX;
+                
+                for(u32 j = i; j < styledText->stringSize - 1 && styledText->string[j] > SPECIAL_ASCII_CHAR_OFFSET; ++j) {
+                    wordEndOrigin += currentFont.charData[styledText->string[j] - SPECIAL_ASCII_CHAR_OFFSET].xadvance;
+                }
+
+                if(wordEndOrigin + styledText->origin.x > styledText->endOrigin.x) {
+                    lineCharacterCount = 0;
+                    posX = 0;
+                    posY = posY + currentFont.lineHeight;
+                }
+            }
+
+            if(letterWrap && posX + currentFont.charData[normalizedChar].xadvance + styledText->origin.x > styledText->endOrigin.x) {
+                lineCharacterCount = 0;
+                posX = 0;
+                posY = posY + currentFont.lineHeight;
+            }
+
+            GetBakedQuad(&currentFont, normalizedChar, &posX, &posY, &quad);
+
+            CreateQuadPosUV(quad.x0, quad.y0, quad.x1, quad.y1, quad.s0, quad.t0, quad.s1, quad.t1);
+
+            glBindVertexArray(customBuffer.vertexArray);
+
+            glBindBuffer(GL_ARRAY_BUFFER, customBuffer.vertexBuffer);
+            glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), quadVertices, GL_STATIC_DRAW);
+
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, customBuffer.indexBuffer);
+            glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(quadIndices), quadIndices, GL_STATIC_DRAW); 
+
+            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)0);
+            glEnableVertexAttribArray(0);
+            glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)(3 * sizeof(f32)));
+            glEnableVertexAttribArray(1);
+
+            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+        } else {
+            lastWordIndex = i + 1;
+        }
+    }
+}
+
+static void RenderImage9Slice_(RenderImage9Slice* image9Slice)
+{
+    UseProgram(textured9SliceProgram);
+
+    GLTexture texture = LoadTextureFile(image9Slice->filepath);
+    SetupTextureParameters(GL_TEXTURE_2D);
+
+    v2 size = V2((f32)(image9Slice->endOrigin.x - image9Slice->origin.x), (f32)(image9Slice->endOrigin.y - image9Slice->origin.y));
+
+    glUniform2f(dimensionsLocation, image9Slice->slice / size.x, image9Slice->slice / size.y);
+    glUniform2f(borderLocation, image9Slice->slice / texture.width, image9Slice->slice / texture.height);
+
+    model = SetupModelMatrix(image9Slice->origin, size);
+    SetupMVPUniforms(texturedProgram, renderState->renderColor);
+
+    BindBuffer();
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)0);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)(3 * sizeof(f32)));
+    glEnableVertexAttribArray(1);
+
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+}
+
+static void RenderPass()
 {
     RenderHeader *renderHeader = (RenderHeader *)renderTemporaryMemory.arena->base;
 
     // #NOTE (Juan): Check if there are layers setted and sort commands by layer
-    bool hasLayers = renderState.usedLayers > 0;
+    bool hasLayers = renderState->usedLayers > 0;
 #if GAME_EDITOR
-    hasLayers = hasLayers && editorState->editorFrameRunning;
+    hasLayers = hasLayers && (editorState->editorFrameRunning || editorState->playNextFrame);
 #endif
     if(hasLayers) {
         void *sortedRenderStart = renderTemporaryMemory.arena->base + renderTemporaryMemory.arena->used;
         
         for(u32 layerIndex = 31; layerIndex < 32; --layerIndex) {
-            if((renderState.usedLayers & (1 << layerIndex)) > 0) {
+            if((renderState->usedLayers & (1 << layerIndex)) > 0) {
                 RenderHeader* layerStartHeader = (RenderHeader*)(renderTemporaryMemory.arena->base + renderTemporaryMemory.arena->used);
-                if((renderState.transparentLayers & (1 << layerIndex)) > 0) {
+                if((renderState->transparentLayers & (1 << layerIndex)) > 0) {
                     DrawTransparent();
                 } else {
                     DrawTransparentDisable();
@@ -853,19 +1002,19 @@ static void GL_Render()
     RenderHeader* sortedRenderStart = renderHeader;
 
 #if GAME_EDITOR
-    if(!editorState->editorFrameRunning) {
+    if(!(editorState->editorFrameRunning || editorState->playNextFrame)) {
         renderHeader = editorState->savedRenderHeader;
     }
 #endif
 
-    m44 view = gameState->camera.view;
+    view = gameState->camera.view;
     view._30 = -gameState->camera.size * 0.5f;
     view._31 = view._30;
     view._23 = 1.0f;
-    m44 projection = gameState->camera.projection;
+    projection = gameState->camera.projection;
 
     while(renderHeader->id > 0 && (void*)renderHeader < (void*)(renderTemporaryMemory.arena->base + renderTemporaryMemory.used)) {
-        m33 model = IdM33();
+        model = IdM33();
 
 #if GAME_EDITOR
         if(!renderHeader->enabled) {
@@ -884,9 +1033,14 @@ static void GL_Render()
                 glClear(GL_COLOR_BUFFER_BIT);
                 break;
             }
+            case RenderType_RenderSetStyle: {
+                RenderSetStyle *setStyle = (RenderSetStyle *)renderHeader;
+                renderState->style = setStyle->style;
+                break;
+            }
             case RenderType_RenderColor: {
                 RenderColor *color = (RenderColor *)renderHeader;
-                renderState.renderColor = color->color;
+                renderState->renderColor = color->color;
                 break;
             }
             case RenderType_RenderSetTransform: {
@@ -941,7 +1095,7 @@ static void GL_Render()
                 UseProgram(coloredProgram);
 
                 model = SetupModelMatrix();
-                SetupMVPUniforms(coloredProgram, renderState.renderColor, model, view, projection);
+                SetupMVPUniforms(coloredProgram, renderState->renderColor);
 
                 f32 lineVertices[] = {
                     line->start.x, line->start.y, 0.0f,
@@ -971,7 +1125,7 @@ static void GL_Render()
                 UseProgram(coloredProgram);
 
                 model = SetupModelMatrix();
-                SetupMVPUniforms(coloredProgram, renderState.renderColor, model, view, projection);
+                SetupMVPUniforms(coloredProgram, renderState->renderColor);
 
                 f32 triangleVertices[] = {
                     triangle->point1.x, triangle->point1.y, 0.0f,
@@ -1002,7 +1156,7 @@ static void GL_Render()
                 UseProgram(coloredProgram);
 
                 model = SetupModelMatrix(rectangle->origin, rectangle->size);
-                SetupMVPUniforms(coloredProgram, renderState.renderColor, model, view, projection);
+                SetupMVPUniforms(coloredProgram, renderState->renderColor);
 
                 glBindVertexArray(quadBuffer.vertexArray);
                 glBindBuffer(GL_ARRAY_BUFFER, quadBuffer.vertexBuffer);
@@ -1022,7 +1176,7 @@ static void GL_Render()
                 UseProgram(coloredProgram);
 
                 model = SetupModelMatrix(circle->origin);
-                SetupMVPUniforms(coloredProgram, renderState.renderColor, model, view, projection);
+                SetupMVPUniforms(coloredProgram, renderState->renderColor);
 
                 f32 vertices[300] = {
                     0.0f, 0.0f, 0.0f,
@@ -1065,10 +1219,10 @@ static void GL_Render()
             case RenderType_RenderTextureParameters: {
                 RenderTextureParameters *textureParameters = (RenderTextureParameters *)renderHeader;
                 
-                renderState.wrapS = textureParameters->wrapS;
-                renderState.wrapT = textureParameters->wrapT;
-                renderState.minFilter = textureParameters->minFilter;
-                renderState.magFilter = textureParameters->magFilter;
+                renderState->wrapS = textureParameters->wrapS;
+                renderState->wrapT = textureParameters->wrapT;
+                renderState->minFilter = textureParameters->minFilter;
+                renderState->magFilter = textureParameters->magFilter;
                 break;
             }
             case RenderType_RenderTexture: {
@@ -1077,7 +1231,7 @@ static void GL_Render()
                 UseProgram(texturedProgram);
 
                 model = SetupModelMatrix(texture->origin, texture->size);
-                SetupMVPUniforms(texturedProgram, renderState.renderColor, model, view, projection);
+                SetupMVPUniforms(texturedProgram, renderState->renderColor);
 
                 glBindTexture(GL_TEXTURE_2D, texture->textureID);
                 glUniform2f(textureSizeLocation, texture->size.x, texture->size.y);
@@ -1098,8 +1252,15 @@ static void GL_Render()
 
                 UseProgram(texturedProgram);
 
-                GLTexture texture = GL_LoadTextureFile(image->filepath);
+                bool generateMipMapsTemp = renderState->generateMipMaps;
+                // if((image->header.renderFlags & ImageRenderFlag_NoMipMaps) > 0) {
+                //     renderState->generateMipMaps = false;
+                // }
+
+                GLTexture texture = LoadTextureFile(image->filepath);
                 SetupTextureParameters(GL_TEXTURE_2D);
+
+                renderState->generateMipMaps = generateMipMapsTemp;
 
                 v2 origin = V2(-image->origin.x * texture.width, -image->origin.y * texture.height);
                 v2 size = V2((f32)texture.width, (f32)texture.height);
@@ -1126,7 +1287,7 @@ static void GL_Render()
                 // }
 
                 model = SetupModelMatrix(origin, size);
-                SetupMVPUniforms(texturedProgram, renderState.renderColor, model, view, projection);
+                SetupMVPUniforms(texturedProgram, renderState->renderColor);
 
                 BindBuffer();
 
@@ -1143,14 +1304,14 @@ static void GL_Render()
 
                 UseProgram(texturedProgram);
 
-                GLTexture texture = GL_LoadTextureFile(imageUV->filepath);
+                GLTexture texture = LoadTextureFile(imageUV->filepath);
                 SetupTextureParameters(GL_TEXTURE_2D);
 
                 v2 origin = V2(-imageUV->origin.x * texture.width, -imageUV->origin.y * texture.height);
                 v2 size = V2((f32)texture.width, (f32)texture.height);
 
                 model = SetupModelMatrix(origin, size);
-                SetupMVPUniforms(texturedProgram, renderState.renderColor, model, view, projection);
+                SetupMVPUniforms(texturedProgram, renderState->renderColor);
 
                 CreateQuadPosUV(0, 0, 1, 1, imageUV->uvMin.x, imageUV->uvMin.y, imageUV->uvMax.x, imageUV->uvMax.y);
 
@@ -1172,28 +1333,7 @@ static void GL_Render()
             }
             case RenderType_RenderImage9Slice: {
                 RenderImage9Slice *image9Slice = (RenderImage9Slice *)renderHeader;
-
-                UseProgram(textured9SliceProgram);
-
-                GLTexture texture = GL_LoadTextureFile(image9Slice->filepath);
-                SetupTextureParameters(GL_TEXTURE_2D);
-
-                v2 size = V2((f32)(image9Slice->endOrigin.x - image9Slice->origin.x), (f32)(image9Slice->endOrigin.y - image9Slice->origin.y));
-
-                glUniform2f(dimensionsLocation, image9Slice->slice / size.x, image9Slice->slice / size.y);
-                glUniform2f(borderLocation, image9Slice->slice / texture.width, image9Slice->slice / texture.height);
-
-                model = SetupModelMatrix(image9Slice->origin, size);
-                SetupMVPUniforms(texturedProgram, renderState.renderColor, model, view, projection);
-
-                BindBuffer();
-
-                glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)0);
-                glEnableVertexAttribArray(0);
-                glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)(3 * sizeof(f32)));
-                glEnableVertexAttribArray(1);
-
-                glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+                RenderImage9Slice_(image9Slice);
                 break;
             }
             case RenderType_RenderAtlasSprite: {
@@ -1201,17 +1341,17 @@ static void GL_Render()
 
                 UseProgram(texturedProgram);
 
-                TextureAtlas textureAtlas = GL_LoadAtlas(atlas->atlasName);
+                TextureAtlas textureAtlas = LoadAtlas(atlas->atlasName);
                 rectangle2 spriteRect = shget(textureAtlas.sprites, atlas->spriteKey);
 
-                GLTexture texture = GL_LoadTextureFile(atlas->filepath);
+                GLTexture texture = LoadTextureFile(atlas->filepath);
                 SetupTextureParameters(GL_TEXTURE_2D);
 
                 v2 origin = V2(-atlas->origin.x * texture.width, -atlas->origin.y * texture.height);
                 v2 size = V2(spriteRect.width, spriteRect.height);
 
                 model = SetupModelMatrix(origin, size);
-                SetupMVPUniforms(coloredProgram, renderState.renderColor, model, view, projection);
+                SetupMVPUniforms(coloredProgram, renderState->renderColor);
 
                 CreateQuadPosUV(0, 0, 1, 1, spriteRect.x / texture.width, spriteRect.y / texture.height, 
                     (spriteRect.x + spriteRect.width) / texture.width, (spriteRect.y + spriteRect.height) / texture.height);
@@ -1234,7 +1374,7 @@ static void GL_Render()
             }
             case RenderType_RenderFont: {
                 RenderFont *font = (RenderFont *)renderHeader;
-                GL_LoadFont(font->fontID, &currentFont);
+                LoadFont(font->fontID, &currentFont);
                 break;
             }
             case RenderType_RenderChar: {
@@ -1242,11 +1382,11 @@ static void GL_Render()
 
                 UseProgram(fontProgram);
 
-                GL_BindTextureID(currentFont.fontTextureID, (f32)currentFont.width, (f32)currentFont.height);
+                BindTextureID(currentFont.fontTextureID, (f32)currentFont.width, (f32)currentFont.height);
                 SetupTextureParameters(GL_TEXTURE_2D);
 
                 model = SetupModelMatrix(renderChar->origin);
-                SetupMVPUniforms(texturedProgram, renderState.renderColor, model, view, projection);
+                SetupMVPUniforms(texturedProgram, renderState->renderColor);
 
                 f32 posX = 0;
                 f32 posY = currentFont.fontSize;
@@ -1275,13 +1415,13 @@ static void GL_Render()
 
                 UseProgram(fontProgram);
 
-                GL_BindTextureID(currentFont.fontTextureID, (f32)currentFont.width, (f32)currentFont.height);
+                BindTextureID(currentFont.fontTextureID, (f32)currentFont.width, (f32)currentFont.height);
                 SetupTextureParameters(GL_TEXTURE_2D);
 
                 v2 textSize = CalculateTextSize(&currentFont, text->string, text->stringSize);
 
                 model = SetupModelMatrix(text->origin);
-                SetupMVPUniforms(texturedProgram, renderState.renderColor, model, view, projection);
+                SetupMVPUniforms(texturedProgram, renderState->renderColor);
 
                 f32 posX = 0;
                 f32 posY = currentFont.lineHeight;
@@ -1315,92 +1455,64 @@ static void GL_Render()
             }
             case RenderType_RenderStyledText: {
                 RenderStyledText *styledText = (RenderStyledText *)renderHeader;
+                RenderStyledText_(styledText);
+                break;
+            }
+            case RenderType_RenderButton: {
+                RenderButton *button = (RenderButton *)renderHeader;
 
-                UseProgram(fontProgram);
-
-                GL_BindTextureID(currentFont.fontTextureID, (f32)currentFont.width, (f32)currentFont.height);
-                SetupTextureParameters(GL_TEXTURE_2D);
-
-                v2 containerSize = V2(styledText->endOrigin.x - styledText->origin.x, styledText->endOrigin.y - styledText->origin.y);
-                v2 textSize = CalculateTextSize(&currentFont, styledText->string, styledText->stringSize, containerSize.x);
-
-                v2 origin = V2(styledText->origin.x, styledText->origin.y);
-
-                if((styledText->header.renderFlags & TextRenderFlag_Left) > 0) {
-                    origin.y -= (containerSize.y - textSize.y) * 0.5f;  
+                char* filepath = renderState->style.slicedFilepath;
+                if(button->state == ButtonState_Hovered) {
+                    filepath = renderState->style.slicedHoveredFilepath;
                 }
-                else if((styledText->header.renderFlags & TextRenderFlag_Center) > 0) {
-                    origin.x += (containerSize.x - textSize.x) * 0.5f;
-                    origin.y -= (containerSize.y - textSize.y) * 0.5f;
+                else if(button->state == ButtonState_Down) {
+                    filepath = renderState->style.slicedDownFilepath;
                 }
-                else if((styledText->header.renderFlags & TextRenderFlag_Right) > 0) {
-                    origin.x += (containerSize.x - textSize.x);
-                    origin.y -= (containerSize.y - textSize.y) * 0.5f;
-                }                
 
-                model = SetupModelMatrix(origin);
-                SetupMVPUniforms(texturedProgram, renderState.renderColor, model, view, projection);
-
-                f32 posX = 0;
-                f32 posY = currentFont.lineHeight;
-                stbtt_aligned_quad quad;
-
-                bool letterWrap = (styledText->header.renderFlags & TextRenderFlag_LetterWrap) > 0;
-                bool wordWrap = (styledText->header.renderFlags & TextRenderFlag_WordWrap) > 0;
-
-                u32 lastWordIndex;
-
-                u32 lineCharacterCount = 0;
-                u32 utfSize = 1;
-                for(u32 i = 0; i < styledText->stringSize - 1; i += utfSize) {
-                    u32 currentChar = GetUTF8Char(styledText->string + i, &utfSize);
-                    
-                    CalculateCharacterOffset(&currentFont, (char)currentChar, &posX, &posY, &lineCharacterCount);
-
-                    u32 normalizedChar = currentChar - SPECIAL_ASCII_CHAR_OFFSET;
-                    if(normalizedChar >= 0) {
-                        if(wordWrap) {
-                            f32 wordEndOrigin = posX;
-                            
-                            for(u32 j = i; j < styledText->stringSize - 1 && styledText->string[j] > SPECIAL_ASCII_CHAR_OFFSET; ++j) {
-                                wordEndOrigin += currentFont.charData[styledText->string[j] - SPECIAL_ASCII_CHAR_OFFSET].xadvance;
-                            }
-
-                            if(wordEndOrigin + styledText->origin.x > styledText->endOrigin.x) {
-                                lineCharacterCount = 0;
-                                posX = 0;
-                                posY = posY + currentFont.lineHeight;
-                            }
-                        }
-
-                        if(letterWrap && posX + currentFont.charData[normalizedChar].xadvance + styledText->origin.x > styledText->endOrigin.x) {
-                            lineCharacterCount = 0;
-                            posX = 0;
-                            posY = posY + currentFont.lineHeight;
-                        }
-
-                        GetBakedQuad(&currentFont, normalizedChar, &posX, &posY, &quad);
-
-                        CreateQuadPosUV(quad.x0, quad.y0, quad.x1, quad.y1, quad.s0, quad.t0, quad.s1, quad.t1);
-
-                        glBindVertexArray(customBuffer.vertexArray);
-
-                        glBindBuffer(GL_ARRAY_BUFFER, customBuffer.vertexBuffer);
-                        glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), quadVertices, GL_STATIC_DRAW);
-
-                        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, customBuffer.indexBuffer);
-                        glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(quadIndices), quadIndices, GL_STATIC_DRAW); 
-
-                        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)0);
-                        glEnableVertexAttribArray(0);
-                        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)(3 * sizeof(f32)));
-                        glEnableVertexAttribArray(1);
-
-                        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-                    } else {
-                        lastWordIndex = i + 1;
-                    }
+                if(!filepath) {
+                    LogError("No style found. Render type %d, ID %d", renderHeader->type, renderHeader->id);
+                    break;
                 }
+
+                RenderImage9Slice image9Slice = {};
+                image9Slice.filepath = filepath;
+                image9Slice.origin = button->origin;
+                image9Slice.endOrigin = button->endOrigin;
+                image9Slice.slice = renderState->style.slice;
+                image9Slice.header.id = -1;
+                image9Slice.header.renderFlags = 0;
+                RenderImage9Slice_(&image9Slice);
+
+                RenderStyledText styledText = {};
+                styledText.origin = button->origin;
+                styledText.endOrigin = button->endOrigin;
+                styledText.string = button->label;
+                styledText.stringSize = button->labelSize;
+                styledText.header.id = -1;
+                styledText.header.renderFlags = TextRenderFlag_Center | TextRenderFlag_WordWrap;
+                RenderStyledText_(&styledText);
+            
+                break;
+            }
+            case RenderType_RenderInput: {
+                RenderInput *input = (RenderInput *)renderHeader;
+
+                v4 savedColor = renderState->renderColor;
+                if(input->baseText) {
+                    renderState->renderColor = V4(0.75f, 0.75f, 0.75f, 0.75f);
+                }
+
+                RenderStyledText styledText = {};
+                styledText.origin = input->origin;
+                styledText.endOrigin = input->endOrigin;
+                styledText.string = input->input;
+                styledText.stringSize = input->inputSize;
+                styledText.header.id = -1;
+                styledText.header.renderFlags = 0;
+                RenderStyledText_(&styledText);
+
+                renderState->renderColor = savedColor;
+
                 break;
             }
             case RenderType_RenderSetUniform: {
@@ -1418,7 +1530,7 @@ static void GL_Render()
             case RenderType_RenderOverrideProgram: {
                 RenderOverrideProgram *program = (RenderOverrideProgram *)renderHeader;
  
-                renderState.overrideProgram = program->programID;
+                renderState->overrideProgram = program->programID;
 
                 UseProgram(program->programID);
                 break;
@@ -1426,8 +1538,8 @@ static void GL_Render()
             case RenderType_RenderOverrideVertices: {
                 RenderOverrideVertices *vertices = (RenderOverrideVertices *)renderHeader;
  
-                renderState.overridingVertices = vertices->vertices != 0;
-                if(renderState.overridingVertices) {
+                renderState->overridingVertices = vertices->vertices != 0;
+                if(renderState->overridingVertices) {
                     glBindVertexArray(overrideBuffer.vertexArray);
                     glBindBuffer(GL_ARRAY_BUFFER, overrideBuffer.vertexBuffer);
                     glBufferData(GL_ARRAY_BUFFER, vertices->size, vertices->vertices, GL_STATIC_DRAW);
@@ -1437,8 +1549,8 @@ static void GL_Render()
             case RenderType_RenderOverrideIndices: {
                 RenderOverrideIndices *indices = (RenderOverrideIndices *)renderHeader;
 
-                renderState.overridingIndices = indices->indices != 0;
-                if(renderState.overridingIndices) {
+                renderState->overridingIndices = indices->indices != 0;
+                if(renderState->overridingIndices) {
                     glBindVertexArray(overrideBuffer.vertexArray);
                     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, overrideBuffer.indexBuffer);
                     glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices->size, indices->indices, GL_STATIC_DRAW);

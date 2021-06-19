@@ -20,7 +20,6 @@ const char* SCRIPTS_ENVARI = "scripts/envari/";
 const char* SCRIPTS_SCENES = "scripts/scenes/";
 const char* SHADERS_CORE = "shaders/core/";
 const char* SHADERS_ES = "shaders/es/";
-const char* SHADERS_TEST = "shaders/test/";
 const char* SCRIPTS_ENVARI_SOCKET = "scripts/envari/socket/";
 
 #endif

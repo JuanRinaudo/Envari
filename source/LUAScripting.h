@@ -241,7 +241,7 @@ void GetWatchValue(i32 watchType, char* name, char* valueBuffer)
                     if(parsingArrayIndex) {
                         innerBuffer[bufferIndex] = 0;
                         parsingArrayIndex = false;
-                        i32 index = strtol(innerBuffer, 0, 10);
+                        i32 index = StringToInt(innerBuffer);
                         type = lua_rawgeti(lua, -1, index);
                         pushCount++;
                         bufferIndex = 0;

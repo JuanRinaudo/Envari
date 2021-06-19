@@ -124,13 +124,13 @@ i32 main(i32 argc, char *argv[])
 //     ScriptingInit();
 // #endif
 
-//     GL_Init();
+//     Init();
 
     GameInit();
 
     // #NOTE (Juan): Create framebuffer
     // if(gameState->render.framebufferEnabled) {
-    //     GL_InitFramebuffer(gameState->render.bufferWidth, gameState->render.bufferHeight);
+    //     InitFramebuffer(gameState->render.bufferWidth, gameState->render.bufferHeight);
     // }
     // else {
     //     gameState->render.frameBuffer = 0;
@@ -225,7 +225,7 @@ i32 main(i32 argc, char *argv[])
 //         ScriptingWatchChanges();
 // #endif
 
-//         GL_WatchChanges();        
+//         WatchChanges();        
 
 //         if(gameState->render.framebufferEnabled) {
 //             Begin2D(gameState->render.frameBuffer, (u32)gameState->render.bufferWidth, (u32)gameState->render.bufferHeight);
@@ -236,7 +236,7 @@ i32 main(i32 argc, char *argv[])
 
         ScriptingUpdate();
         GameUpdate();
-//         GL_Render();
+//         Render();
 
 //         EditorDrawAllOpen();
 
@@ -259,7 +259,7 @@ i32 main(i32 argc, char *argv[])
 //             DrawTextureParameters(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, GL_NEAREST, GL_NEAREST);
 //             f32 sizeX = gameState->camera.size * tempRatio;
 //             DrawTexture(-sizeX * 0.5f, gameState->camera.size * 0.5f, sizeX, -gameState->camera.size, gameState->render.renderBuffer);
-//             GL_Render();
+//             Render();
 //             End2D();
 
 //             gameState->camera.size = tempSize;

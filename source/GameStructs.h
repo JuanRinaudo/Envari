@@ -88,6 +88,7 @@ enum RenderType
 {
     RenderType_RenderTempData,
     RenderType_RenderClear,
+    RenderType_RenderSetStyle,
     RenderType_RenderColor,
     RenderType_RenderSetTransform,
     RenderType_RenderPushTransform,
@@ -110,6 +111,7 @@ enum RenderType
     RenderType_RenderText,
     RenderType_RenderStyledText,
     RenderType_RenderButton,
+    RenderType_RenderInput,
     RenderType_RenderSetUniform,
     RenderType_RenderOverrideProgram,
     RenderType_RenderOverrideVertices,
@@ -121,10 +123,17 @@ enum UniformType {
     UniformType_Vector2,
 };
 
+enum ButtonState {
+    ButtonState_Normal,
+    ButtonState_Hovered,
+    ButtonState_Down,
+};
+
 enum ImageRenderFlag {
     ImageRenderFlag_Fit = 1 << 1,
     ImageRenderFlag_KeepRatioX = 1 << 2,
     ImageRenderFlag_KeepRatioY = 1 << 3,
+    ImageRenderFlag_NoMipMaps = 1 << 4,
 };
 
 enum TextRenderFlag {
@@ -135,6 +144,33 @@ enum TextRenderFlag {
     TextRenderFlag_WordWrap = 1 << 5,
 };
 
+struct RenderStyle {
+    char *slicedFilepath;
+    size_t slicedFilepathSize;
+    char *slicedHoveredFilepath;
+    size_t slicedHoveredFilepathSize;
+    char *slicedDownFilepath;
+    size_t slicedDownFilepathSize;
+    f32 slice;
+};
+
+struct RenderState {
+    RenderStyle style;
+    i32 lastRenderID;
+    v4 renderColor;
+    u32 usedLayers;
+    u32 transparentLayers;
+    u32 wrapS;
+    u32 wrapT;
+    u32 minFilter;
+    u32 magFilter;
+    u32 currentProgram;
+    u32 overrideProgram;
+    bool overridingVertices;
+    bool overridingIndices;
+    bool generateMipMaps;
+};
+
 struct RenderHeader
 {
     i32 id;
@@ -143,6 +179,7 @@ struct RenderHeader
     size_t size;
 #if GAME_EDITOR
     bool enabled;
+    char debugData[128];
 #endif
 };
 
@@ -155,6 +192,12 @@ struct RenderClear
 {
     RenderHeader header;
     v4 color;
+};
+
+struct RenderSetStyle
+{
+    RenderHeader header;
+    RenderStyle style;
 };
 
 struct RenderColor
@@ -321,6 +364,26 @@ struct RenderStyledText
     size_t stringSize;
 };
 
+struct RenderButton
+{
+    RenderHeader header;
+    ButtonState state;
+    v2 origin;
+    v2 endOrigin;
+    char* label;
+    size_t labelSize;
+};
+
+struct RenderInput
+{
+    RenderHeader header;
+    v2 origin;
+    v2 endOrigin;
+    bool baseText;
+    char* input;
+    size_t inputSize;
+};
+
 struct RenderSetUniform {
     RenderHeader header;
     u32 location;
@@ -345,21 +408,6 @@ struct RenderOverrideIndices
     RenderHeader header;
     u32* indices;
     size_t size;
-};
-
-struct RenderState {
-    i32 lastRenderID;
-    v4 renderColor;
-    u32 usedLayers;
-    u32 transparentLayers;
-    u32 wrapS;
-    u32 wrapT;
-    u32 minFilter;
-    u32 magFilter;
-    u32 currentProgram;
-    u32 overrideProgram;
-    bool overridingVertices;
-    bool overridingIndices;
 };
 
 // #NOTE (Juan): Game
@@ -426,9 +474,10 @@ struct Input
     i32 mouseWheel;
     char textInputBuffer[TEXT_INPUT_BUFFER_COUNT];
     i32 textInputIndex;
-    char mouseState[MOUSE_COUNT];
-    char keyState[KEY_COUNT];
-    char textInputEvent[TEXT_INPUT_EVENT_SIZE];
+    i32 textInputSize;
+    u8 mouseState[MOUSE_COUNT];
+    u8 keyState[KEY_COUNT];
+    u8 textInputEvent[TEXT_INPUT_EVENT_SIZE];
 };
 
 struct Data {
@@ -463,6 +512,7 @@ struct EditorData {
     bool demoWindow;
 
     b32 editorFrameRunning;
+    b32 playNextFrame;
     RenderHeader* savedRenderHeader;
 };
 #endif

@@ -159,6 +159,8 @@ typedef double f64;
 
 #define ArrayCount(Array) (sizeof(Array) / sizeof((Array)[0]))
 
+#define StringToInt(String) strtol(String, 0, 10)
+
 #define GenerateTableGetExtern(POSTFIX, valueType) extern valueType TableGet ## POSTFIX (SerializableTable** table, const char* key, valueType defaultValue);
 #define GenerateTableGet(POSTFIX, valueType, typeDefault) valueType TableGet ## POSTFIX (SerializableTable** table, const char* key, valueType defaultValue = typeDefault) \
 { \
@@ -194,19 +196,5 @@ typedef double f64;
 #define TableSetI32(arena, table, key, value) TableSetI32_(arena, table, key, value)
 #define TableSetF32(arena, table, key, value) TableSetF32_(arena, table, key, value)
 #define TableSetV2(arena, table, key, value) TableSetV2_(arena, table, key, value)
-
-#define GenerateRenderTemporaryPush(PREFIX, type) static type* RenderTemporaryPush ## PREFIX (type value) \
-{ \
-    u32 size = sizeof(type); \
-    if(renderTemporaryMemory.arena->used + size < renderTemporaryMemory.arena->size) { \
-        type *valuePointer = (type*)PushSize(&renderTemporaryMemory, size); \
-        *valuePointer = value; \
-        return valuePointer; \
-    } \
-    else { \
-        InvalidCodePath; \
-        return 0; \
-    } \
-}
 
 #endif

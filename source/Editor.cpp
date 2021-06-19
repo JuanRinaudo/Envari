@@ -333,7 +333,7 @@ static void EditorDraw(ConsoleWindow* console)
             if (!gameState->game.updateRunning && ImGui::MenuItem("Play")) { gameState->game.updateRunning = true; }
             if (gameState->game.updateRunning && ImGui::MenuItem("Pause")) { gameState->game.updateRunning = false; }
             if (ImGui::MenuItem("Reset", "CTRL+R")) {
-                GL_CleanCache();
+                CleanCache();
                 
                 ResetArena(&sceneState->arena);
 
@@ -681,8 +681,8 @@ static void EditorDraw(RenderDebuggerWindow* debugger)
     
     ImGui::Separator();
 
-    i32 total = GL_TotalGPUMemoryKB();
-    ImGui::Text("GPU memory: %d / %d", total - GL_AvailableGPUMemoryKB(), total);
+    i32 total = TotalGPUMemoryKB();
+    ImGui::Text("GPU memory: %d / %d", total - AvailableGPUMemoryKB(), total);
     
     ImGui::Separator();
 
@@ -696,6 +696,14 @@ static void EditorDraw(RenderDebuggerWindow* debugger)
 
     if(ImGui::SmallButton(editorState->editorFrameRunning ? "Stop" : "Run")) {
         editorState->editorFrameRunning = !editorState->editorFrameRunning;
+    }
+
+    if(!editorState->editorFrameRunning) {
+        ImGui::SameLine();
+        editorState->playNextFrame = false;
+        if(ImGui::SmallButton("Next Frame")) {
+            editorState->playNextFrame = true;
+        }
     }
 
     if(!editorState->editorFrameRunning) {
@@ -743,11 +751,31 @@ static void EditorDraw(RenderDebuggerWindow* debugger)
             switch(renderHeader->type) {
                 case RenderType_RenderTempData: {
                     RenderTempData *tempData = (RenderTempData *)renderHeader;
+#if GAME_EDITOR
+                    ImGui::Text("Temp Data (%s)", tempData->header.debugData);
+#else
                     ImGui::Text("Temp Data");
+#endif
                 } break;
                 case RenderType_RenderClear: {
                     RenderClear *clear = (RenderClear *)renderHeader;
                     ImGui::Text("Clear -> %.3f, %.3f, %.3f, %.3f", clear->color.r, clear->color.g, clear->color.b, clear->color.a);
+                } break;
+                case RenderType_RenderSetStyle: {
+                    RenderSetStyle *setStyle = (RenderSetStyle *)renderHeader;
+                    ImGui::Text("Set Style -> Normal: %s,\nHovered: %s,\nDown: %s", setStyle->style.slicedFilepath, setStyle->style.slicedHoveredFilepath, setStyle->style.slicedDownFilepath);
+                } break;
+                case RenderType_RenderSetTransform: {
+                    RenderSetTransform *setTransform = (RenderSetTransform *)renderHeader;
+                    ImGui::Text("Set Transform");
+                } break;
+                case RenderType_RenderPushTransform: {
+                    RenderPushTransform *pushTransform = (RenderPushTransform *)renderHeader;
+                    ImGui::Text("Push Transform");
+                } break;
+                case RenderType_RenderPopTransform: {
+                    RenderPopTransform *popTransform = (RenderPopTransform *)renderHeader;
+                    ImGui::Text("Pop Transform");
                 } break;
                 case RenderType_RenderColor: {
                     RenderColor *color = (RenderColor *)renderHeader;
@@ -836,6 +864,10 @@ static void EditorDraw(RenderDebuggerWindow* debugger)
                         (styledText->header.renderFlags & TextRenderFlag_LetterWrap) > 0, (styledText->header.renderFlags & TextRenderFlag_WordWrap) > 0
                     );
                 } break;
+                case RenderType_RenderButton: {
+                    RenderButton *button = (RenderButton *)renderHeader;
+                    ImGui::Text("Button -> Start: %.3f %.3f, End: %.3f %.3f\n\tLabel: %s", button->origin.x, button->origin.y, button->endOrigin.x, button->endOrigin.y, button->label);
+                } break;
                 case RenderType_RenderSetUniform: {
                     RenderSetUniform *uniform = (RenderSetUniform *)renderHeader;
                     ImGui::Text("Set Uniform");
@@ -853,7 +885,11 @@ static void EditorDraw(RenderDebuggerWindow* debugger)
                     ImGui::Text("Override Indices");
                 } break;
                 default: {
+#if GAME_EDITOR
+                    ImGui::Text("Unknown render command! Header Type %d, Size %d, Debug: %s", renderHeader->type, renderHeader->size, renderHeader->debugData);
+#else
                     ImGui::Text("Unknown render command! Header Type %d, Size %d", renderHeader->type, renderHeader->size);
+#endif
                 } break;
             }
 
@@ -1520,6 +1556,8 @@ static void EditorInit()
 {    
     char loadNameBuffer[128];
 
+    editorState->editorFrameRunning = TableGetBool(&editorSave, "editorFrameRunning", true);
+
     // editorConsole.open = TableGetBool(&editorSave, "editorConsoleOpen");
     editorConsole.open = true;
     EditorInit(&editorConsole);
@@ -1595,26 +1633,27 @@ static void EditorEnd()
 {
     char saveNameBuffer[128];
     
-    TableSetBool(&permanentState->arena, &editorSave, "editorConsoleOpen", editorConsole.open);
-    TableSetI32(&permanentState->arena, &editorSave, "editorLogFlags", editorConsole.logFlags);
-    TableSetBool(&permanentState->arena, &editorSave, "editorPreviewOpen", editorPreview.open);
-    TableSetBool(&permanentState->arena, &editorSave, "assetsWindowOpen", assetsWindow.open);
-    TableSetBool(&permanentState->arena, &editorSave, "editorPerformanceDebuggerOpen", editorPerformanceDebugger.open);
-    TableSetBool(&permanentState->arena, &editorSave, "editorRenderDebuggerOpen", editorRenderDebugger.open);
-    TableSetBool(&permanentState->arena, &editorSave, "editorMemoryDebuggerOpen", editorMemoryDebugger.open);
-    TableSetBool(&permanentState->arena, &editorSave, "editorTextureDebuggerOpen", editorTextureDebugger.open);
-    TableSetBool(&permanentState->arena, &editorSave, "editorInputDebuggerOpen", editorInputDebugger.open);
-    TableSetBool(&permanentState->arena, &editorSave, "editorTimeDebuggerOpen", editorTimeDebugger.open);
-    TableSetBool(&permanentState->arena, &editorSave, "editorSoundDebuggerOpen", editorSoundDebugger.open);
-    TableSetBool(&permanentState->arena, &editorSave, "editorSoundDebuggersoundMuted", soundMuted);
+    TableSetBool(&temporalState->arena, &editorSave, "editorFrameRunning", editorState->editorFrameRunning);
+    TableSetBool(&temporalState->arena, &editorSave, "editorConsoleOpen", editorConsole.open);
+    TableSetI32(&temporalState->arena, &editorSave, "editorLogFlags", editorConsole.logFlags);
+    TableSetBool(&temporalState->arena, &editorSave, "editorPreviewOpen", editorPreview.open);
+    TableSetBool(&temporalState->arena, &editorSave, "assetsWindowOpen", assetsWindow.open);
+    TableSetBool(&temporalState->arena, &editorSave, "editorPerformanceDebuggerOpen", editorPerformanceDebugger.open);
+    TableSetBool(&temporalState->arena, &editorSave, "editorRenderDebuggerOpen", editorRenderDebugger.open);
+    TableSetBool(&temporalState->arena, &editorSave, "editorMemoryDebuggerOpen", editorMemoryDebugger.open);
+    TableSetBool(&temporalState->arena, &editorSave, "editorTextureDebuggerOpen", editorTextureDebugger.open);
+    TableSetBool(&temporalState->arena, &editorSave, "editorInputDebuggerOpen", editorInputDebugger.open);
+    TableSetBool(&temporalState->arena, &editorSave, "editorTimeDebuggerOpen", editorTimeDebugger.open);
+    TableSetBool(&temporalState->arena, &editorSave, "editorSoundDebuggerOpen", editorSoundDebugger.open);
+    TableSetBool(&temporalState->arena, &editorSave, "editorSoundDebuggersoundMuted", soundMuted);
 #ifdef LUA_ENABLED
-    TableSetBool(&permanentState->arena, &editorSave, "editorLUADebuggerOpen", editorLUADebugger.open);
-    TableSetBool(&permanentState->arena, &editorSave, "editorLUADebuggerCodeOpen", editorLUADebugger.codeOpen);
-    TableSetBool(&permanentState->arena, &editorSave, "editorLUADebuggerWatchOpen", editorLUADebugger.watchOpen);
-    TableSetBool(&permanentState->arena, &editorSave, "editorLUADebuggerStackOpen", editorLUADebugger.stackOpen);
+    TableSetBool(&temporalState->arena, &editorSave, "editorLUADebuggerOpen", editorLUADebugger.open);
+    TableSetBool(&temporalState->arena, &editorSave, "editorLUADebuggerCodeOpen", editorLUADebugger.codeOpen);
+    TableSetBool(&temporalState->arena, &editorSave, "editorLUADebuggerWatchOpen", editorLUADebugger.watchOpen);
+    TableSetBool(&temporalState->arena, &editorSave, "editorLUADebuggerStackOpen", editorLUADebugger.stackOpen);
     for(i32 i = 0; i < WATCH_BUFFER_COUNT; ++i) {
         sprintf(saveNameBuffer, "editorLUADebuggerWatching%d", i);
-        TableSetString(&permanentState->arena, &editorSave, saveNameBuffer, editorLUADebugger.watchBuffer + i * WATCH_BUFFER_SIZE_EXT);
+        TableSetString(&temporalState->arena, &editorSave, saveNameBuffer, editorLUADebugger.watchBuffer + i * WATCH_BUFFER_SIZE_EXT);
     }
 #endif
     SerializeTable(&editorSave, "editor.save");

@@ -74,11 +74,11 @@ i32 main(i32 argc, char** argv)
         return -1;
     }
 
-    GL_Init();
+    Init();
 
     CreateFramebuffer();
     
-    GL_DefaultAssets();
+    DefaultAssets();
 
 #ifdef LUA_ENABLED
     ScriptingInit();
@@ -112,7 +112,7 @@ static void main_loop()
         ScriptingUpdate();
         GameUpdate();
 
-        GL_Render();
+        RenderPass();
 
         End2D();
 

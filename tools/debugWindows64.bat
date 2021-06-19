@@ -2,6 +2,6 @@
 
 pushd build
 pushd windows64
-devenv EnvariWindows.exe
+devenv RuntimeWindows.exe
 popd
 popd

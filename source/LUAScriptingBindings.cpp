@@ -76,6 +76,7 @@ extern m44 OrtographicProjection(f32 size, f32 aspect, f32 nearPlane, f32 farPla
 
 extern void Begin2D(u32 frameBufferID, u32 width, u32 height);
 extern void DrawClear(f32 red, f32 green, f32 blue, f32 alpha);
+extern void DrawSetStyle(const char* filepath, const char* filepathHovered, const char* filepathDown, f32 slice);
 extern void DrawColor(f32 red, f32 green, f32 blue, f32 alpha);
 extern void DrawTransparent();
 extern void DrawTransparent(u32 modeRGB, u32 modeAlpha, u32 srcRGB, u32 dstRGB, u32 srcAlpha, u32 dstAlpha);
@@ -101,8 +102,8 @@ extern void DrawString(f32 posX, f32 posY, const char* string, u32 renderFlags);
 extern void DrawStyledString(f32 posX, f32 posY, f32 endX, f32 endY, const char* string, u32 renderFlags);
 extern void ClearInputBuffer();
 extern bool DrawStringInput(f32 posX, f32 posY, f32 endX, f32 endY, const char* baseText, u32 maxSize);
-extern bool DrawButton(f32 posX, f32 posY, f32 endX, f32 endY, f32 slice, const char* string, const char* buttonUp, const char* buttonDown);
-extern i32 DrawMultibutton(f32 posX, f32 posY, f32 endX, f32 height, f32 slice, f32 yPadding, const char* options, const char* buttonUp, const char* buttonDown);
+extern bool DrawButton(f32 posX, f32 posY, f32 endX, f32 endY, const char* label);
+extern i32 DrawMultibutton(f32 posX, f32 posY, f32 endX, f32 height, f32 yPadding, const char* options);
 extern void DrawSetUniform(u32 locationID, UniformType type);
 extern void DrawOverrideProgram(u32 programID);
 extern void DrawOverrideVertices(f32* vertices, u32 count);
@@ -118,12 +119,14 @@ extern void LoadLUAScene(const char* luaFilepath);
 extern u32 defaultFontID;
 
 extern f32* CreateQuadPosUV(f32 posStartX, f32 posStartY, f32 posEndX, f32 posEndY, f32 uvStartX, f32 uvStartY, f32 uvEndX, f32 uvEndY);
-extern void GL_BindTextureID(u32 textureID, f32 width, f32 height);
-extern GLTexture GL_LoadTextureFile(const char *texturePath);
-extern u32 GL_GenerateFont(const char *filepath, f32 fontSize, u32 width, u32 height);
-extern u32 GL_GenerateBitmapFontStrip(const char *filepath, const char* glyphs, u32 glyphWidth, u32 glyphHeight);
-extern u32 GL_CompileProgram(const char *vertexShaderSource, const char *fragmentShaderSource);
-extern u32 GL_CompileProgramPlatform(const char *vertexShaderPlatform, const char *fragmentShaderPlatform);
+extern void BindTextureID(u32 textureID, f32 width, f32 height);
+extern GLTexture LoadTextureFile(const char *texturePath, bool permanentAsset);
+extern v2 TextureSize(const char* texturePath);
+extern v2 TextureSize(u32 textureID);
+extern u32 GenerateFont(const char *filepath, f32 fontSize, u32 width, u32 height);
+extern u32 GenerateBitmapFontStrip(const char *filepath, const char* glyphs, u32 glyphWidth, u32 glyphHeight);
+extern u32 CompileProgram(const char *vertexShaderSource, const char *fragmentShaderSource);
+extern u32 CompileProgramPlatform(const char *vertexShaderPlatform, const char *fragmentShaderPlatform);
 
 extern SoundInstance* SoundPlay(const char* filepath, f32 volume, bool loop);
 extern void SoundStop(SoundInstance* instance);
@@ -247,15 +250,51 @@ static void DrawDisableOverrideProgram()
 }
 
 // #NOTE(Juan): GLRender
+static std::tuple<f32, f32> TextureSizeBinding(const char* texturePath)
+{
+    v2 size = TextureSize(texturePath);
+    return std::tuple<f32, f32>(size.x, size.y);
+}
+
+static std::tuple<f32, f32> TextureSizeBinding(u32 textureID)
+{
+    v2 size = TextureSize(textureID);
+    return std::tuple<f32, f32>(size.x, size.y);
+}
+
 static i32 GetTextureID(GLTexture texture)
 {
     return texture.textureID;
 }
 
-// #NOTE(Juan): Render
-static i32 DrawMultibuttonLUA(f32 posX, f32 posY, f32 endX, f32 height, f32 slice, f32 yPadding, const char* options, const char* buttonUp, const char* buttonDown)
+static GLTexture LoadSceneTextureFile(const char *texturePath)
 {
-    return DrawMultibutton(posX, posY, endX, height, slice, yPadding, options, buttonUp, buttonDown) + 1;
+    return LoadTextureFile(texturePath, false);
+}
+
+static GLTexture LoadPermanentTexture(const char *texturePath)
+{
+    return LoadTextureFile(texturePath, true);
+}
+
+// #NOTE(Juan): Render
+static i32 DrawMultibuttonLUA(f32 posX, f32 posY, f32 endX, f32 height, f32 yPadding, const char* options)
+{
+    return DrawMultibutton(posX, posY, endX, height, yPadding, options) + 1;
+}
+
+#define GenerateRenderTemporaryPush(PREFIX, type) static type* RenderTemporaryPush ## PREFIX (type value) \
+{ \
+    u32 size = sizeof(type); \
+    if(renderTemporaryMemory.arena->used + size < renderTemporaryMemory.arena->size) { \
+        type *valuePointer = (type*)PushSize(&renderTemporaryMemory, size); \
+        *valuePointer = value; \
+        return valuePointer; \
+    } \
+    else { \
+        InvalidCodePath; \
+        return 0; \
+    } \
 }
 
 GenerateRenderTemporaryPush(Float, f32);
@@ -436,8 +475,8 @@ void ScriptingBindings()
     input_usertype["mouseScreenPosition"] = &Input::mouseScreenPosition;
     input_usertype["mouseWheel"] = &Input::mouseWheel;
     input_usertype["textInputBuffer"] = sol::property([](Input &input) { return input.textInputBuffer; });
-    input_usertype["keyState"] = sol::property([](Input &input) { return input.keyState; });
-    input_usertype["mouseState"] = sol::property([](Input &input) { return input.mouseState; });
+    input_usertype["keyState"] = sol::property([](Input &input) { return &input.keyState; });
+    input_usertype["mouseState"] = sol::property([](Input &input) { return &input.mouseState; });
     lua["input"] = &gameState->input;
 
     lua["SetCustomCursor"] = SetCustomCursor;
@@ -465,6 +504,7 @@ void ScriptingBindings()
 
     // #NOTE (Juan): Render
     lua["DrawClear"] = DrawClear;
+    lua["DrawSetStyle"] = DrawSetStyle;
     lua["DrawColor"] = DrawColor;
     lua["DrawDefaultTransparent"] = sol::resolve<void()>(DrawTransparent);
     lua["DrawTransparent"] = sol::resolve<void(u32, u32, u32, u32, u32, u32)>(DrawTransparent);
@@ -511,6 +551,7 @@ void ScriptingBindings()
     lua["ImageRenderFlag_Fit"] = ImageRenderFlag_Fit;
     lua["ImageRenderFlag_KeepRatioX"] = ImageRenderFlag_KeepRatioX;
     lua["ImageRenderFlag_KeepRatioY"] = ImageRenderFlag_KeepRatioY;
+    lua["ImageRenderFlag_NoMipMaps"] = ImageRenderFlag_NoMipMaps;
 
     lua["TextRenderFlag_Left"] = TextRenderFlag_Left;
     lua["TextRenderFlag_Center"] = TextRenderFlag_Center;
@@ -529,13 +570,16 @@ void ScriptingBindings()
     gltexture_usertype["channels"] = &GLTexture::channels;
 
     lua["CreateQuadPosUV"] = CreateQuadPosUV;
-    lua["LoadTextureID"] = GL_BindTextureID;
-    lua["LoadTexture"] = GL_LoadTextureFile;
+    lua["LoadTextureID"] = BindTextureID;
+    lua["LoadSceneTexture"] = LoadSceneTextureFile;
+    lua["LoadPermanentTexture"] = LoadPermanentTexture;
+    lua["TextureSize"] = sol::resolve<std::tuple<f32, f32>(const char*)>(TextureSizeBinding);
+    lua["TextureSizeID"] = sol::resolve<std::tuple<f32, f32>(u32)>(TextureSizeBinding);
     lua["GetTextureID"] = GetTextureID;
-    lua["GenerateFont"] = sol::resolve<u32(const char*, f32, u32, u32)>(GL_GenerateFont);
-    lua["GL_GenerateBitmapFontStrip"] = GL_GenerateBitmapFontStrip;
-    lua["CompileProgram"] = GL_CompileProgram;
-    lua["CompileProgramPlatform"] = GL_CompileProgramPlatform;
+    lua["GenerateFont"] = sol::resolve<u32(const char*, f32, u32, u32)>(GenerateFont);
+    lua["GenerateBitmapFontStrip"] = GenerateBitmapFontStrip;
+    lua["CompileProgram"] = CompileProgram;
+    lua["CompileProgramPlatform"] = CompileProgramPlatform;
     lua["GetUniformLocation"] = glGetUniformLocation;
     lua["UniformType_Float"] = UniformType_Float;
     lua["UniformType_Vector2"] = UniformType_Vector2;

@@ -118,11 +118,11 @@ i32 CALLBACK WinMain(
     ImGui_ImplSDL2_InitForOpenGL(sdlWindow, glContext);
     ImGui_ImplOpenGL3_Init(glsl_version);
 
-    GL_Init();
+    Init();
 
     CreateFramebuffer();
     
-    GL_DefaultAssets();
+    DefaultAssets();
 
     DeserializeTable(&permanentState->arena, &editorSave, "editor.save");
     DeserializeTable(&permanentState->arena, &saveData, "saveData.save");
@@ -183,7 +183,7 @@ i32 CALLBACK WinMain(
             test[11] = (gameState->time.gameFrames / 100) % 10 + 48;
             test[12] = (gameState->time.gameFrames / 10) % 10 + 48;
             test[13] = (gameState->time.gameFrames) % 10 + 48;
-            GL_DumpTexture(test, 1, 512, 512);
+            DumpTexture(test, 1, 512, 512);
         }
 
         if(editorPreview.open && editorPreview.focused) {
@@ -213,14 +213,14 @@ i32 CALLBACK WinMain(
         ScriptingWatchChanges();
 #endif
 
-        GL_WatchChanges();
+        WatchChanges();
 
         LARGE_INTEGER luaPerformanceStart = {};
         LARGE_INTEGER luaPerformanceEnd = {};
         i64 luaUpdateCyclesStart = __rdtsc();
         i64 luaUpdateCyclesEnd = __rdtsc();
 
-        if(editorState->editorFrameRunning) {
+        if(editorState->editorFrameRunning || editorState->playNextFrame) {
             RenderDebugStart();
 
             CommonBegin2D();
@@ -233,13 +233,7 @@ i32 CALLBACK WinMain(
 
             GameUpdate();
 
-            GL_Render();
-
-            EditorDrawAll();
-
-#ifdef LUA_ENABLED
-            RunLUAProtectedFunction(EditorUpdate)
-#endif
+            RenderPass();
 
             RenderDebugEnd();
             End2D();
@@ -255,13 +249,17 @@ i32 CALLBACK WinMain(
             }
 
             RenderDebugStart();
-            GL_Render();
+            RenderPass();
             RenderDebugEnd();
 
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-            EditorDrawAll();
         }
+
+        EditorDrawAll();
+
+#ifdef LUA_ENABLED
+        RunLUAProtectedFunction(EditorUpdate)
+#endif
 
         if(gameState->render.framebufferEnabled) {
             if(!editorPreview.open) {

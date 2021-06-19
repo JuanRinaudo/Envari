@@ -111,7 +111,7 @@ static i32 SetupWindow()
 static i32 CreateFramebuffer()
 {
     if(gameState->render.framebufferEnabled) {
-        GL_InitFramebuffer((i32)gameState->render.bufferSize.x, (i32)gameState->render.bufferSize.y);
+        InitFramebuffer((i32)gameState->render.bufferSize.x, (i32)gameState->render.bufferSize.y);
     }
     else {
         gameState->render.frameBuffer = 0;
@@ -246,7 +246,7 @@ static i32 ProcessEvent(const SDL_Event* event)
             break;
         }
         case SDL_TEXTINPUT: {
-            strcpy(gameState->input.textInputEvent, event->text.text);
+            strcpy((char*)gameState->input.textInputEvent, event->text.text);
         }
         default:
             return 0;       
@@ -276,7 +276,7 @@ static i32 RenderFramebuffer()
     f32 xOffset = -(gameState->render.windowSize.x / (gameState->render.bufferSize.x * (gameState->render.windowSize.y / gameState->render.bufferSize.y))) * 0.5f;
     // #TODO (Juan): Fix this texture offset
     DrawTexture(0, gameState->camera.size, sizeX, -gameState->camera.size, gameState->render.renderBuffer);
-    GL_Render();
+    RenderPass();
     End2D();
 
     gameState->camera.size = tempSize;

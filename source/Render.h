@@ -18,11 +18,11 @@ void RenderDebugEnd()
 static RenderHeader *RenderPushElement_(TemporaryMemory *memory, u32 size, RenderType type)
 {
     RenderHeader *result = 0;
-    renderState.lastRenderID++;
+    renderState->lastRenderID++;
 
     if(memory->arena->used + size < memory->arena->size) {
         result = (RenderHeader *)PushSize(memory, size);
-        result->id = renderState.lastRenderID;
+        result->id = renderState->lastRenderID;
         result->type = type;
         result->size = size;
 #if GAME_EDITOR
@@ -36,19 +36,39 @@ static RenderHeader *RenderPushElement_(TemporaryMemory *memory, u32 size, Rende
     return(result);
 }
 
-static char *RenderPushString(TemporaryMemory *memory, const char* string, u32 size)
+static char *RenderPushString(TemporaryMemory *memory, const char* string, size_t size)
 {
     RenderHeader *header = RenderPushElement_(memory, sizeof(RenderTempData) + size + 1, RenderType_RenderTempData);
+#if GAME_EDITOR
+    strcpy(header->debugData, "String");
+#endif
     char *data = ((char *)header) + sizeof(RenderTempData);
     strncpy(data, string, size);
     data[size] = 0;
     return data;
 }
 
+static char *RenderPushString(TemporaryMemory *memory, const char* string, size_t* size)
+{
+    *size = strlen(string);
+    return RenderPushString(memory, string, *size);
+}
+
 void DrawClear(f32 red = 0, f32 green = 0, f32 blue = 0, f32 alpha = 1)
 {
     RenderClear *clear = RenderPushElement(&renderTemporaryMemory, RenderClear);
     clear->color = V4(red, green, blue, alpha);
+}
+
+void DrawSetStyle(const char* filepath, const char* filepathHovered, const char* filepathDown, f32 slice)
+{
+    RenderSetStyle *setStyle = RenderPushElement(&renderTemporaryMemory, RenderSetStyle);
+    RenderStyle style = {};
+    style.slicedFilepath = RenderPushString(&renderTemporaryMemory, filepath, &style.slicedFilepathSize);
+    style.slicedHoveredFilepath = RenderPushString(&renderTemporaryMemory, filepathHovered, &style.slicedHoveredFilepathSize);
+    style.slicedDownFilepath = RenderPushString(&renderTemporaryMemory, filepathDown, &style.slicedDownFilepathSize);
+    style.slice = slice;
+    setStyle->style = style;
 }
 
 void DrawColor(f32 red = 0, f32 green = 0, f32 blue = 0, f32 alpha = 1)
@@ -64,8 +84,8 @@ void DrawSetLayer(u32 targetLayer, bool transparent)
     RenderLayer *layer = RenderPushElement(&renderTemporaryMemory, RenderLayer);
     layer->layer = targetLayer;
 
-    renderState.usedLayers |= 1 << targetLayer;
-    renderState.transparentLayers |= (transparent ? 1 : 0) << targetLayer;
+    renderState->usedLayers |= 1 << targetLayer;
+    renderState->transparentLayers |= (transparent ? 1 : 0) << targetLayer;
 }
 
 void DrawSetTransform(f32 posX = 0, f32 posY = 0, f32 scaleX = 1, f32 scaleY = 1, f32 angle = 0)
@@ -239,7 +259,7 @@ void DrawString(f32 posX, f32 posY, const char* string, u32 renderFlags)
 }
 
 void DrawStyledString(f32 posX, f32 posY, f32 endX, f32 endY, const char* string, u32 renderFlags = 0)
-{    
+{
     RenderStyledText *text = RenderPushElement(&renderTemporaryMemory, RenderStyledText);
     text->header.renderFlags = renderFlags;
     text->origin = V2(posX, posY);
@@ -251,26 +271,30 @@ void DrawStyledString(f32 posX, f32 posY, f32 endX, f32 endY, const char* string
 void ClearInputBuffer()
 {
     gameState->input.textInputIndex = 0;
+    gameState->input.textInputSize = 0;
     ZeroSize(TEXT_INPUT_BUFFER_COUNT, gameState->input.textInputBuffer);
+}
+
+bool DrawButton(f32 posX, f32 posY, f32 endX, f32 endY, const char* label)
+{
+    bool mouseOver = MouseOverRectangle(Rectangle2MinMax(posX, posY, endX, endY));
+    bool mouseDown = gameState->input.mouseState[1] == KEY_DOWN;
+    bool mouseReleased = gameState->input.mouseState[1] == KEY_RELEASED;
+
+    RenderButton *button = RenderPushElement(&renderTemporaryMemory, RenderButton);
+    button->state = mouseOver ? (mouseDown ? ButtonState_Down : ButtonState_Hovered) : ButtonState_Normal;
+    button->origin = V2(posX, posY);
+    button->endOrigin = V2(endX, endY);
+    button->label = PushString(&renderTemporaryMemory, label, &button->labelSize);
+    button->header.size += button->labelSize;
+
+    return mouseOver && mouseReleased;
 }
 
 bool DrawStringInput(f32 posX, f32 posY, f32 endX, f32 endY, const char* baseText, u32 maxSize = 0)
 {
     if(maxSize == 0) {
         maxSize = TEXT_INPUT_BUFFER_COUNT;
-    }
-
-    if(gameState->input.textInputBuffer[0] != 0) {
-        char inputText[TEXT_INPUT_BUFFER_COUNT];
-        strcpy(inputText, gameState->input.textInputBuffer);
-        if (FloorToInt(gameState->time.gameTime * 5) % 2 == 0) {
-            strcat(inputText, "_");
-        }
-        DrawStyledString(posX, posY, endX, endY, inputText, 0);
-    }
-    else {
-        DrawColor(0.75f, 0.75f, 0.75f, 0.75f);
-        DrawStyledString(posX, posY, endX, endY, baseText, 0);
     }
 
     bool capsLock = (SDL_GetModState() & KMOD_CAPS) > 0;
@@ -285,8 +309,9 @@ bool DrawStringInput(f32 posX, f32 posY, f32 endX, f32 endY, const char* baseTex
         if(gameState->input.keyState[scancode] == KEY_PRESSED) {
             char keyCode = (char)SDL_GetKeyFromScancode((SDL_Scancode)scancode);
             if(keyCode == '\b' && gameState->input.textInputIndex > 0) {
-                u32 utfSize = GetUTF8SizeBackwards(gameState->input.textInputBuffer + gameState->input.textInputIndex, gameState->input.textInputBuffer);
+                u32 utfSize = GetUTF8SizeBackwards((char*)gameState->input.textInputBuffer + gameState->input.textInputIndex, (char*)gameState->input.textInputBuffer);
                 gameState->input.textInputIndex -= utfSize;
+                gameState->input.textInputSize--;
                 gameState->input.textInputBuffer[gameState->input.textInputIndex] = 0;
             }
         }
@@ -295,13 +320,37 @@ bool DrawStringInput(f32 posX, f32 posY, f32 endX, f32 endY, const char* baseTex
 
     if(gameState->input.textInputEvent[0] != 0) {
         u32 utfSize = 0;
-        u32 currentChar = GetUTF8Char(gameState->input.textInputEvent, &utfSize);
+        u32 currentChar = GetUTF8Char((char*)gameState->input.textInputEvent, &utfSize);
 
-        if(currentChar <= FONT_CHAR_SIZE && utfSize != 0) {
-            strcpy(gameState->input.textInputBuffer + gameState->input.textInputIndex, gameState->input.textInputEvent);
+        if(currentChar <= FONT_CHAR_SIZE && utfSize != 0 && gameState->input.textInputSize < maxSize) {
+            strcpy((char*)gameState->input.textInputBuffer + gameState->input.textInputIndex, (char*)gameState->input.textInputEvent);
             gameState->input.textInputIndex += utfSize;
+            gameState->input.textInputSize++;
         }
     }
+
+    RenderInput *input = RenderPushElement(&renderTemporaryMemory, RenderInput);
+    input->header.renderFlags = 0;
+    input->origin = V2(posX, posY);
+    input->endOrigin = V2(endX, endY);
+
+    const char* string;
+    if(gameState->input.textInputBuffer[0] != 0) {
+        char inputText[TEXT_INPUT_BUFFER_COUNT];
+        strcpy(inputText, (char*)gameState->input.textInputBuffer);
+        if (FloorToInt(gameState->time.gameTime * 5) % 2 == 0 && gameState->input.textInputSize < maxSize) {
+            strcat(inputText, "_");
+        }
+        string = inputText;
+        input->baseText = false;
+    }
+    else {
+        string = baseText;
+        input->baseText = true;
+    }
+    
+    input->input = PushString(&renderTemporaryMemory, string, &input->inputSize);
+    input->header.size += input->inputSize;
 
     if(gameState->input.keyState[SDL_SCANCODE_RETURN]) {
         return true;
@@ -311,17 +360,7 @@ bool DrawStringInput(f32 posX, f32 posY, f32 endX, f32 endY, const char* baseTex
     }
 }
 
-bool DrawButton(f32 posX, f32 posY, f32 endX, f32 endY, f32 slice, const char* string, const char* buttonUp, const char* buttonDown)
-{
-    bool mouseOver = MouseOverRectangle(Rectangle2MinMax(posX, posY, endX, endY));
-    bool mouseDown = gameState->input.mouseState[1] == KEY_DOWN;
-    bool mouseReleased = gameState->input.mouseState[1] == KEY_RELEASED;
-    DrawImage9Slice(posX, posY, endX, endY, slice, mouseOver && mouseDown ? buttonDown : buttonUp);
-    DrawStyledString(posX, posY, endX, endY, string, TextRenderFlag_Center | TextRenderFlag_WordWrap);
-    return mouseOver && mouseReleased;
-}
-
-i32 DrawMultibutton(f32 posX, f32 posY, f32 endX, f32 height, f32 slice, f32 yPadding, const char* options, const char* buttonUp, const char* buttonDown)
+i32 DrawMultibutton(f32 posX, f32 posY, f32 endX, f32 height, f32 yPadding, const char* options)
 {
     i32 optionIndex = 0;
     i32 buttonCount = 0;
@@ -338,7 +377,7 @@ i32 DrawMultibutton(f32 posX, f32 posY, f32 endX, f32 height, f32 slice, f32 yPa
         text = RenderPushString(&renderTemporaryMemory, options + optionIndex, size);
         optionIndex = searchIndex + 1;
 
-        if(DrawButton(posX, posY + buttonY, endX, posY + buttonY + height, slice, text, buttonUp, buttonDown)) {
+        if(DrawButton(posX, posY + buttonY, endX, posY + buttonY + height, text)) {
             pressedIndex = buttonCount;
         }
 
@@ -403,13 +442,14 @@ void DrawOverrideIndices(u32* indices, u32 count)
 
 void Begin2D(u32 frameBufferID, u32 width, u32 height)
 {
-    renderState.lastRenderID = 0;
-    renderState.usedLayers = 0;
-    renderState.transparentLayers = 0;
-    renderState.renderColor = V4(1, 1, 1, 1);
-    renderState.overrideProgram = 0;
-    renderState.overridingVertices = false;
-    renderState.overridingIndices = false;
+    renderState->lastRenderID = 0;
+    renderState->usedLayers = 0;
+    renderState->transparentLayers = 0;
+    renderState->renderColor = V4(1, 1, 1, 1);
+    renderState->overrideProgram = 0;
+    renderState->overridingVertices = false;
+    renderState->overridingIndices = false;
+    renderState->generateMipMaps = true;
     renderTemporaryMemory = BeginTemporaryMemory(&temporalState->arena);
     
     RenderHeader *clearFirstHeader = (RenderHeader *)renderTemporaryMemory.arena->base;
