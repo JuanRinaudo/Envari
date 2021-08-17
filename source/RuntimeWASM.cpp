@@ -5,11 +5,17 @@
 
 #include <string>
 
+// #undef LUA_ENABLED
+
 #define PLATFORM_WASM
 
 #include "CodeGen/FileMap.h"
 #include "CodeGen/ShaderMap.h"
 #include "CodeGen/WasmConfigMap.h"
+
+#define DATA_SAVE_PATH "/save/savedata.save"
+#define CONFIG_SAVE_PATH "/save/config.save"
+#define EDITOR_SAVE_PATH "/save/editor.save"
 
 #define SHADER_PREFIX "shaders/es/"
 #define SOURCE_TYPE const char* const
@@ -31,11 +37,18 @@
 #include "Game.h"
 #include "PlatformCommon.h"
 
+static void main_loop();
+
+extern "C" {
+    i32 main(i32 argc, char** argv);
+    void main_loaded();
+    void main_save();
+    void main_end();
+}
+
 #ifdef LUA_ENABLED
 #include "LUAScriptingBindings.cpp"
 #endif
-
-static void main_loop();
 
 i32 main(i32 argc, char** argv)
 {
@@ -58,6 +71,11 @@ i32 main(i32 argc, char** argv)
     InitializeArena(&sceneState->arena, gameState->memory.sceneStorageSize, (u8 *)gameState->memory.sceneStorage, sizeof(SceneData));
     InitializeArena(&temporalState->arena, gameState->memory.temporalStorageSize, (u8 *)gameState->memory.temporalStorage, sizeof(TemporalData));
 
+    stringAllocator = PushStruct(&permanentState->arena, StringAllocator);
+    InitializeStringAllocator(stringAllocator);
+
+    InitEngine();
+
     DeserializeDataTable(&initialConfig, DATA_WASMCONFIG_ENVT);
 
     if(!InitSDL()) {
@@ -74,7 +92,7 @@ i32 main(i32 argc, char** argv)
         return -1;
     }
 
-    Init();
+    InitGL();
 
     CreateFramebuffer();
     
@@ -83,8 +101,14 @@ i32 main(i32 argc, char** argv)
 #ifdef LUA_ENABLED
     ScriptingInit();
 #endif
-    
-    // DeserializeTable(&permanentState->arena, &saveData, "saveData.save");
+
+    EM_ASM(
+        FS.mkdir('/save');
+        FS.mount(IDBFS, {}, '/save');
+        FS.syncfs(true, function (err) {
+            ccall('main_loaded', 'v');
+        });
+    );
 
     GameInit();
 
@@ -95,6 +119,11 @@ i32 main(i32 argc, char** argv)
     gameState->game.running = true;
 
     return 0;
+}
+
+void main_loaded()
+{
+    DeserializeTable(&permanentState->arena, &saveData, DATA_SAVE_PATH);
 }
 
 static void main_loop()
@@ -109,7 +138,9 @@ static void main_loop()
 
         CommonBegin2D();
 
+#ifdef LUA_ENABLED
         ScriptingUpdate();
+#endif
         GameUpdate();
 
         RenderPass();
@@ -128,11 +159,14 @@ static void main_loop()
     }
 }
 
-// static void main_end()
-// {
-//     GameEnd();
+void main_save()
+{
+    EM_ASM(
+        FS.syncfs(function (err) { });
+    );
+}
 
-//     // SaveConfig();
-
-//     // SerializeTable(&saveData, "saveData.save");
-// }
+void main_end()
+{
+    GameEnd();
+}

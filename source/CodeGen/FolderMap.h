@@ -5,6 +5,7 @@ const char* ATLAS = "atlas/";
 const char* DATA = "data/";
 const char* FONTS = "fonts/";
 const char* IMAGES = "images/";
+const char* SAVE = "save/";
 const char* SCRIPTS = "scripts/";
 const char* SHADERS = "shaders/";
 const char* SOUND = "sound/";

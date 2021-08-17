@@ -35,13 +35,27 @@ static void CheckInput() {
     gameState->input.mouseWheel = 0;
 }
 
+static i32 InitEngine()
+{
+#if GAME_RELEASE
+    filesystem::current_path(filesystem::current_path().string() + "/data");
+#endif
+
+#ifndef PLATFORM_WASM
+    CreateDirectoryIfNotExists("temp");
+    CreateDirectoryIfNotExists("save");
+#endif
+
+    return 1;
+}
+
 static i32 InitSDL()
 {
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         return -1;
     }
     
-    #ifdef PLATFORM_WASM
+#ifdef PLATFORM_WASM
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
@@ -58,7 +72,7 @@ static i32 InitSDL()
 
 static i32 SetupWindow()
 {
-    DeserializeTable(&permanentState->arena, &configSave, "config.save");
+    DeserializeTable(&permanentState->arena, &configSave, CONFIG_SAVE_PATH);
     gameState->render.windowPosition = TableGetV2(&configSave, "windowPosition", V2(-1, -1));
     gameState->render.windowSize = TableGetV2(&configSave, "windowSize", TableGetV2(&initialConfig, "windowSize"));
 
@@ -246,7 +260,9 @@ static i32 ProcessEvent(const SDL_Event* event)
             break;
         }
         case SDL_TEXTINPUT: {
-            strcpy((char*)gameState->input.textInputEvent, event->text.text);
+            if(keyboardEnabled) {
+                strcpy((char*)gameState->input.textInputEvent, event->text.text);
+            }
         }
         default:
             return 0;       
@@ -330,7 +346,7 @@ static i32 SaveConfig()
 {
     TableSetV2(&permanentState->arena, &configSave, "windowPosition", gameState->render.windowPosition);
     TableSetV2(&permanentState->arena, &configSave, "windowSize", gameState->render.windowSize);
-    SerializeTable(&configSave, "config.save");
+    SerializeTable(&configSave, CONFIG_SAVE_PATH);
 
     return 1;
 }

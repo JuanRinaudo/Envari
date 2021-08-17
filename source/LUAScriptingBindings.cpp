@@ -9,6 +9,7 @@
 #include "STB/stb_truetype.h" 
 
 #include "Defines.h"
+#include "Templates.h"
 #include "LUA/sol.hpp"
 #include "Miniaudio/miniaudio.h"
 
@@ -256,11 +257,11 @@ static std::tuple<f32, f32> TextureSizeBinding(const char* texturePath)
     return std::tuple<f32, f32>(size.x, size.y);
 }
 
-static std::tuple<f32, f32> TextureSizeBinding(u32 textureID)
-{
-    v2 size = TextureSize(textureID);
-    return std::tuple<f32, f32>(size.x, size.y);
-}
+// static std::tuple<f32, f32> TextureSizeBinding(u32 textureID)
+// {
+//     v2 size = TextureSize(textureID);
+//     return std::tuple<f32, f32>(size.x, size.y);
+// }
 
 static i32 GetTextureID(GLTexture texture)
 {
@@ -302,9 +303,14 @@ GenerateRenderTemporaryPush(Vector2, v2);
 
 // #NOTE(Juan): Save
 static void SaveData()
-{
-    SerializeTable(&saveData, "saveData.save");
-    SerializeTable(&editorSave, "editor.save");
+{    
+    SerializeTable(&saveData, DATA_SAVE_PATH);
+#ifdef GAME_EDITOR
+    SerializeTable(&editorSave, EDITOR_SAVE_PATH);
+#endif
+#ifdef PLATFORM_WASM
+    main_save();
+#endif
 }
 
 static char* SaveGetString(const char* key, const char* defaultValue)
@@ -431,6 +437,10 @@ void ScriptingBindings()
     lua["SOL_LIBRARY_FFI"] = sol::lib::ffi;
     lua["SOL_LIBRARY_JIT"] = sol::lib::jit;
     lua["SOL_LIBRARY_UTF8"] = sol::lib::utf8;
+
+    // #NOTE (Juan): Memory
+    sol::usertype<DynamicString> dynamicString_usertype = lua.new_usertype<DynamicString>("dynamicstring");
+    dynamicString_usertype["value"] = sol::property([](DynamicString &string) { return string.value; }, [](DynamicString &string, char* value) { string = value; });;
     
     // #NOTE (Juan): C/C++
     lua["CharToInt"] = CharToInt;
@@ -474,7 +484,7 @@ void ScriptingBindings()
     input_usertype["mousePosition"] = &Input::mousePosition;
     input_usertype["mouseScreenPosition"] = &Input::mouseScreenPosition;
     input_usertype["mouseWheel"] = &Input::mouseWheel;
-    input_usertype["textInputBuffer"] = sol::property([](Input &input) { return input.textInputBuffer; });
+    input_usertype["textInputBuffer"] = sol::property([](Input &input) { return input.textInputBuffer->value; }, [](Input &input, char* value) { return *input.textInputBuffer = value; });
     input_usertype["keyState"] = sol::property([](Input &input) { return &input.keyState; });
     input_usertype["mouseState"] = sol::property([](Input &input) { return &input.mouseState; });
     lua["input"] = &gameState->input;
@@ -574,7 +584,7 @@ void ScriptingBindings()
     lua["LoadSceneTexture"] = LoadSceneTextureFile;
     lua["LoadPermanentTexture"] = LoadPermanentTexture;
     lua["TextureSize"] = sol::resolve<std::tuple<f32, f32>(const char*)>(TextureSizeBinding);
-    lua["TextureSizeID"] = sol::resolve<std::tuple<f32, f32>(u32)>(TextureSizeBinding);
+    // lua["TextureSizeID"] = sol::resolve<std::tuple<f32, f32>(u32)>(TextureSizeBinding);
     lua["GetTextureID"] = GetTextureID;
     lua["GenerateFont"] = sol::resolve<u32(const char*, f32, u32, u32)>(GenerateFont);
     lua["GenerateBitmapFontStrip"] = GenerateBitmapFontStrip;

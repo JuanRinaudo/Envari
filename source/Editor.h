@@ -66,6 +66,10 @@ static void EditorInit(LUADebuggerWindow* debugger);
 static void EditorDraw(LUADebuggerWindow* debugger);
 #endif
 
+static EditorConfigWindow editorConfig;
+static void EditorInit(EditorConfigWindow* help);
+static void EditorDraw(EditorConfigWindow* help);
+
 static HelpWindow editorHelp;
 static void EditorInit(HelpWindow* help);
 static void EditorDraw(HelpWindow* help);
@@ -77,5 +81,10 @@ static void ExecCommand(ConsoleWindow* console, const char* command_line);
 
 static void EditorInit();
 static void EditorDrawAllOpen();
+
+static Windows86OutputConfig windows86OutputConfig;
+static Windows64OutputConfig windows64OutputConfig;
+static AndroidOutputConfig androidOutputConfig;
+static WASMOutputConfig wasmOutputConfig;
 
 #endif

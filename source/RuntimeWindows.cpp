@@ -63,6 +63,11 @@ i32 CALLBACK WinMain(
     InitializeArena(&sceneState->arena, gameState->memory.sceneStorageSize, (u8 *)gameState->memory.sceneStorage, sizeof(SceneData));
     InitializeArena(&temporalState->arena, gameState->memory.temporalStorageSize, (u8 *)gameState->memory.temporalStorage, sizeof(TemporalData));
 
+    stringAllocator = PushStruct(&permanentState->arena, StringAllocator);
+    InitializeStringAllocator(stringAllocator);
+
+    InitEngine();
+
     DeserializeDataTable(&initialConfig, DATA_WINDOWSCONFIG_ENVT);
 
     if(!InitSDL()) {
@@ -81,7 +86,7 @@ i32 CALLBACK WinMain(
         return -1;
     }
 
-    Init();
+    InitGL();
 
     CreateFramebuffer();
     
@@ -91,7 +96,7 @@ i32 CALLBACK WinMain(
     ScriptingInit();
 #endif
     
-    DeserializeTable(&permanentState->arena, &saveData, "saveData.save");
+    DeserializeTable(&permanentState->arena, &saveData, DATA_SAVE_PATH);
     
     GameInit();
 

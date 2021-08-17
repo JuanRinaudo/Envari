@@ -15,7 +15,7 @@ void RenderDebugEnd()
 #endif
 
 #define RenderPushElement(arena, type) (type *)RenderPushElement_(arena, sizeof(type), RenderType_##type);
-static RenderHeader *RenderPushElement_(TemporaryMemory *memory, u32 size, RenderType type)
+static RenderHeader *RenderPushElement_(TemporaryMemory *memory, size_t size, RenderType type)
 {
     RenderHeader *result = 0;
     renderState->lastRenderID++;
@@ -272,7 +272,7 @@ void ClearInputBuffer()
 {
     gameState->input.textInputIndex = 0;
     gameState->input.textInputSize = 0;
-    ZeroSize(TEXT_INPUT_BUFFER_COUNT, gameState->input.textInputBuffer);
+    ZeroSize(gameState->input.textInputBuffer->allocSize, gameState->input.textInputBuffer->value);
 }
 
 bool DrawButton(f32 posX, f32 posY, f32 endX, f32 endY, const char* label)
@@ -309,10 +309,10 @@ bool DrawStringInput(f32 posX, f32 posY, f32 endX, f32 endY, const char* baseTex
         if(gameState->input.keyState[scancode] == KEY_PRESSED) {
             char keyCode = (char)SDL_GetKeyFromScancode((SDL_Scancode)scancode);
             if(keyCode == '\b' && gameState->input.textInputIndex > 0) {
-                u32 utfSize = GetUTF8SizeBackwards((char*)gameState->input.textInputBuffer + gameState->input.textInputIndex, (char*)gameState->input.textInputBuffer);
+                u32 utfSize = GetUTF8SizeBackwards((char*)gameState->input.textInputBuffer->value + gameState->input.textInputIndex, (char*)gameState->input.textInputBuffer->value);
                 gameState->input.textInputIndex -= utfSize;
                 gameState->input.textInputSize--;
-                gameState->input.textInputBuffer[gameState->input.textInputIndex] = 0;
+                gameState->input.textInputBuffer->value[gameState->input.textInputIndex] = 0;
             }
         }
         scancode++;
@@ -323,7 +323,7 @@ bool DrawStringInput(f32 posX, f32 posY, f32 endX, f32 endY, const char* baseTex
         u32 currentChar = GetUTF8Char((char*)gameState->input.textInputEvent, &utfSize);
 
         if(currentChar <= FONT_CHAR_SIZE && utfSize != 0 && gameState->input.textInputSize < maxSize) {
-            strcpy((char*)gameState->input.textInputBuffer + gameState->input.textInputIndex, (char*)gameState->input.textInputEvent);
+            strcpy((char*)gameState->input.textInputBuffer->value + gameState->input.textInputIndex, (char*)gameState->input.textInputEvent);
             gameState->input.textInputIndex += utfSize;
             gameState->input.textInputSize++;
         }
@@ -335,9 +335,9 @@ bool DrawStringInput(f32 posX, f32 posY, f32 endX, f32 endY, const char* baseTex
     input->endOrigin = V2(endX, endY);
 
     const char* string;
-    if(gameState->input.textInputBuffer[0] != 0) {
+    if(gameState->input.textInputBuffer->value[0] != 0) {
         char inputText[TEXT_INPUT_BUFFER_COUNT];
-        strcpy(inputText, (char*)gameState->input.textInputBuffer);
+        strcpy(inputText, (char*)gameState->input.textInputBuffer->value);
         if (FloorToInt(gameState->time.gameTime * 5) % 2 == 0 && gameState->input.textInputSize < maxSize) {
             strcat(inputText, "_");
         }

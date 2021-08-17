@@ -41,6 +41,7 @@
 #include "IMGUI/imgui_demo.cpp"
 #include "IMGUI/imgui_draw.cpp"
 #include "IMGUI/imgui_widgets.cpp"
+#include "IMGUI/imgui_customs.cpp"
 #include "IMGUI/imgui_tables.cpp"
 
 #include "IMGUI/imgui_impl_sdl.h"
@@ -80,6 +81,11 @@ i32 CALLBACK WinMain(
     InitializeArena(&editorState->arena, gameState->memory.editorStorageSize, (u8 *)gameState->memory.editorStorage, sizeof(EditorData));
     InitializeArena(&temporalState->arena, gameState->memory.temporalStorageSize, (u8 *)gameState->memory.temporalStorage, sizeof(TemporalData));
 
+    stringAllocator = PushStruct(&permanentState->arena, StringAllocator);
+    InitializeStringAllocator(stringAllocator);
+
+    InitEngine();
+
     DeserializeDataTable(&initialConfig, DATA_EDITORCONFIG_ENVT);
 
     if(!InitSDL()) {
@@ -118,14 +124,14 @@ i32 CALLBACK WinMain(
     ImGui_ImplSDL2_InitForOpenGL(sdlWindow, glContext);
     ImGui_ImplOpenGL3_Init(glsl_version);
 
-    Init();
+    InitGL();
 
     CreateFramebuffer();
     
     DefaultAssets();
 
-    DeserializeTable(&permanentState->arena, &editorSave, "editor.save");
-    DeserializeTable(&permanentState->arena, &saveData, "saveData.save");
+    DeserializeTable(&permanentState->arena, &editorSave, EDITOR_SAVE_PATH);
+    DeserializeTable(&permanentState->arena, &saveData, DATA_SAVE_PATH);
     
     EditorInit();
 
@@ -208,6 +214,8 @@ i32 CALLBACK WinMain(
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplSDL2_NewFrame(sdlWindow);
         ImGui::NewFrame();
+
+        UpdateStringAllocator(stringAllocator);
 
 #ifdef LUA_ENABLED
         ScriptingWatchChanges();
@@ -313,7 +321,7 @@ i32 CALLBACK WinMain(
 
     SaveConfig();
 
-    SerializeTable(&saveData, "saveData.save");
+    SerializeTable(&saveData, DATA_SAVE_PATH);
     
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplSDL2_Shutdown();

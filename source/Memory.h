@@ -150,4 +150,98 @@ static void CheckArena(MemoryArena *arena)
     Assert(arena->tempCount == 0);
 }
 
+static void InitializeStringAllocator(StringAllocator *allocator)
+{
+#if GAME_EDITOR
+    allocator->stringReallocOnAsignLastFrame = 0;
+    allocator->stringsAllocatedLastFrame = 0;
+    allocator->totalStringsReallocated = 0;
+    allocator->totalStringsAllocated = 0;
+#endif
+}
+
+static char* AllocateString(StringAllocator allocator, size_t size)
+{
+    return (char*)malloc(size);
+}
+
+static char* ResizeString(char* string, size_t size)
+{
+    return (char*)realloc((void*)string, size);
+}
+
+static void FreeString(char* string)
+{
+    return free(string);
+}
+
+static void UpdateStringAllocator(StringAllocator *allocator)
+{
+#if GAME_EDITOR
+    allocator->totalStringsReallocated += allocator->stringReallocOnAsignLastFrame;
+    allocator->totalStringsAllocated += allocator->stringsAllocatedLastFrame;
+
+    allocator->stringReallocOnAsignLastFrame = 0;
+    allocator->stringsAllocatedLastFrame = 0;
+#endif
+}
+
+static DynamicString* AllocateDynamicString(StringAllocator *allocator, const char* initialValue, size_t minBufferSize = 0)
+{
+#if GAME_EDITOR
+    allocator->stringsAllocatedLastFrame++;
+#endif
+
+    DynamicString* string = (DynamicString*)malloc(sizeof(DynamicString));
+    string->allocator = allocator;
+    string->size = strlen(initialValue);
+
+    if(minBufferSize <= string->size) {
+        minBufferSize = string->size;
+    }
+
+    string->allocSize = sizeof(char) * minBufferSize;
+    string->value = (char*)malloc(string->allocSize);
+    strncpy(string->value, initialValue, minBufferSize);
+
+    return string;
+}
+
+static void ResizeDynamicString(DynamicString *string, size_t newSize)
+{
+    if(string->allocSize != newSize) {
+        char* oldData = string->value;
+
+    #if GAME_EDITOR
+        string->allocator->stringReallocOnAsignLastFrame++;
+    #endif
+        string->value = (char*)malloc(newSize);
+        string->allocSize = newSize;
+        string->size = MIN(string->size, string->allocSize - 1);
+
+        strncpy(string->value, oldData, string->size);
+        string->value[string->size + 1] = 0;
+        free(oldData);
+    }
+}
+
+DynamicString& DynamicString::operator = (char* input)
+{
+    size_t inputLength = strlen(input);
+
+    if(inputLength > allocSize) {
+        ResizeDynamicString(this, inputLength + 1);
+    }
+    
+    size = inputLength;
+    strcpy(value, input);
+
+    return *this;
+}
+
+static void FreeDynamicString(DynamicString* string)
+{
+    return free(string);
+}
+
 #endif

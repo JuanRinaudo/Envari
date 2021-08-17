@@ -1,6 +1,19 @@
 #ifndef DEFINES_H
 #define DEFINES_H
 
+const char* watchTypeNames[] = { "Auto", "Int", "Float", "Bool", "Char", "String" };
+const char* platformNames[] = { "Windows x86", "Windows x64", "Android", "WASM" };
+
+#ifndef DATA_SAVE_PATH
+#define DATA_SAVE_PATH "save/savedata.save"
+#endif
+#ifndef CONFIG_SAVE_PATH
+#define CONFIG_SAVE_PATH "save/config.save"
+#endif
+#ifndef EDITOR_SAVE_PATH
+#define EDITOR_SAVE_PATH "save/editor.save"
+#endif
+
 #define InvalidCodePath Assert(!"InvalidCodePath");
 #define InvalidDefaultCase default: {InvalidCodePath;} break;
 

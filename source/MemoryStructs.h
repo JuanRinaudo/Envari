@@ -1,9 +1,10 @@
 #ifndef MEMORYSTRUCTS_H
 #define MEMORYSTRUCTS_H
 
-struct MemoryArena {
+struct MemoryArena
+{
     size_t size;
-    u8 *base;
+    u8* base;
     size_t used;
 
     u32 tempCount;
@@ -12,8 +13,28 @@ struct MemoryArena {
 
 struct TemporaryMemory
 {
-    MemoryArena *arena;
+    MemoryArena* arena;
     size_t used;
 };
-    
+
+struct StringAllocator
+{
+#if GAME_EDITOR
+    size_t stringReallocOnAsignLastFrame;
+    size_t stringsAllocatedLastFrame;
+    size_t totalStringsReallocated;
+    size_t totalStringsAllocated;
+#endif
+};
+
+struct DynamicString
+{
+    StringAllocator* allocator;
+    size_t allocSize;
+    size_t size;
+    char* value;
+
+    DynamicString& operator=(char* input);
+};
+
 #endif

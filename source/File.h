@@ -46,6 +46,14 @@ static void UnloadFileFromMemory(char* fileBuffer)
     UnloadFileFromMemory((void*)fileBuffer);
 }
 
+static void CreateDirectoryIfNotExists(char* path)
+{	
+    filesystem::path directoryPath = filesystem::path(path);
+	if(!filesystem::exists(directoryPath)) {
+		filesystem::create_directories(directoryPath);
+	}
+}
+
 // #TODO (Juan): Compression ZSTD
 // size_t fSize = sizeof(defaultFont);
 // Log("Uncompressed size = %d", fSize);

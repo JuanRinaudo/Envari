@@ -1,9 +1,9 @@
 #ifndef EDITOR_CPP
 #define EDITOR_CPP
 
-const char* watchTypeNames[] = { "Auto", "Int", "Float", "Bool", "Char", "String" };
-
 LogFlag currentLogFlag = LogFlag_NONE;
+
+static i32 BuildPlatform(RuntimePlatform platform);
 
 static void ClearLog(ConsoleWindow* console)
 {
@@ -77,7 +77,8 @@ static void EditorInit(PreviewWindow* preview)
 
 static void EditorInit(AssetsWindow* debugger)
 {
-    
+    debugger->pathLevel = 0;
+    debugger->currentPath = filesystem::current_path();
 }
 
 static void EditorInit(PerformanceDebuggerWindow* debugger)
@@ -125,6 +126,17 @@ static void EditorInit(LUADebuggerWindow* debugger)
     debugger->stackOpen = true;
 }
 #endif
+
+static void EditorInit(EditorConfigWindow* config)
+{
+    config->runtimesPath = AllocateDynamicString(stringAllocator, "", 32);
+    config->dataPath = AllocateDynamicString(stringAllocator, "", 32);
+
+    windows86OutputConfig.outputPath = AllocateDynamicString(stringAllocator, "", 32);
+    windows64OutputConfig.outputPath = AllocateDynamicString(stringAllocator, "", 32);
+    androidOutputConfig.outputPath = AllocateDynamicString(stringAllocator, "", 32);
+    wasmOutputConfig.outputPath = AllocateDynamicString(stringAllocator, "", 32);
+}
 
 static void EditorInit(HelpWindow* help)
 {
@@ -345,6 +357,12 @@ static void EditorDraw(ConsoleWindow* console)
 
                 GameInit();
             }
+            if (ImGui::BeginMenu("Build")) {
+                for(i32 platformIndex = 0; platformIndex < ArraySize(platformNames); platformIndex++) {
+                    if (ImGui::MenuItem(platformNames[platformIndex])) { BuildPlatform((RuntimePlatform)platformIndex); }
+                }
+                ImGui::EndMenu();
+            }
             ImGui::EndMenu();
         }
         if (ImGui::BeginMenu("Window"))
@@ -366,6 +384,11 @@ static void EditorDraw(ConsoleWindow* console)
             if (ImGui::Checkbox("LUA", &editorLUADebugger.open)) { EditorInit(&editorLUADebugger); }
             RunLUAProtectedFunction(EditorConsoleDebugBar)
 #endif
+            ImGui::EndMenu();
+        }
+        if (ImGui::BeginMenu("Config"))
+        {
+            if (ImGui::Checkbox("Editor", &editorConfig.open)) { EditorInit(&editorConfig); }
             ImGui::EndMenu();
         }
         if (ImGui::BeginMenu("Help"))
@@ -644,6 +667,26 @@ static void EditorDraw(AssetsWindow* debugger)
         return;
     }
 
+    ImGui::Text("%s", debugger->currentPath.string().c_str());
+
+    if(debugger->pathLevel > 0 && debugger->currentPath.has_relative_path() && ImGui::Button("<")) {
+        debugger->currentPath = debugger->currentPath.parent_path();
+        debugger->pathLevel--;
+    }
+
+    for(auto entry : filesystem::directory_iterator(debugger->currentPath)) {
+        std::string string = entry.path().filename().string();
+        if(ImGui::Button(string.c_str())) {
+            if(entry.is_directory()) {
+                debugger->currentPath = entry.path();
+                debugger->pathLevel++;
+            }
+            else {
+
+            }
+        }
+    }
+
     ImGui::End();
 }
 
@@ -918,6 +961,8 @@ static void EditorDraw(RenderDebuggerWindow* debugger)
         
         ImGui::TreePop();
     }
+    
+    ImGui::Separator();
 
     if(ImGui::TreeNode("Render State")) {
         if(ImGui::TreeNode("Render Style")) {
@@ -990,6 +1035,13 @@ static void EditorDraw(MemoryDebuggerWindow* debugger)
         lua.collect_garbage();
     }
 #endif
+
+    ImGui::Separator();
+    ImGui::Text("Dynamic Strings");
+    ImGui::Text("String reallocs on asign last frame: %d", stringAllocator->stringReallocOnAsignLastFrame);
+    ImGui::Text("Strings allocated last frame: %d", stringAllocator->stringsAllocatedLastFrame);
+    ImGui::Text("Total strings rellocated: %d", stringAllocator->totalStringsReallocated);
+    ImGui::Text("Total strings allocated: %d", stringAllocator->totalStringsAllocated);
     
     ImGui::End();
 }
@@ -1174,7 +1226,7 @@ static void EditorDraw(InputDebuggerWindow* debugger)
     ImGui::Text("Mouse screen  \tX: %f\tY: %f", gameState->input.mouseScreenPosition.x, gameState->input.mouseScreenPosition.y);
     ImGui::Text("Mouse wheel:  \t%d", gameState->input.mouseWheel);
 
-    ImGui::Text("Text input buffer: %s", gameState->input.textInputBuffer);
+    ImGui::Text("Text input buffer: %s", gameState->input.textInputBuffer->value);
 
     float elementSize = 50;
 
@@ -1487,7 +1539,7 @@ static void EditorDraw(LUADebuggerWindow* debugger)
                 ImGui::PushItemWidth(contentWidth * 0.2f - 2);
                 if (ImGui::BeginCombo("##Combo", watchTypeNames[debugger->watchType[i]]))
                 {
-                    for (i32 n = 0; n < ArrayCount(watchTypeNames); n++)
+                    for (i32 n = 0; n < ArraySize(watchTypeNames); n++)
                     {
                         const bool is_selected = (debugger->watchType[i] == n);
                         if (ImGui::Selectable(watchTypeNames[n], is_selected))
@@ -1552,8 +1604,68 @@ static void EditorDraw(LUADebuggerWindow* debugger)
 }
 #endif
 
+static void EditorDraw(EditorConfigWindow* config)
+{
+    if(!config->open) { return; }
+    
+    ImGui::SetNextWindowSizeConstraints(ImVec2(300, 300), ImVec2(FLT_MAX, FLT_MAX));
+    ImGui::SetNextWindowSize(ImVec2(500,300), ImGuiCond_FirstUseEver);
+    
+    if (!ImGui::Begin("Editor Config", &config->open, ImGuiWindowFlags_NoResize))
+    {
+        ImGui::End();
+        return;
+    }
+
+    i32 selectedPlatform = 0;
+    
+    ImGui::Text("General configuration");
+
+    ImGuiInputDynamicText("Runtimes Path", config->runtimesPath);
+    ImGuiInputDynamicText("Data Path", config->dataPath);
+
+    ImGui::Separator();
+
+    ImGui::Text("Platform configuration");
+
+    if (ImGui::BeginTabBar("Platforms", ImGuiTabBarFlags_FittingPolicyScroll)) {
+        i32 nameIndex = 0;
+        while(nameIndex < ArraySize(platformNames)) {\
+            bool tabOpen = true;
+            if (ImGui::BeginTabItem(platformNames[nameIndex], &tabOpen, ImGuiTabItemFlags_NoCloseButton))
+            {
+                if(tabOpen) {
+                    selectedPlatform = nameIndex;
+                }
+                ImGui::EndTabItem();
+            }
+            nameIndex++;
+        }
+        ImGui::EndTabBar();
+    }
+
+    ImGui::PushID(selectedPlatform);
+
+    if(selectedPlatform == RuntimePlatform_WINDOWS_86) {
+        ImGuiInputDynamicText("Output Path", windows86OutputConfig.outputPath);
+    }
+    if(selectedPlatform == RuntimePlatform_WINDOWS_64) {
+        ImGuiInputDynamicText("Output Path", windows64OutputConfig.outputPath);
+    }
+    if(selectedPlatform == RuntimePlatform_ANDROID) {
+        ImGui::Text("Android platform is still WIP");
+    }
+    if(selectedPlatform == RuntimePlatform_WASM) {
+        ImGuiInputDynamicText("Output Path", wasmOutputConfig.outputPath);
+    }
+
+    ImGui::PopID();
+
+    ImGui::End();
+}
+
 static void EditorDraw(HelpWindow* help)
-{    
+{
     if(!help->open) { return; }
     ImGui::SetNextWindowSizeConstraints(ImVec2(300, 300), ImVec2(FLT_MAX, FLT_MAX));
     ImGui::SetNextWindowSize(ImVec2(500,300), ImGuiCond_FirstUseEver);
@@ -1563,12 +1675,6 @@ static void EditorDraw(HelpWindow* help)
         ImGui::End();
         return;
     }
-
-    ImGui::Separator();
-    
-    ImGui::Text("Envari help");
-
-    ImGui::Separator();
 
     SDL_version compiled;
     SDL_version linked;
@@ -1637,9 +1743,23 @@ static void EditorInit()
     
     for(i32 i = 0; i < WATCH_BUFFER_COUNT; ++i) {
         sprintf(loadNameBuffer, "editorLUADebuggerWatching%d", i);
-        strcpy(editorLUADebugger.watchBuffer + i * WATCH_BUFFER_SIZE_EXT, TableGetString(&editorSave, loadNameBuffer, ""));
+        strcpy(editorLUADebugger.watchBuffer + i * WATCH_BUFFER_SIZE_EXT, TableGetString(&editorSave, loadNameBuffer));
     }
 #endif
+
+    editorHelp.open = TableGetBool(&editorSave, "editorHelpOpen");
+    EditorInit(&editorHelp);
+
+    editorConfig.open = TableGetBool(&editorSave, "editorConfigOpen");
+    EditorInit(&editorConfig);
+
+    *editorConfig.runtimesPath = TableGetString(&editorSave, "editorConfigRuntimesPath");
+    *editorConfig.dataPath = TableGetString(&editorSave, "editorConfigDataPath");
+
+    *windows86OutputConfig.outputPath = TableGetString(&editorSave, "windows86OutputConfigOutputPath");
+    *windows64OutputConfig.outputPath = TableGetString(&editorSave, "windows64OutputConfigOutputPath");
+    *androidOutputConfig.outputPath = TableGetString(&editorSave, "androidOutputConfigOutputPath");
+    *wasmOutputConfig.outputPath = TableGetString(&editorSave, "wasmOutputOutputConfigOutputPath");
 }
 
 static void EditorDrawAll()
@@ -1659,6 +1779,7 @@ static void EditorDrawAll()
 #ifdef LUA_ENABLED
     EditorDraw(&editorLUADebugger);
 #endif
+    EditorDraw(&editorConfig);
     EditorDraw(&editorHelp);
 
     if(editorState->demoWindow) {
@@ -1693,7 +1814,15 @@ static void EditorEnd()
         TableSetString(&temporalState->arena, &editorSave, saveNameBuffer, editorLUADebugger.watchBuffer + i * WATCH_BUFFER_SIZE_EXT);
     }
 #endif
-    SerializeTable(&editorSave, "editor.save");
+    TableSetBool(&temporalState->arena, &editorSave, "editorHelpOpen", editorHelp.open);
+    TableSetBool(&temporalState->arena, &editorSave, "editorConfigOpen", editorConfig.open);
+    TableSetString(&temporalState->arena, &editorSave, "editorConfigRuntimesPath", editorConfig.runtimesPath->value);
+    TableSetString(&temporalState->arena, &editorSave, "editorConfigDataPath", editorConfig.dataPath->value);
+    TableSetString(&temporalState->arena, &editorSave, "windows86OutputConfigOutputPath", windows86OutputConfig.outputPath->value);
+    TableSetString(&temporalState->arena, &editorSave, "windows64OutputConfigOutputPath", windows64OutputConfig.outputPath->value);
+    TableSetString(&temporalState->arena, &editorSave, "androidOutputConfigOutputPath", androidOutputConfig.outputPath->value);
+    TableSetString(&temporalState->arena, &editorSave, "wasmOutputOutputConfigOutputPath", wasmOutputConfig.outputPath->value);
+    SerializeTable(&editorSave, EDITOR_SAVE_PATH);
 }
 
 #endif

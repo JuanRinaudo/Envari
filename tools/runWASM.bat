@@ -1,13 +1,14 @@
 @echo off
 
-%EMSDK_PYTHON% %EMSDK%/upstream/emscripten/tools/file_packager.py build\html5\package.data ^
-    --preload data/fonts@fonts ^
-    --preload data/images@images ^
-    --preload data/scripts@scripts ^
-    --preload data/shaders@shaders ^
-    --preload data/data@data ^
-    --preload data/atlas@atlas ^
-    --preload data/sound@sound ^
-    --js-output=build\html5\package.js
+if not exist build mkdir build
+pushd build
+if not exist html5 mkdir html5
+pushd html5
+popd
+popd
+
+call Envari\tools\packageWASM.bat
+
+copy buildassets\html5\index.html build\html5\index.html >NUL
 
 start "" http://localhost:8888/

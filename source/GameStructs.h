@@ -71,8 +71,8 @@ struct WatchedProgram {
     u32 shaderProgram;
     char vertexFilepath[100];
     char fragmentFilepath[100];
-    std::filesystem::file_time_type vertexTime;
-    std::filesystem::file_time_type fragmentTime;
+    filesystem::file_time_type vertexTime;
+    filesystem::file_time_type fragmentTime;
 };
 #endif
 
@@ -472,7 +472,7 @@ struct Input
     v2 mousePosition;
     v2 mouseScreenPosition;
     i32 mouseWheel;
-    char textInputBuffer[TEXT_INPUT_BUFFER_COUNT];
+    DynamicString* textInputBuffer;
     i32 textInputIndex;
     i32 textInputSize;
     u8 mouseState[MOUSE_COUNT];

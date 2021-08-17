@@ -187,6 +187,17 @@ void TableSetString_(MemoryArena *arena, SerializableTable** table, const char* 
     }
 }
 
+char* TableGetString (SerializableTable** table, const char* key)
+{
+    SerializableValue* tableValue = shget(*table, key);
+    if(tableValue) {
+        return (char*)tableValue->value;
+    }
+    else {
+        return (char*)"";
+    }
+}
+
 char* TableGetString (SerializableTable** table, const char* key, char* defaultValue)
 {
     SerializableValue* tableValue = shget(*table, key);
@@ -250,6 +261,7 @@ static bool DeserializeTable(MemoryArena *arena, SerializableTable** table, cons
 
             // #FIX (Juan): Fix for 0 value saves like empty strings
             if(count == 0) {
+                token = NextToken(&tokenizer);
                 continue;
             }
 

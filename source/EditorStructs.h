@@ -20,6 +20,13 @@ enum WatchType {
     WatchType_STRING,
 };
 
+enum RuntimePlatform {
+    RuntimePlatform_WINDOWS_86,
+    RuntimePlatform_WINDOWS_64,
+    RuntimePlatform_ANDROID,
+    RuntimePlatform_WASM
+};
+
 struct ConsoleLog
 {
     char* log;
@@ -68,6 +75,8 @@ enum TextureInspect
 struct AssetsWindow
 {
     bool open;
+    u32 pathLevel;
+    filesystem::path currentPath;
 };
 
 struct PerformanceDebuggerWindow
@@ -165,6 +174,34 @@ struct LUADebuggerWindow
     char watchBuffer[WATCH_BUFFER_SIZE_EXT * WATCH_BUFFER_COUNT];
 };
 #endif
+
+struct Windows86OutputConfig
+{
+    DynamicString* outputPath;
+};
+
+struct Windows64OutputConfig
+{
+    DynamicString* outputPath;
+};
+
+struct AndroidOutputConfig
+{
+    DynamicString* outputPath;
+};
+
+struct WASMOutputConfig
+{
+    DynamicString* outputPath;
+};
+
+struct EditorConfigWindow
+{
+    bool open;
+
+    DynamicString* runtimesPath;
+    DynamicString* dataPath;
+};
 
 struct HelpWindow
 {

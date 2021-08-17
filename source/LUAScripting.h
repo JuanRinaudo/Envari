@@ -49,7 +49,7 @@ void LoadScriptFile(const char* filePath)
 
     #ifdef GAME_EDITOR
     if(!strstr(watchList, filePath)) {
-        watchListTimes[watchFiles] = std::filesystem::last_write_time(filePath);
+        watchListTimes[watchFiles] = filesystem::last_write_time(filePath);
         watchFiles++;
 
         strcat(watchList, filePath);
@@ -91,7 +91,7 @@ void LoadLUALibrary(sol::lib library)
     // #NOTE (Juan): Add library extensions
     switch(library) {
         case sol::lib::package: {
-            auto string = std::filesystem::current_path().string();
+            auto string = filesystem::current_path().string();
             const char* workingDirectory = string.c_str();
             size_t workingDirectorySize = strlen(workingDirectory);
 
@@ -165,7 +165,7 @@ void ScriptingWatchChanges()
         if(watchList[watchIndex] == '@') {
             name[nameIndex] = 0;
 
-            auto fileTime = std::filesystem::last_write_time(name);
+            auto fileTime = filesystem::last_write_time(name);
             if(fileTime != watchListTimes[fileIndex]) {
                 Log("Started to reload script %s", name);
 

@@ -18,6 +18,7 @@
 #include "../STB/stb_truetype.h"
 
 #include "../Defines.h"
+#include "Templates.h"
 #include "../MemoryStructs.h"
 #include "../Memory.h"
 #include "../MathStructs.h"
@@ -56,25 +57,7 @@ static void StringToKey(char* string)
     while(*string)
     {
         char singleChar = *string;
-        if(singleChar == '.') {
-            singleChar = '_';
-        }
-        else if(singleChar == ' ') {
-            singleChar = '_';
-        }
-        else if(singleChar == '-') {
-            singleChar = '_';
-        }
-        else if(singleChar == '\\') {
-            singleChar = '_';
-        }
-        else if(singleChar == '(') {
-            singleChar = '_';
-        }
-        else if(singleChar == ')') {
-            singleChar = '_';
-        }
-        else if(singleChar == '#') {
+        if(singleChar == '.' || singleChar == ' ' || singleChar == '-' || singleChar == '\\' || singleChar == '(' || singleChar == ')' || singleChar == '#') {
             singleChar = '_';
         }
         else {

@@ -1,17 +1,22 @@
 #ifndef GAME_H
 #define GAME_H
 
+#include <cstdlib>
+#include <filesystem>
+namespace filesystem = std::filesystem;
+
 #include "Miniaudio/miniaudio.h"
 #include "ZSTD/zstddeclib.c"
 #include "Defines.h"
+#include "Templates.h"
 #include "UTF8.h"
 #include "MemoryStructs.h"
 #include "Memory.h"
 
+#ifdef GAME_EDITOR
 #include "IMGUI/imgui.h"
-
-#include <cstdlib>
-#include <filesystem>
+#include "IMGUI/imgui_customs.h"
+#endif
 
 #include "MathStructs.h"
 #include "GameStructs.h"
@@ -21,6 +26,7 @@ DataTable* initialConfig = NULL;
 RenderState *renderState;
 
 Data *gameState;
+StringAllocator *stringAllocator;
 PermanentData *permanentState;
 SceneData *sceneState;
 TemporalData *temporalState;
@@ -53,12 +59,12 @@ sol::state lua;
 #ifdef GAME_EDITOR
 #include "EditorStructs.h"
 #include "Editor.h"
+#include "Build.h"
 #else
 #include "Runtime.h"
 #endif
 #include "Data.h"
 #include "Serialization.h"
-#include "Data.cpp"
 #include "Sound.h"
 #include "Input.h"
 #include "Render.h"
@@ -89,6 +95,8 @@ static u32 GameInit()
     gameState->camera.farPlane = 100.0;
     gameState->camera.view = IdM44();
     gameState->camera.projection = OrtographicProjection(gameState->camera.size, gameState->camera.ratio, gameState->camera.nearPlane, gameState->camera.farPlane);
+
+    gameState->input.textInputBuffer = AllocateDynamicString(stringAllocator, "", TEXT_INPUT_BUFFER_COUNT);
 
     renderState = PushStruct(&permanentState->arena, RenderState);
     ResetRenderState();

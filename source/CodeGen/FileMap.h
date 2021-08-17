@@ -1,10 +1,7 @@
 #ifndef FILEMAP_H
 #define FILEMAP_H
 
-const char* CONFIG_SAVE = "config.save";
-const char* EDITOR_SAVE = "editor.save";
 const char* IMGUI_INI = "imgui.ini";
-const char* SAVEDATA_SAVE = "saveData.save";
 const char* DATA_ANDROIDCONFIG_ENVT = "data/androidConfig.envt";
 const char* DATA_EDITORCONFIG_ENVT = "data/editorConfig.envt";
 const char* DATA_WASMCONFIG_ENVT = "data/wasmConfig.envt";
@@ -19,6 +16,8 @@ const char* IMAGES_BLUE_PANEL_PNG = "images/blue_panel.png";
 const char* IMAGES_CURSOR_POINTERFLAT_PNG = "images/cursor_pointerFlat.png";
 const char* IMAGES_LOGO_PNG = "images/logo.png";
 const char* IMAGES_MENUBACKGROUND_PNG = "images/menuBackground.png";
+const char* SAVE_EDITOR_SAVE = "save/editor.save";
+const char* SAVE_SAVEDATA_SAVE = "save/saveData.save";
 const char* SCRIPTS_INIT_AS = "scripts/init.as";
 const char* SCRIPTS_INIT_LUA = "scripts/init.lua";
 const char* SCRIPTS_VNSYSTEM_LUA = "scripts/vnsystem.lua";

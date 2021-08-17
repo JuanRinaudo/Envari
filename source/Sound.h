@@ -85,17 +85,18 @@ static void data_callback(ma_device* pDevice, void* pOutput, const void* pInput,
         }
     }
 
-#if GAME_EDITOR
-    for(i32 channelIndex = 0; channelIndex < SOUND_CHANNELS; ++channelIndex) {
-        f32* channelBufferToShow = editorSoundDebugger.bufferToShow + channelIndex * BUFFER_CHANNEL_TO_SHOW_SIZE;
-        for(i32 i = 0; i < frameCount; ++i) {
-            channelBufferToShow[editorSoundDebugger.bufferOffset + i] = pOutputFormatted[i * SOUND_CHANNELS + channelIndex];
-            editorSoundDebugger.bufferToShowMin[channelIndex] = MIN(editorSoundDebugger.bufferToShowMin[channelIndex], pOutputFormatted[i * SOUND_CHANNELS + channelIndex]);
-            editorSoundDebugger.bufferToShowMax[channelIndex] = MAX(editorSoundDebugger.bufferToShowMax[channelIndex], pOutputFormatted[i * SOUND_CHANNELS + channelIndex]);
-        }
-    }
-    editorSoundDebugger.bufferOffset = (editorSoundDebugger.bufferOffset + frameCount) % BUFFER_CHANNEL_TO_SHOW_SIZE;
-#endif
+    // #TODO (Juan): Is this the crash? Fix this!
+// #if GAME_EDITOR
+//     for(i32 channelIndex = 0; channelIndex < SOUND_CHANNELS; ++channelIndex) {
+//         f32* channelBufferToShow = editorSoundDebugger.bufferToShow + channelIndex * BUFFER_CHANNEL_TO_SHOW_SIZE;
+//         for(i32 i = 0; i < frameCount; ++i) {
+//             channelBufferToShow[editorSoundDebugger.bufferOffset + i] = pOutputFormatted[i * SOUND_CHANNELS + channelIndex];
+//             editorSoundDebugger.bufferToShowMin[channelIndex] = MIN(editorSoundDebugger.bufferToShowMin[channelIndex], pOutputFormatted[i * SOUND_CHANNELS + channelIndex]);
+//             editorSoundDebugger.bufferToShowMax[channelIndex] = MAX(editorSoundDebugger.bufferToShowMax[channelIndex], pOutputFormatted[i * SOUND_CHANNELS + channelIndex]);
+//         }
+//     }
+//     editorSoundDebugger.bufferOffset = (editorSoundDebugger.bufferOffset + frameCount) % BUFFER_CHANNEL_TO_SHOW_SIZE;
+// #endif
 }
 
 static void SoundInit()

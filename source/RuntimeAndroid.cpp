@@ -60,6 +60,11 @@ i32 main(i32 argc, char *argv[])
     InitializeArena(&sceneState->arena, (size_t)(gameState->memory.sceneStorageSize - sizeof(SceneData)), (u8 *)gameState->memory.sceneStorage + sizeof(SceneData));
     InitializeArena(&temporalState->arena, (size_t)(gameState->memory.temporalStorageSize - sizeof(TemporalData)), (u8 *)gameState->memory.temporalStorage + sizeof(TemporalData));
 
+    // stringAllocator = PushStruct(&permanentState->arena, StringAllocator);
+    // InitializeStringAllocator(stringAllocator);
+
+    // InitEngine();
+
 //     DeserializeDataTable(&initialConfig, DATA_ANDROIDCONFIG_ENVT);
 
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
@@ -124,7 +129,7 @@ i32 main(i32 argc, char *argv[])
 //     ScriptingInit();
 // #endif
 
-//     Init();
+//     InitGL();
 
     GameInit();
 

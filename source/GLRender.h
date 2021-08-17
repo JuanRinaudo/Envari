@@ -194,15 +194,17 @@ v2 TextureSize(const char* texturePath)
     return V2(0, 0);
 }
 
-v2 TextureSize(u32 textureID)
-{
-    glBindTexture(GL_TEXTURE_2D, textureID);
-    f32 width, height;
-    glGetTexLevelParameterfv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &width);
-    glGetTexLevelParameterfv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &height);
+// #NOTE (Juan): Doesn't work on WASM platform, should look for an alternative
+// v2 TextureSize(u32 textureID)
+// {
+//     glBindTexture(GL_TEXTURE_2D, textureID);
+//     f32 width = 0;
+//     f32 height = 0;
+//     // glGetTexLevelParameterfv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &width);
+//     // glGetTexLevelParameterfv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &height);
 
-    return V2(width, height);
-}
+//     return V2(width, height);
+// }
 
 void UnloadTextureFile(const char *texturePath)
 {
@@ -479,8 +481,8 @@ u32 CompileProgram(const char *vertexShaderPath, const char *fragmentShaderPath)
     watched.shaderProgram = shaderProgram;
     strcpy(watched.vertexFilepath, vertexShaderPath);
     strcpy(watched.fragmentFilepath, fragmentShaderPath);
-    watched.vertexTime = std::filesystem::last_write_time(vertexShaderPath);
-    watched.fragmentTime = std::filesystem::last_write_time(fragmentShaderPath);
+    watched.vertexTime = filesystem::last_write_time(vertexShaderPath);
+    watched.fragmentTime = filesystem::last_write_time(fragmentShaderPath);
 
     watchedPrograms[watchedProgramsCount] = watched;
     watchedProgramsCount++;
@@ -506,8 +508,8 @@ static void WatchChanges()
     for(i32 i = 0; i < watchedProgramsCount; ++i) {
         WatchedProgram watched = watchedPrograms[i];
 
-        std::filesystem::file_time_type vertexTime = std::filesystem::last_write_time(watched.vertexFilepath);
-        std::filesystem::file_time_type fragmentTime = std::filesystem::last_write_time(watched.fragmentFilepath);
+        filesystem::file_time_type vertexTime = filesystem::last_write_time(watched.vertexFilepath);
+        filesystem::file_time_type fragmentTime = filesystem::last_write_time(watched.fragmentFilepath);
 
         if(vertexTime != watched.vertexTime || fragmentTime != watched.fragmentTime) {
             watched.vertexTime = vertexTime;
@@ -610,8 +612,8 @@ static v2 CalculateTextSize(FontAtlas *font, const char* string, size_t stringSi
         char singleChar = string[i];
         
         stbtt_bakedchar charData = font->charData[singleChar - SPECIAL_ASCII_CHAR_OFFSET];
-        lineHeight = MAX(lineHeight, charData.y1 - charData.y0);
-        if(singleChar > SPECIAL_ASCII_CHAR_OFFSET) {
+        if(singleChar >= SPECIAL_ASCII_CHAR_OFFSET) {
+            lineHeight = MAX(lineHeight, (f32)charData.y1 - (f32)charData.y0);
             lineWidth += charData.xadvance;
         }
         else {
@@ -797,7 +799,7 @@ static void BindBuffer()
     }
 }
 
-static void Init()
+static void InitGL()
 {
     coloredProgram = CompileProgramPlatform(COLORED_VERT, COLORED_FRAG);
     fontProgram = CompileProgramPlatform(TEXTURED_VERT, FONT_FRAG);

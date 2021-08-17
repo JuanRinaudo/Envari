@@ -7,6 +7,7 @@
 #define Log printf
 
 #include "../Defines.h"
+#include "Templates.h"
 #include "../MemoryStructs.h"
 #include "../Memory.h"
 

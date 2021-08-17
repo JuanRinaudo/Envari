@@ -92,7 +92,14 @@ static char* NextToken(DataTokenizer* tokenizer)
                     if(!tokenizer->parsingString) {
                         tokenizer->dataIndex++;
                         tokenizer->currentChar = tokenizer->dataString[tokenizer->dataIndex];
+
+                        if(tokenizer->currentChar == '"') { // #NOTE (Juan): Empty string case
+                            tokenizer->parsingString = true;
+                            tokenizer->dataIndex++;
+                            tokenizer->currentChar = tokenizer->dataString[tokenizer->dataIndex];
+                        }
                     }
+
                     tokenizer->parsingString = !tokenizer->parsingString;
                 }
                 
