@@ -72,7 +72,7 @@ i32 main(i32 argc, char** argv)
 
     InitEngine();
 
-    DeserializeDataTable(&initialConfig, DATA_WASMCONFIG_ENVT);
+    DeserializeDataTable(&permanentState->arena, &initialConfig, DATA_WASMCONFIG_ENVT);
 
     if(!InitSDL()) {
         return -1;

@@ -46,7 +46,7 @@ static void UnloadFileFromMemory(char* fileBuffer)
     UnloadFileFromMemory((void*)fileBuffer);
 }
 
-static void CreateDirectoryIfNotExists(char* path)
+static void CreateDirectoryIfNotExists(const char* path)
 {	
     filesystem::path directoryPath = filesystem::path(path);
 	if(!filesystem::exists(directoryPath)) {

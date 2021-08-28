@@ -1,27 +1,6 @@
 #ifndef SERIALIZATION_H
 #define SERIALIZATION_H
 
-// #NOTE (Juan): This does a linear scan of the current data to check the ammount of parameters, dataString must point to the start of the line
-static void GetDataLineParameters(char* dataString, i32 index) {
-    char currentChar = dataString[index];
-    bool parsingString = false;
-    bool parsingKey = false;
-    i32 parameterCount = 0;
-    while(parsingString || (currentChar != ';' && currentChar != '#')) {
-        currentChar = dataString[index];
-        if (!parsingString && dataString[index - 1] <= ' ' && currentChar > ' ') {
-            parameterCount++;
-        }
-        if(currentChar == '"') {
-            parsingString = !parsingString;
-        }
-
-        index++;
-    }
-
-    currentChar = dataString[index];
-}
-
 #define TableHasKey(table, key) TableHasKey_(&table, key)
 static bool TableHasKey_(DataTable** table, const char* key)
 {
@@ -32,57 +11,103 @@ static bool TableHasKey_(DataTable** table, const char* key)
 static char* TableGetValue(DataTable** table, const char* key)
 {
     char* tableValue = shget(*table, key);
-    return tableValue;
+    if(tableValue) {
+        return tableValue;
+    }
+    else {
+        return 0;
+    }
 }
 
 static char* TableGetString(DataTable** table, const char* key)
 {
     char* tableString = shget(*table, key);
-    return tableString;
+    if(tableString) {
+        return tableString;
+    }
+    else {
+        return (char*)"";
+    }
 }
 
-static i32 TableGetInt(DataTable** table, const char* key)
+static char* TableGetString(DataTable** table, const char* key, char* defaultValue)
 {
     char* tableString = shget(*table, key);
-    return StringToInt(tableString);
+    if(tableString) {
+        return tableString;
+    }
+    else {
+        return defaultValue;
+    }
 }
 
-static bool TableGetBool(DataTable** table, const char* key)
+static i32 TableGetInt(DataTable** table, const char* key, i32 defaultValue = 0)
 {
     char* tableString = shget(*table, key);
-    return StringToInt(tableString) != 0;
+    if(tableString) {
+        return StringToInt(tableString);
+    }
+    else {
+        return defaultValue;
+    }
 }
 
-static f32 TableGetFloat(DataTable** table, const char* key)
+static bool TableGetBool(DataTable** table, const char* key, bool defaultValue = false)
 {
     char* tableString = shget(*table, key);
-    char* endPointer = 0;
-    return strtof(tableString, &endPointer);
+    if(tableString) {
+        return StringToInt(tableString) != 0;
+    }
+    else {
+        return defaultValue;
+    }
 }
 
-static v2 TableGetV2(DataTable** table, const char* key)
+static f32 TableGetFloat(DataTable** table, const char* key, f32 defaultValue = 0)
 {
     char* tableString = shget(*table, key);
-    char* endPointer = 0;
-    f32 x = strtof(tableString, &endPointer);
-    tableString = endPointer;
-    tableString++;
-    f32 y = strtof(tableString, &endPointer);
-    return V2(x, y);
+    if(tableString) {
+        char* endPointer = 0;
+        return strtof(tableString, &endPointer);
+    }
+    else {
+        return defaultValue;
+    }
 }
 
-static v3 TableGetV3(DataTable** table, const char* key)
+static v2 TableGetV2(DataTable** table, const char* key, v2 defaultValue = V2(0, 0))
 {
     char* tableString = shget(*table, key);
-    char* endPointer = 0;
-    f32 x = strtof(tableString, &endPointer);
-    tableString = endPointer;
-    tableString++;
-    f32 y = strtof(tableString, &endPointer);
-    tableString = endPointer;
-    tableString++;
-    f32 z = strtof(tableString, &endPointer);
-    return V3(x, y, z);
+    if(tableString) {
+        char* endPointer = 0;
+        f32 x = strtof(tableString, &endPointer);
+        tableString = endPointer;
+        tableString++;
+        f32 y = strtof(tableString, &endPointer);
+        return V2(x, y);
+    }
+    else {
+        return defaultValue;
+    }
+}
+
+static v3 TableGetV3(DataTable** table, const char* key, v3 defaultValue = V3(0, 0, 0))
+{
+    char* tableString = shget(*table, key);
+    if(tableString) {
+        char* endPointer = 0;
+        f32 x = strtof(tableString, &endPointer);
+        tableString = endPointer;
+        tableString++;
+        f32 y = strtof(tableString, &endPointer);
+        tableString = endPointer;
+        tableString++;
+        f32 z = strtof(tableString, &endPointer);
+        return V3(x, y, z);
+    }
+    else {
+        return defaultValue;
+    }
 }
 
 static bool DeserializeDataTable(MemoryArena *arena, DataTable** table, const char* filepath)
@@ -122,11 +147,6 @@ static bool DeserializeDataTable(MemoryArena *arena, DataTable** table, const ch
     EndTokenizer(&tokenizer);
 
     return true;
-}
-
-static bool DeserializeDataTable(DataTable** table, const char* filepath)
-{
-    return DeserializeDataTable(&permanentState->arena, table, filepath);
 }
 
 static bool TableHasKey_(SerializableTable** table, const char* key)
@@ -212,26 +232,51 @@ char* TableGetString (SerializableTable** table, const char* key, char* defaultV
 GenerateTableGet(Bool, bool, false)
 GenerateTableSet(Bool, bool, SerializableType_BOOL)
 
+GenerateTableGet(U8, u8, 0)
+GenerateTableSet(U8, u8, SerializableType_U8)
+GenerateTableGet(U16, u16, 0)
+GenerateTableSet(U16, u16, SerializableType_U16)
+GenerateTableGet(U32, u32, 0)
+GenerateTableSet(U32, u32, SerializableType_U32)
+GenerateTableGet(U64, u64, 0)
+GenerateTableSet(U64, u64, SerializableType_U64)
+
+GenerateTableGet(I8, i8, 0)
+GenerateTableSet(I8, i8, SerializableType_I8)
+GenerateTableGet(I16, i16, 0)
+GenerateTableSet(I16, i16, SerializableType_I16)
 GenerateTableGet(I32, i32, 0)
 GenerateTableSet(I32, i32, SerializableType_I32)
+GenerateTableGet(I64, i64, 0)
+GenerateTableSet(I64, i64, SerializableType_I64)
 
 GenerateTableGet(F32, f32, 0)
 GenerateTableSet(F32, f32, SerializableType_F32)
+GenerateTableGet(F64, f64, 0)
+GenerateTableSet(F64, f64, SerializableType_F64)
 
 GenerateTableGet(V2, v2, V2(0, 0))
 GenerateTableSet(V2, v2, SerializableType_V2)
+GenerateTableGet(V3, v3, V3(0, 0, 0))
+GenerateTableSet(V3, v3, SerializableType_V3)
 
 static u32 SerializableValueSize(SerializableType type)
 {
     switch(type) {
-        case SerializableType_STRING: {
+        case SerializableType_U8: case SerializableType_I8: case SerializableType_STRING: {
             return 1;
         }
-        case SerializableType_I32: case SerializableType_BOOL: case SerializableType_F32: {
+        case SerializableType_U16: case SerializableType_I16: {
+            return 2;
+        }
+        case SerializableType_U32: case SerializableType_I32: case SerializableType_BOOL: case SerializableType_F32: {
             return 4;
         }
-        case SerializableType_V2: {
+        case SerializableType_U64: case SerializableType_I64: case SerializableType_F64: case SerializableType_V2: {
             return 8;
+        }
+        case SerializableType_V3: {
+            return 12;
         }
         default: {
             InvalidCodePath;
@@ -298,10 +343,52 @@ static bool DeserializeTable(MemoryArena *arena, SerializableTable** table, cons
                             *((bool*)valuePointer + valueOffset) = value == 1;
                             break;
                         }
+                        case SerializableType_U8: {
+                            token = NextToken(&tokenizer);
+                            u8 value = (u8)StringToInt(token);
+                            *((u8*)valuePointer + valueOffset) = value;
+                            break;
+                        }
+                        case SerializableType_U16: {
+                            token = NextToken(&tokenizer);
+                            u16 value = (u16)StringToInt(token);
+                            *((u16*)valuePointer + valueOffset) = value;
+                            break;
+                        }
+                        case SerializableType_U32: {
+                            token = NextToken(&tokenizer);
+                            u32 value = StringToInt(token);
+                            *((u32*)valuePointer + valueOffset) = value;
+                            break;
+                        }
+                        case SerializableType_U64: {
+                            token = NextToken(&tokenizer);
+                            u64 value = (u64)StringToInt64(token);
+                            *((u64*)valuePointer + valueOffset) = value;
+                            break;
+                        }
+                        case SerializableType_I8: {
+                            token = NextToken(&tokenizer);
+                            i8 value = (i8)StringToInt(token);
+                            *((i8*)valuePointer + valueOffset) = value;
+                            break;
+                        }
+                        case SerializableType_I16: {
+                            token = NextToken(&tokenizer);
+                            i16 value = (i16)StringToInt(token);
+                            *((i16*)valuePointer + valueOffset) = value;
+                            break;
+                        }
                         case SerializableType_I32: {
                             token = NextToken(&tokenizer);
                             i32 value = StringToInt(token);
                             *((i32*)valuePointer + valueOffset) = value;
+                            break;
+                        }
+                        case SerializableType_I64: {
+                            token = NextToken(&tokenizer);
+                            i64 value = StringToInt64(token);
+                            *((i64*)valuePointer + valueOffset) = value;
                             break;
                         }
                         case SerializableType_F32: {
@@ -311,6 +398,13 @@ static bool DeserializeTable(MemoryArena *arena, SerializableTable** table, cons
                             *((f32*)valuePointer + valueOffset) = value;
                             break;
                         }
+                        case SerializableType_F64: {
+                            token = NextToken(&tokenizer);
+                            char* endPointer = 0;
+                            f64 value = strtod(token, &endPointer);
+                            *((f64*)valuePointer + valueOffset) = value;
+                            break;
+                        }
                         case SerializableType_V2: {
                             token = NextToken(&tokenizer);
                             char* endPointer = 0;
@@ -318,6 +412,17 @@ static bool DeserializeTable(MemoryArena *arena, SerializableTable** table, cons
                             token = NextToken(&tokenizer);
                             f32 y = strtof(token, &endPointer);
                             *((v2*)valuePointer + valueOffset) = V2(x, y);
+                            break;
+                        }
+                        case SerializableType_V3: {
+                            token = NextToken(&tokenizer);
+                            char* endPointer = 0;
+                            f32 x = strtof(token, &endPointer);
+                            token = NextToken(&tokenizer);
+                            f32 y = strtof(token, &endPointer);
+                            token = NextToken(&tokenizer);
+                            f32 z = strtof(token, &endPointer);
+                            *((v3*)valuePointer + valueOffset) = V3(x, y, z);
                             break;
                         }
                         default: {
@@ -397,9 +502,44 @@ void SerializeTable(SerializableTable** table, const char* filepath)
                             fprintf(file, "%d", i ? 1 : 0);
                             break;
                         }
+                        case SerializableType_U8: {
+                            u8 i = *((u8*)data.value->value);
+                            fprintf(file, "%" PRIu8, i);
+                            break;
+                        }
+                        case SerializableType_U16: {
+                            u16 i = *((u16*)data.value->value);
+                            fprintf(file, "%" PRIu16, i);
+                            break;
+                        }
+                        case SerializableType_U32: {
+                            u32 i = *((u32*)data.value->value);
+                            fprintf(file, "%" PRIu32, i);
+                            break;
+                        }
+                        case SerializableType_U64: {
+                            u64 i = *((u64*)data.value->value);
+                            fprintf(file, "%" PRIu64, i);
+                            break;
+                        }
+                        case SerializableType_I8: {
+                            i8 i = *((i8*)data.value->value);
+                            fprintf(file, "%" PRId8, i);
+                            break;
+                        }
+                        case SerializableType_I16: {
+                            i16 i = *((i16*)data.value->value);
+                            fprintf(file, "%" PRId16, i);
+                            break;
+                        }
                         case SerializableType_I32: {
                             i32 i = *((i32*)data.value->value);
-                            fprintf(file, "%d", i);
+                            fprintf(file, "%" PRId32, i);
+                            break;
+                        }
+                        case SerializableType_I64: {
+                            i64 i = *((i64*)data.value->value);
+                            fprintf(file, "%" PRId64, i);
                             break;
                         }
                         case SerializableType_F32: {

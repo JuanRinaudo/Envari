@@ -18,7 +18,7 @@
 #include "../STB/stb_truetype.h"
 
 #include "../Defines.h"
-#include "Templates.h"
+#include "../Templates.h"
 #include "../MemoryStructs.h"
 #include "../Memory.h"
 #include "../MathStructs.h"

@@ -65,7 +65,7 @@ i32 main(i32 argc, char *argv[])
 
     // InitEngine();
 
-//     DeserializeDataTable(&initialConfig, DATA_ANDROIDCONFIG_ENVT);
+//     DeserializeDataTable(&permanentState->arena, &initialConfig, DATA_ANDROIDCONFIG_ENVT);
 
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         return -1;

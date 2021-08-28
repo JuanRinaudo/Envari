@@ -528,13 +528,6 @@ struct EditorData {
 };
 #endif
 
-enum DataType {
-    data_Int,
-    data_Float,
-    data_String,
-    data_V2,
-};
-
 struct DataTable {
     char* key;
     char* value;
@@ -544,9 +537,18 @@ struct DataTable {
 enum SerializableType {
     SerializableType_STRING,
     SerializableType_BOOL,
+    SerializableType_U8,
+    SerializableType_U16,
+    SerializableType_U32,
+    SerializableType_U64,
+    SerializableType_I8,
+    SerializableType_I16,
     SerializableType_I32,
+    SerializableType_I64,
     SerializableType_F32,
+    SerializableType_F64,
     SerializableType_V2,
+    SerializableType_V3,
 };
 
 struct SerializableValue {

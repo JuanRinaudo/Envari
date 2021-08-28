@@ -21,6 +21,7 @@
 
 // NOTE(Juan): Types
 
+#include <inttypes.h>
 #include <stdint.h>
 #include <stddef.h>
 #include <float.h>
@@ -178,6 +179,7 @@ typedef double f64;
 #define ArrayCount(Array) (sizeof(Array) / sizeof((Array)[0]))
 
 #define StringToInt(String) strtol(String, 0, 10)
+#define StringToInt64(String) strtoll(String, 0, 10)
 
 #define GenerateTableGetExtern(POSTFIX, valueType) extern valueType TableGet ## POSTFIX (SerializableTable** table, const char* key, valueType defaultValue);
 #define GenerateTableGet(POSTFIX, valueType, typeDefault) valueType TableGet ## POSTFIX (SerializableTable** table, const char* key, valueType defaultValue = typeDefault) \

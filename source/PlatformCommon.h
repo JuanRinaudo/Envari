@@ -37,10 +37,34 @@ static void CheckInput() {
     gameState->input.mouseWheel = 0;
 }
 
+static void TryCreateDataFolderStructure(std::string workingDirectoryPath)
+{
+    std::string dataPath = workingDirectoryPath + "/data";
+    std::string fontsPath = workingDirectoryPath + "/fonts";
+    std::string imagesPath = workingDirectoryPath + "/images";
+    std::string scriptsPath = workingDirectoryPath + "/scripts";
+    std::string shadersPath = workingDirectoryPath + "/shaders";
+    std::string soundPath = workingDirectoryPath + "/sound";
+    std::string videoPath = workingDirectoryPath + "/video";
+
+    CreateDirectoryIfNotExists(workingDirectoryPath.c_str());
+    CreateDirectoryIfNotExists(dataPath.c_str());
+    CreateDirectoryIfNotExists(fontsPath.c_str());
+    CreateDirectoryIfNotExists(imagesPath.c_str());
+    CreateDirectoryIfNotExists(scriptsPath.c_str());
+    CreateDirectoryIfNotExists(shadersPath.c_str());
+    CreateDirectoryIfNotExists(soundPath.c_str());
+    CreateDirectoryIfNotExists(videoPath.c_str());
+}
+
 static i32 InitEngine()
 {
 #if GAME_RELEASE
-    filesystem::current_path(filesystem::current_path().string() + "/data");
+    std::string workingDirectory = filesystem::current_path().string() + "/data";
+    TryCreateDataFolderStructure(workingDirectory);
+    filesystem::current_path(workingDirectory);
+#else
+    TryCreateDataFolderStructure(filesystem::current_path().string());
 #endif
 
 #ifndef PLATFORM_WASM
@@ -76,7 +100,7 @@ static i32 SetupWindow()
 {
     DeserializeTable(&permanentState->arena, &configSave, CONFIG_SAVE_PATH);
     gameState->render.windowPosition = TableGetV2(&configSave, "windowPosition", V2(-1, -1));
-    gameState->render.windowSize = TableGetV2(&configSave, "windowSize", TableGetV2(&initialConfig, "windowSize"));
+    gameState->render.windowSize = TableGetV2(&configSave, "windowSize", TableGetV2(&initialConfig, "windowSize", V2(320, 320)));
 
     if(gameState->render.windowSize.x <= 32 && gameState->render.windowSize.y <= 32) {
         gameState->render.size.x = displayMode.w * gameState->render.windowSize.x;

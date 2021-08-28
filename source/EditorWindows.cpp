@@ -86,7 +86,7 @@ i32 CALLBACK WinMain(
 
     InitEngine();
 
-    DeserializeDataTable(&initialConfig, DATA_EDITORCONFIG_ENVT);
+    DeserializeDataTable(&permanentState->arena, &initialConfig, DATA_EDITORCONFIG_ENVT);
 
     if(!InitSDL()) {
         return -1;
