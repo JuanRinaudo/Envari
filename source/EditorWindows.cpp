@@ -131,7 +131,7 @@ i32 CALLBACK WinMain(
     DefaultAssets();
 
     DeserializeTable(&permanentState->arena, &editorSave, EDITOR_SAVE_PATH);
-    DeserializeTable(&permanentState->arena, &saveData, DATA_SAVE_PATH);
+    DeserializeTable(&permanentState->arena, &saveData, GetSavePath());
     
     EditorInit();
 
@@ -320,8 +320,6 @@ i32 CALLBACK WinMain(
     GameEnd();
 
     SaveConfig();
-
-    SerializeTable(&saveData, DATA_SAVE_PATH);
     
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplSDL2_Shutdown();

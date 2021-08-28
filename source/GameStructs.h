@@ -84,6 +84,14 @@ enum ConsoleLogType
     ConsoleLogType_ERROR,
 };
 
+enum TextureAdjustStyle
+{
+    TextureAdjustStyle_Stretch,
+    TextureAdjustStyle_FitRatio,
+    TextureAdjustStyle_KeepRatioX,
+    TextureAdjustStyle_KeepRatioY,
+};
+
 enum RenderType
 {
     RenderType_RenderTempData,
@@ -416,6 +424,7 @@ struct Game {
     bool updateRunning;
 
     i32 version;
+    i32 saveSlotID;
 };
 
 struct Render {
@@ -429,6 +438,8 @@ struct Render {
     v2 windowPosition;
     v2 windowSize;
     u32 defaultFontID;
+
+    TextureAdjustStyle framebufferAdjustStyle;
 
     m33 transformStack[TRANSFORM_STACK_SIZE];
     u32 transformIndex;

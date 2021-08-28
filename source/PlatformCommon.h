@@ -17,6 +17,8 @@ bool mouseOverWindow = true;
 bool mouseEnabled = true;
 bool keyboardEnabled = true;
 
+char saveNameBuffer[ArrayCount(DATA_SAVE_PATH) + 4] = "";
+
 static void CheckInput() {
     ZeroSize(TEXT_INPUT_EVENT_SIZE, gameState->input.textInputEvent);
 
@@ -105,6 +107,7 @@ static i32 SetupWindow()
     }
 
     gameState->render.refreshRate = displayMode.refresh_rate;
+    gameState->render.framebufferAdjustStyle = TextureAdjustStyle_FitRatio;
 
     char* windowTitle = TableGetString(&initialConfig, "windowTitle");
     sdlWindow = SDL_CreateWindow(windowTitle, gameState->render.windowPosition.x > 0 ? (i32)gameState->render.windowPosition.x : SDL_WINDOWPOS_UNDEFINED,
@@ -207,8 +210,7 @@ static i32 ProcessEvent(const SDL_Event* event)
             RuntimeQuit();
             break;
         }
-        case SDL_WINDOWEVENT: // #NOTE (Juan): Window resize/orientation change
-        {
+        case SDL_WINDOWEVENT: { // #NOTE (Juan): Window resize/orientation change
             if(event->window.event == SDL_WINDOWEVENT_MOVED) {
                 gameState->render.windowPosition.x = (f32)event->window.data1;
                 gameState->render.windowPosition.y = (f32)event->window.data2;
@@ -242,11 +244,12 @@ static i32 ProcessEvent(const SDL_Event* event)
             }
             break;
         }
-        case SDL_MOUSEWHEEL:
+        case SDL_MOUSEWHEEL: {
             if(mouseEnabled || mouseOverWindow) {
                 gameState->input.mouseWheel += event->wheel.y;
             }
             break;
+        }
         case SDL_KEYDOWN: {
             if(keyboardEnabled && gameState->input.keyState[event->key.keysym.scancode] <= KEY_RELEASED) {
                 gameState->input.keyState[event->key.keysym.scancode] = KEY_PRESSED;
@@ -264,15 +267,49 @@ static i32 ProcessEvent(const SDL_Event* event)
                 strcpy((char*)gameState->input.textInputEvent, event->text.text);
             }
         }
-        default:
+        default: {
             return 0;       
+        }
     }
 
     return 1;
 }
 
+static rectangle2 GetTextureAdjustValues(TextureAdjustStyle style, v2 from, v2 to)
+{
+    f32 ratioX = to.x / from.x;
+    f32 ratioY = to.y / from.y;
+
+    if(style == TextureAdjustStyle_Stretch) {
+        f32 toRatio = to.x / to.y;
+        return Rectangle2(-(toRatio - 1.0f) / 2.0f, 0, toRatio, 1);
+    }
+    else if(style == TextureAdjustStyle_FitRatio) {
+        f32 toRatio = to.x / to.y;
+        if(toRatio < 1) {
+            return Rectangle2(-(toRatio - 1.0f) / 2.0f, -(toRatio - 1.0f) / 2.0f, toRatio, toRatio);
+        }
+        else {
+            return Rectangle2(0, 0, 1, 1);
+        }
+    }
+    else if(style == TextureAdjustStyle_KeepRatioX) {
+        f32 toRatio = to.x / to.y;
+        return Rectangle2(-(toRatio - 1.0f) / 2.0f, -(toRatio - 1.0f) / 2.0f, toRatio, toRatio); 
+    }
+    else if(style == TextureAdjustStyle_KeepRatioY) {
+        return Rectangle2(0, 0, 1, 1);
+    }
+
+    return Rectangle2(0, 0, 1, 1);
+}
+
 static i32 RenderFramebuffer()
 {
+    // Log("%f %f", gameState->render.bufferSize.x, gameState->render.bufferSize.y);
+    // Log("%f %f", gameState->render.windowSize.x, gameState->render.windowSize.y);
+    rectangle2 adjustment = GetTextureAdjustValues(gameState->render.framebufferAdjustStyle, gameState->render.bufferSize, gameState->render.windowSize);
+
     // #NOTE (Juan): Render framebuffer to actual screen buffer, save data and then restore it
     f32 tempSize = gameState->camera.size;
     f32 tempRatio = gameState->camera.ratio;
@@ -288,10 +325,7 @@ static i32 RenderFramebuffer()
     DrawOverrideVertices(0, 0);
     DrawClear(0, 0, 0, 1);
     DrawTextureParameters(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, FRAMEBUFFER_DEFAULT_FILTER, FRAMEBUFFER_DEFAULT_FILTER);
-    f32 sizeX = tempRatio;
-    f32 xOffset = -(gameState->render.windowSize.x / (gameState->render.bufferSize.x * (gameState->render.windowSize.y / gameState->render.bufferSize.y))) * 0.5f;
-    // #TODO (Juan): Fix this texture offset
-    DrawTexture(0, gameState->camera.size, sizeX, -gameState->camera.size, gameState->render.renderBuffer);
+    DrawTexture(adjustment.x, adjustment.y + adjustment.height, adjustment.width, -adjustment.height, gameState->render.renderBuffer);
     RenderPass();
     End2D();
 
@@ -340,6 +374,23 @@ static i32 WaitFPSLimit()
     }
 
     return 1;
+}
+
+char* GetSavePath()
+{
+    sprintf(saveNameBuffer, DATA_SAVE_PATH, gameState->game.saveSlotID);
+    return saveNameBuffer;
+}
+
+void SaveData()
+{
+    SerializeTable(&saveData, GetSavePath());
+#ifdef GAME_EDITOR
+    SerializeTable(&editorSave, EDITOR_SAVE_PATH);
+#endif
+#ifdef PLATFORM_WASM
+    main_save();
+#endif
 }
 
 static i32 SaveConfig()

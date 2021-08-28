@@ -1789,7 +1789,7 @@ static void EditorDrawAll()
 
 static void EditorEnd()
 {
-    char saveNameBuffer[128];
+    char saveKeyBuffer[128];
     
     TableSetBool(&temporalState->arena, &editorSave, "editorFrameRunning", editorState->editorFrameRunning);
     TableSetBool(&temporalState->arena, &editorSave, "editorConsoleOpen", editorConsole.open);
@@ -1810,8 +1810,8 @@ static void EditorEnd()
     TableSetBool(&temporalState->arena, &editorSave, "editorLUADebuggerWatchOpen", editorLUADebugger.watchOpen);
     TableSetBool(&temporalState->arena, &editorSave, "editorLUADebuggerStackOpen", editorLUADebugger.stackOpen);
     for(i32 i = 0; i < WATCH_BUFFER_COUNT; ++i) {
-        sprintf(saveNameBuffer, "editorLUADebuggerWatching%d", i);
-        TableSetString(&temporalState->arena, &editorSave, saveNameBuffer, editorLUADebugger.watchBuffer + i * WATCH_BUFFER_SIZE_EXT);
+        sprintf(saveKeyBuffer, "editorLUADebuggerWatching%d", i);
+        TableSetString(&temporalState->arena, &editorSave, saveKeyBuffer, editorLUADebugger.watchBuffer + i * WATCH_BUFFER_SIZE_EXT);
     }
 #endif
     TableSetBool(&temporalState->arena, &editorSave, "editorHelpOpen", editorHelp.open);

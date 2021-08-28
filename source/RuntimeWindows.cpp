@@ -96,7 +96,7 @@ i32 CALLBACK WinMain(
     ScriptingInit();
 #endif
     
-    DeserializeTable(&permanentState->arena, &saveData, DATA_SAVE_PATH);
+    DeserializeTable(&permanentState->arena, &saveData, GetSavePath());
     
     GameInit();
 
@@ -141,8 +141,6 @@ i32 CALLBACK WinMain(
     GameEnd();
 
     SaveConfig();
-
-    SerializeTable(&saveData, "saveData.save");
 
     return 0;
 }

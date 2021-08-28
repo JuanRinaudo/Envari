@@ -1,7 +1,7 @@
 @echo off
 
 REM Admin
->nul 2>&1 "%SYSTEMROOT%\system32\cacls.exe" "%SYSTEMROOT%\system32\config\system"
+if not exist build/windows86/data >nul 2>&1 "%SYSTEMROOT%\system32\cacls.exe" "%SYSTEMROOT%\system32\config\system"
 
 if '%errorlevel%' NEQ '0' (
     goto UACPrompt
@@ -25,4 +25,4 @@ cd..
 
 if not exist "build\windows86\data" mklink /d "build\windows86\data" "..\..\data"
 
-START "build\windows86\RuntimeWindows.exe"
+START build\windows86\RuntimeWindows.exe

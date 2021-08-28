@@ -25,4 +25,4 @@ cd..
 
 if not exist "build\windows64\data" mklink /d "build\windows64\data" "..\..\data"
 
-START "build\windows64\RuntimeWindows.exe"
+START build\windows64\RuntimeWindows.exe

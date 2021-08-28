@@ -13,10 +13,6 @@
 #include "CodeGen/ShaderMap.h"
 #include "CodeGen/WasmConfigMap.h"
 
-#define DATA_SAVE_PATH "/save/savedata.save"
-#define CONFIG_SAVE_PATH "/save/config.save"
-#define EDITOR_SAVE_PATH "/save/editor.save"
-
 #define SHADER_PREFIX "shaders/es/"
 #define SOURCE_TYPE const char* const
 
@@ -123,7 +119,7 @@ i32 main(i32 argc, char** argv)
 
 void main_loaded()
 {
-    DeserializeTable(&permanentState->arena, &saveData, DATA_SAVE_PATH);
+    DeserializeTable(&permanentState->arena, &saveData, GetSavePath());
 }
 
 static void main_loop()

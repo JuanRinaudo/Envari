@@ -2,12 +2,11 @@
 #define GAME_H
 
 #include <cstdlib>
-#include <filesystem>
-namespace filesystem = std::filesystem;
 
 #include "Miniaudio/miniaudio.h"
 #include "ZSTD/zstddeclib.c"
 #include "Defines.h"
+#include "Constants.h"
 #include "Templates.h"
 #include "UTF8.h"
 #include "MemoryStructs.h"
@@ -78,6 +77,8 @@ sol::state lua;
 #include "Editor.cpp"
 #endif
 
+void SaveData();
+
 static u32 GameInit()
 {
     gameState->game.version = 1;
@@ -127,6 +128,8 @@ static u32 GameUpdate()
 
 static u32 GameEnd()
 {
+    SaveData();
+
     #ifdef LUA_ENABLED
     ChangeLogFlag(LogFlag_SCRIPTING);
 

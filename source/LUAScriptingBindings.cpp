@@ -2,8 +2,6 @@
 #define LUA_SCRIPTING_BINDINGS_CPP
 
 #ifndef PLATFORM_WASM
-#include <filesystem>
-
 #include "GL3W/gl3w.h"
 
 #include "STB/stb_truetype.h" 
@@ -59,6 +57,8 @@ extern SerializableTable* saveData;
 extern SerializableTable* editorSave;
 
 // #NOTE (Juan): Bindings
+extern void SaveData();
+
 extern void LoadScriptFile(const char* filePath);
 extern void LoadLUALibrary(sol::lib library);
 
@@ -302,17 +302,6 @@ GenerateRenderTemporaryPush(Float, f32);
 GenerateRenderTemporaryPush(Vector2, v2);
 
 // #NOTE(Juan): Save
-static void SaveData()
-{    
-    SerializeTable(&saveData, DATA_SAVE_PATH);
-#ifdef GAME_EDITOR
-    SerializeTable(&editorSave, EDITOR_SAVE_PATH);
-#endif
-#ifdef PLATFORM_WASM
-    main_save();
-#endif
-}
-
 static char* SaveGetString(const char* key, const char* defaultValue)
 {
     char* temporalString = PushString(&temporalState->arena, defaultValue);
@@ -451,6 +440,7 @@ void ScriptingBindings()
     game_usertype["running"] = &Game::running;
     game_usertype["updateRunning"] = &Game::updateRunning;
     game_usertype["version"] = &Game::version;
+    game_usertype["saveSlotID"] = &Game::saveSlotID;
     lua["game"] = &gameState->game;
 
     sol::usertype<Camera> camera_usertype = lua.new_usertype<Camera>("camera");
@@ -462,13 +452,14 @@ void ScriptingBindings()
     camera_usertype["projection"] = &Camera::projection;
     lua["camera"] = &gameState->camera;
 
-    sol::usertype<Render> screen_usertype = lua.new_usertype<Render>("screen");
-    screen_usertype["refreshRate"] = &Render::refreshRate;
-    screen_usertype["size"] = &Render::size;
-    screen_usertype["bufferSize"] = &Render::bufferSize;
-    screen_usertype["windowSize"] = &Render::windowSize;
-    screen_usertype["defaultFontID"] = &Render::defaultFontID;
-    lua["screen"] = &gameState->render;
+    sol::usertype<Render> render_usertype = lua.new_usertype<Render>("render");
+    render_usertype["refreshRate"] = &Render::refreshRate;
+    render_usertype["size"] = &Render::size;
+    render_usertype["bufferSize"] = &Render::bufferSize;
+    render_usertype["windowSize"] = &Render::windowSize;
+    render_usertype["defaultFontID"] = &Render::defaultFontID;
+    render_usertype["fitStyle"] = &Render::framebufferAdjustStyle;
+    lua["render"] = &gameState->render;
 
     sol::usertype<Time> time_usertype = lua.new_usertype<Time>("time");
     time_usertype["startTime"] = &Time::startTime;
@@ -513,6 +504,11 @@ void ScriptingBindings()
     lua["SetClipboardText"] = SDL_SetClipboardText;
 
     // #NOTE (Juan): Render
+    lua["TextureAdjustStyle_Stretch"] = TextureAdjustStyle_Stretch;
+    lua["TextureAdjustStyle_FitRatio"] = TextureAdjustStyle_FitRatio;
+    lua["TextureAdjustStyle_KeepRatioX"] = TextureAdjustStyle_KeepRatioX;
+    lua["TextureAdjustStyle_KeepRatioY"] = TextureAdjustStyle_KeepRatioY;
+
     lua["DrawClear"] = DrawClear;
     lua["DrawSetStyle"] = DrawSetStyle;
     lua["DrawColor"] = DrawColor;

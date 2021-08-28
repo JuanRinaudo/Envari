@@ -1,11 +1,13 @@
 #ifndef DEFINES_H
 #define DEFINES_H
 
-const char* watchTypeNames[] = { "Auto", "Int", "Float", "Bool", "Char", "String" };
-const char* platformNames[] = { "Windows x86", "Windows x64", "Android", "WASM" };
+#define MAX_SAVE_DIGITS 3
+
+#define TO_STRING_INTERNAL(s) #s
+#define TO_STRING(s) TO_STRING_INTERNAL(s)
 
 #ifndef DATA_SAVE_PATH
-#define DATA_SAVE_PATH "save/savedata.save"
+#define DATA_SAVE_PATH "save/savedata_%0" TO_STRING(MAX_SAVE_DIGITS) "d.save"
 #endif
 #ifndef CONFIG_SAVE_PATH
 #define CONFIG_SAVE_PATH "save/config.save"
@@ -22,6 +24,9 @@ const char* platformNames[] = { "Windows x86", "Windows x64", "Android", "WASM" 
 #include <stdint.h>
 #include <stddef.h>
 #include <float.h>
+
+#include <filesystem>
+namespace filesystem = std::filesystem;
 
 #define ENVARI_MAYOR_VERSION 0
 #define ENVARI_MINOR_VERSION 1
