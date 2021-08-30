@@ -110,7 +110,6 @@ extern void DrawOverrideProgram(u32 programID);
 extern void DrawOverrideVertices(f32* vertices, u32 count);
 extern void DrawOverrideIndices(u32* indices, u32 count);
 extern void End2D();
-extern v2 RenderToViewport(f32 screenX, f32 screenY, f32 size, f32 ratio);
 extern v4 ColorHexRGBA(u32 hex);
 extern v4 ColorHexRGB(u32 hex);
 
@@ -439,6 +438,7 @@ void ScriptingBindings()
     sol::usertype<Game> game_usertype = lua.new_usertype<Game>("game");
     game_usertype["running"] = &Game::running;
     game_usertype["updateRunning"] = &Game::updateRunning;
+    game_usertype["hasFocus"] = &Game::hasFocus;
     game_usertype["version"] = &Game::version;
     game_usertype["saveSlotID"] = &Game::saveSlotID;
     lua["game"] = &gameState->game;
@@ -473,7 +473,9 @@ void ScriptingBindings()
     sol::usertype<Input> input_usertype = lua.new_usertype<Input>("input");
     input_usertype["mouseTextureID"] = &Input::mouseTextureID;
     input_usertype["mousePosition"] = &Input::mousePosition;
+    input_usertype["mouseDeltaPosition"] = &Input::mouseDeltaPosition;
     input_usertype["mouseScreenPosition"] = &Input::mouseScreenPosition;
+    input_usertype["mouseScreenDeltaPosition"] = &Input::mouseScreenDeltaPosition;
     input_usertype["mouseWheel"] = &Input::mouseWheel;
     input_usertype["textInputBuffer"] = sol::property([](Input &input) { return input.textInputBuffer->value; }, [](Input &input, char* value) { return *input.textInputBuffer = value; });
     input_usertype["keyState"] = sol::property([](Input &input) { return &input.keyState; });
@@ -550,7 +552,6 @@ void ScriptingBindings()
     lua["GetSceneFilepath"] = GetSceneFilepath;
     lua["LoadLUAScene"] = LoadLUAScene;
 
-    lua["RenderToViewport"] = RenderToViewport;
     lua["ColorHexRGBA"] = ColorHexRGBA;
     lua["ColorHexRGB"] = ColorHexRGB;
     
@@ -789,23 +790,29 @@ void ScriptingMathBindings()
     v4_usertype["e"] = sol::property([](v4 &v) { return &v.e; });
 
     sol::usertype<m44> m44_usertype = lua.new_usertype<m44>("m44");
-    m44_usertype["_00"] = sol::property([](m44 &v) { return v._00; }, [](m44 &v, f32 f) { v._00 = f; });
-    m44_usertype["_10"] = sol::property([](m44 &v) { return v._10; }, [](m44 &v, f32 f) { v._10 = f; });
-    m44_usertype["_20"] = sol::property([](m44 &v) { return v._20; }, [](m44 &v, f32 f) { v._20 = f; });
-    m44_usertype["_30"] = sol::property([](m44 &v) { return v._30; }, [](m44 &v, f32 f) { v._30 = f; });
-    m44_usertype["_01"] = sol::property([](m44 &v) { return v._01; }, [](m44 &v, f32 f) { v._01 = f; });
-    m44_usertype["_11"] = sol::property([](m44 &v) { return v._11; }, [](m44 &v, f32 f) { v._11 = f; });
-    m44_usertype["_21"] = sol::property([](m44 &v) { return v._21; }, [](m44 &v, f32 f) { v._21 = f; });
-    m44_usertype["_31"] = sol::property([](m44 &v) { return v._31; }, [](m44 &v, f32 f) { v._31 = f; });
-    m44_usertype["_02"] = sol::property([](m44 &v) { return v._02; }, [](m44 &v, f32 f) { v._02 = f; });
-    m44_usertype["_12"] = sol::property([](m44 &v) { return v._12; }, [](m44 &v, f32 f) { v._12 = f; });
-    m44_usertype["_22"] = sol::property([](m44 &v) { return v._22; }, [](m44 &v, f32 f) { v._22 = f; });
-    m44_usertype["_32"] = sol::property([](m44 &v) { return v._32; }, [](m44 &v, f32 f) { v._32 = f; });
-    m44_usertype["_03"] = sol::property([](m44 &v) { return v._03; }, [](m44 &v, f32 f) { v._03 = f; });
-    m44_usertype["_13"] = sol::property([](m44 &v) { return v._13; }, [](m44 &v, f32 f) { v._13 = f; });
-    m44_usertype["_23"] = sol::property([](m44 &v) { return v._23; }, [](m44 &v, f32 f) { v._23 = f; });
-    m44_usertype["_33"] = sol::property([](m44 &v) { return v._33; }, [](m44 &v, f32 f) { v._33 = f; });
+    m44_usertype["_00"] = sol::property([](m44 &m) { return m._00; }, [](m44 &m, f32 f) { m._00 = f; });
+    m44_usertype["_10"] = sol::property([](m44 &m) { return m._10; }, [](m44 &m, f32 f) { m._10 = f; });
+    m44_usertype["_20"] = sol::property([](m44 &m) { return m._20; }, [](m44 &m, f32 f) { m._20 = f; });
+    m44_usertype["_30"] = sol::property([](m44 &m) { return m._30; }, [](m44 &m, f32 f) { m._30 = f; });
+    m44_usertype["_01"] = sol::property([](m44 &m) { return m._01; }, [](m44 &m, f32 f) { m._01 = f; });
+    m44_usertype["_11"] = sol::property([](m44 &m) { return m._11; }, [](m44 &m, f32 f) { m._11 = f; });
+    m44_usertype["_21"] = sol::property([](m44 &m) { return m._21; }, [](m44 &m, f32 f) { m._21 = f; });
+    m44_usertype["_31"] = sol::property([](m44 &m) { return m._31; }, [](m44 &m, f32 f) { m._31 = f; });
+    m44_usertype["_02"] = sol::property([](m44 &m) { return m._02; }, [](m44 &m, f32 f) { m._02 = f; });
+    m44_usertype["_12"] = sol::property([](m44 &m) { return m._12; }, [](m44 &m, f32 f) { m._12 = f; });
+    m44_usertype["_22"] = sol::property([](m44 &m) { return m._22; }, [](m44 &m, f32 f) { m._22 = f; });
+    m44_usertype["_32"] = sol::property([](m44 &m) { return m._32; }, [](m44 &m, f32 f) { m._32 = f; });
+    m44_usertype["_03"] = sol::property([](m44 &m) { return m._03; }, [](m44 &m, f32 f) { m._03 = f; });
+    m44_usertype["_13"] = sol::property([](m44 &m) { return m._13; }, [](m44 &m, f32 f) { m._13 = f; });
+    m44_usertype["_23"] = sol::property([](m44 &m) { return m._23; }, [](m44 &m, f32 f) { m._23 = f; });
+    m44_usertype["_33"] = sol::property([](m44 &m) { return m._33; }, [](m44 &m, f32 f) { m._33 = f; });
     m44_usertype["e"] = sol::property([](m44 &m) { return &m.e; });
+
+    sol::usertype<rectangle2> rectangle2_usertype = lua.new_usertype<rectangle2>("rectangle2");
+    rectangle2_usertype["x"] = sol::property([](rectangle2 &r) { return r.x; }, [](rectangle2 &r, f32 f) { r.x = f; });
+    rectangle2_usertype["y"] = sol::property([](rectangle2 &r) { return r.y; }, [](rectangle2 &r, f32 f) { r.y = f; });
+    rectangle2_usertype["width"] = sol::property([](rectangle2 &r) { return r.width; }, [](rectangle2 &r, f32 f) { r.width = f; });
+    rectangle2_usertype["height"] = sol::property([](rectangle2 &r) { return r.height; }, [](rectangle2 &r, f32 f) { r.height = f; });
 
     sol::usertype<transform2D> transform2D_usertype = lua.new_usertype<transform2D>("transform2D");
     transform2D_usertype["position"] = &transform2D::position;

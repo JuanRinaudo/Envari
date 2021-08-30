@@ -31,7 +31,6 @@
 
 #define GL_PROFILE_GLES3
 #include "Game.h"
-#include "PlatformCommon.h"
 
 static void main_loop();
 
@@ -41,6 +40,8 @@ extern "C" {
     void main_save();
     void main_end();
 }
+
+#include "PlatformCommon.h"
 
 #ifdef LUA_ENABLED
 #include "LUAScriptingBindings.cpp"

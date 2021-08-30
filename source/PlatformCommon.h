@@ -35,6 +35,10 @@ static void CheckInput() {
     }
 
     gameState->input.mouseWheel = 0;
+    gameState->input.mouseScreenDeltaPosition.x = 0;
+    gameState->input.mouseScreenDeltaPosition.y = 0;
+    gameState->input.mouseDeltaPosition.x = 0;
+    gameState->input.mouseDeltaPosition.y = 0;
 }
 
 static void TryCreateDataFolderStructure(std::string workingDirectoryPath)
@@ -42,6 +46,7 @@ static void TryCreateDataFolderStructure(std::string workingDirectoryPath)
     std::string dataPath = workingDirectoryPath + "/data";
     std::string fontsPath = workingDirectoryPath + "/fonts";
     std::string imagesPath = workingDirectoryPath + "/images";
+    std::string atlasPath = workingDirectoryPath + "/atlas";
     std::string scriptsPath = workingDirectoryPath + "/scripts";
     std::string shadersPath = workingDirectoryPath + "/shaders";
     std::string soundPath = workingDirectoryPath + "/sound";
@@ -51,6 +56,7 @@ static void TryCreateDataFolderStructure(std::string workingDirectoryPath)
     CreateDirectoryIfNotExists(dataPath.c_str());
     CreateDirectoryIfNotExists(fontsPath.c_str());
     CreateDirectoryIfNotExists(imagesPath.c_str());
+    CreateDirectoryIfNotExists(atlasPath.c_str());
     CreateDirectoryIfNotExists(scriptsPath.c_str());
     CreateDirectoryIfNotExists(shadersPath.c_str());
     CreateDirectoryIfNotExists(soundPath.c_str());
@@ -96,22 +102,36 @@ static i32 InitSDL()
     return 1;
 }
 
+static void SetupRenderSize()
+{
+    switch(gameState->render.framebufferAdjustStyle) {
+        case TextureAdjustStyle_Stretch: {
+            gameState->render.size.x = gameState->render.windowSize.x;
+            gameState->render.size.y = gameState->render.windowSize.y;
+            break;
+        }
+        case TextureAdjustStyle_FitRatio: {
+            
+            break;
+        }
+        case TextureAdjustStyle_KeepRatioX: {
+
+            break;
+        }
+        case TextureAdjustStyle_KeepRatioY: {
+            f32 bufferRatio = gameState->render.bufferSize.x / gameState->render.bufferSize.y;
+            gameState->render.size.x = gameState->render.windowSize.y * bufferRatio;
+            gameState->render.size.y = gameState->render.windowSize.y;
+            break;
+        }
+    }
+}
+
 static i32 SetupWindow()
 {
     DeserializeTable(&permanentState->arena, &configSave, CONFIG_SAVE_PATH);
     gameState->render.windowPosition = TableGetV2(&configSave, "windowPosition", V2(-1, -1));
     gameState->render.windowSize = TableGetV2(&configSave, "windowSize", TableGetV2(&initialConfig, "windowSize", V2(320, 320)));
-
-    if(gameState->render.windowSize.x <= 32 && gameState->render.windowSize.y <= 32) {
-        gameState->render.size.x = displayMode.w * gameState->render.windowSize.x;
-        gameState->render.size.y = displayMode.h * gameState->render.windowSize.y;
-    }
-    else {
-        gameState->render.size.x = gameState->render.windowSize.x;
-        gameState->render.size.y = gameState->render.windowSize.y;
-    }
-    gameState->render.windowSize.x = gameState->render.size.x;
-    gameState->render.windowSize.y = gameState->render.size.y;
 
     gameState->render.framebufferEnabled = TableHasKey(initialConfig, "bufferSize");
     if(gameState->render.framebufferEnabled) {
@@ -131,7 +151,9 @@ static i32 SetupWindow()
     }
 
     gameState->render.refreshRate = displayMode.refresh_rate;
-    gameState->render.framebufferAdjustStyle = TextureAdjustStyle_FitRatio;
+    gameState->render.framebufferAdjustStyle = TextureAdjustStyle_KeepRatioY;
+
+    SetupRenderSize();
 
     char* windowTitle = TableGetString(&initialConfig, "windowTitle");
     sdlWindow = SDL_CreateWindow(windowTitle, gameState->render.windowPosition.x > 0 ? (i32)gameState->render.windowPosition.x : SDL_WINDOWPOS_UNDEFINED,
@@ -235,15 +257,29 @@ static i32 ProcessEvent(const SDL_Event* event)
             break;
         }
         case SDL_WINDOWEVENT: { // #NOTE (Juan): Window resize/orientation change
-            if(event->window.event == SDL_WINDOWEVENT_MOVED) {
-                gameState->render.windowPosition.x = (f32)event->window.data1;
-                gameState->render.windowPosition.y = (f32)event->window.data2;
-            }
-            else if(event->window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
-                gameState->render.windowSize.x = (f32)event->window.data1;
-                gameState->render.windowSize.y = (f32)event->window.data2;
-                gameState->render.size.x = gameState->render.windowSize.x;
-                gameState->render.size.y = gameState->render.windowSize.y;
+            switch(event->window.event) {
+                case SDL_WINDOWEVENT_MOVED: {
+                    gameState->render.windowPosition.x = (f32)event->window.data1;
+                    gameState->render.windowPosition.y = (f32)event->window.data2;
+                    break;
+                }
+                case SDL_WINDOWEVENT_SIZE_CHANGED: {
+                    gameState->render.windowSize.x = (f32)event->window.data1;
+                    gameState->render.windowSize.y = (f32)event->window.data2;
+
+                    SetupRenderSize();
+                    break;
+                }
+                case SDL_WINDOWEVENT_FOCUS_GAINED: {
+                    gameState->game.hasFocus = true;
+                    RunLUAProtectedFunction(FocusChange);
+                    break;
+                }
+                case SDL_WINDOWEVENT_FOCUS_LOST: {
+                    gameState->game.hasFocus = false;
+                    RunLUAProtectedFunction(FocusChange);
+                    break;
+                }
             }
             break;
         }
@@ -261,10 +297,16 @@ static i32 ProcessEvent(const SDL_Event* event)
         }
         case SDL_MOUSEMOTION: {
             if(mouseEnabled) {
+                v2 oldMousePosition = ScreenToBuffer(gameState->input.mouseScreenPosition.x, gameState->input.mouseScreenPosition.y);
+
+                gameState->input.mouseScreenDeltaPosition.x = (f32)event->button.x - gameState->input.mouseScreenPosition.x;
+                gameState->input.mouseScreenDeltaPosition.y = (f32)event->button.y - gameState->input.mouseScreenPosition.y;
                 gameState->input.mouseScreenPosition.x = (f32)event->button.x;
                 gameState->input.mouseScreenPosition.y = (f32)event->button.y;
 
-                gameState->input.mousePosition = RenderToViewport(gameState->input.mouseScreenPosition.x, gameState->input.mouseScreenPosition.y, gameState->camera.size, gameState->camera.ratio);
+                gameState->input.mousePosition = ScreenToBuffer(gameState->input.mouseScreenPosition.x, gameState->input.mouseScreenPosition.y);
+                gameState->input.mouseDeltaPosition.x = gameState->input.mousePosition.x - oldMousePosition.x;
+                gameState->input.mouseDeltaPosition.y = gameState->input.mousePosition.y - oldMousePosition.y;
             }
             break;
         }
@@ -304,25 +346,29 @@ static rectangle2 GetTextureAdjustValues(TextureAdjustStyle style, v2 from, v2 t
     f32 ratioX = to.x / from.x;
     f32 ratioY = to.y / from.y;
 
-    if(style == TextureAdjustStyle_Stretch) {
-        f32 toRatio = to.x / to.y;
-        return Rectangle2(-(toRatio - 1.0f) / 2.0f, 0, toRatio, 1);
-    }
-    else if(style == TextureAdjustStyle_FitRatio) {
-        f32 toRatio = to.x / to.y;
-        if(toRatio < 1) {
+    switch(gameState->render.framebufferAdjustStyle) {
+        case TextureAdjustStyle_Stretch: {
+            f32 toRatio = to.x / to.y;
+            return Rectangle2(-(toRatio - 1.0f) / 2.0f, 0, toRatio, 1);
+        }
+        case TextureAdjustStyle_FitRatio: {
+            f32 toRatio = to.x / to.y;
+            if(toRatio > 1) {
+                return Rectangle2(-(toRatio - 1.0f) / 2.0f, -(toRatio - 1.0f) / 2.0f, toRatio, 1);
+            }
+            else {
+                f32 fromRatio = from.x / from.y;
+                return Rectangle2(0, 0, fromRatio, 1);
+            }
+        }
+        case TextureAdjustStyle_KeepRatioX: {
+            f32 toRatio = to.x / to.y;
             return Rectangle2(-(toRatio - 1.0f) / 2.0f, -(toRatio - 1.0f) / 2.0f, toRatio, toRatio);
         }
-        else {
-            return Rectangle2(0, 0, 1, 1);
+        case TextureAdjustStyle_KeepRatioY: {
+            f32 fromRatio = from.x / from.y;
+            return Rectangle2(-(fromRatio - 1.0f) / 2.0f, 0, fromRatio, 1);
         }
-    }
-    else if(style == TextureAdjustStyle_KeepRatioX) {
-        f32 toRatio = to.x / to.y;
-        return Rectangle2(-(toRatio - 1.0f) / 2.0f, -(toRatio - 1.0f) / 2.0f, toRatio, toRatio); 
-    }
-    else if(style == TextureAdjustStyle_KeepRatioY) {
-        return Rectangle2(0, 0, 1, 1);
     }
 
     return Rectangle2(0, 0, 1, 1);
@@ -341,7 +387,7 @@ static i32 RenderFramebuffer()
     m44 tempProjection = gameState->camera.projection;
 
     gameState->camera.size = 1;
-    gameState->camera.ratio = (f32)gameState->render.size.x / (f32)gameState->render.size.y;
+    gameState->camera.ratio = (f32)gameState->render.windowSize.x / (f32)gameState->render.windowSize.y;
     gameState->camera.view = IdM44();
     gameState->camera.projection = OrtographicProjection(gameState->camera.size, gameState->camera.ratio, gameState->camera.nearPlane, gameState->camera.farPlane);
 
@@ -349,7 +395,7 @@ static i32 RenderFramebuffer()
     DrawOverrideVertices(0, 0);
     DrawClear(0, 0, 0, 1);
     DrawTextureParameters(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, FRAMEBUFFER_DEFAULT_FILTER, FRAMEBUFFER_DEFAULT_FILTER);
-    DrawTexture(adjustment.x, adjustment.y + adjustment.height, adjustment.width, -adjustment.height, gameState->render.renderBuffer);
+    DrawTexture(0, adjustment.height, adjustment.width, -adjustment.height, gameState->render.renderBuffer);
     RenderPass();
     End2D();
 

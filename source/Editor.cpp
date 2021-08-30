@@ -129,13 +129,15 @@ static void EditorInit(LUADebuggerWindow* debugger)
 
 static void EditorInit(EditorConfigWindow* config)
 {
-    config->runtimesPath = AllocateDynamicString(stringAllocator, "", 32);
-    config->dataPath = AllocateDynamicString(stringAllocator, "", 32);
+    if(config->runtimesPath == 0) {
+        config->runtimesPath = AllocateDynamicString(stringAllocator, "", 32);
+        config->dataPath = AllocateDynamicString(stringAllocator, "", 32);
 
-    windows86OutputConfig.outputPath = AllocateDynamicString(stringAllocator, "", 32);
-    windows64OutputConfig.outputPath = AllocateDynamicString(stringAllocator, "", 32);
-    androidOutputConfig.outputPath = AllocateDynamicString(stringAllocator, "", 32);
-    wasmOutputConfig.outputPath = AllocateDynamicString(stringAllocator, "", 32);
+        windows86OutputConfig.outputPath = AllocateDynamicString(stringAllocator, "", 32);
+        windows64OutputConfig.outputPath = AllocateDynamicString(stringAllocator, "", 32);
+        androidOutputConfig.outputPath = AllocateDynamicString(stringAllocator, "", 32);
+        wasmOutputConfig.outputPath = AllocateDynamicString(stringAllocator, "", 32);
+    }
 }
 
 static void EditorInit(HelpWindow* help)
@@ -614,7 +616,15 @@ static void EditorDraw(PreviewWindow* preview)
     previewMax.x -= offsetX * 2;
     previewMax.y -= height;
 
+    bool lastCursorInsideWindow = preview->cursorInsideWindow;
     preview->cursorInsideWindow = cursorPosition.x > previewMin.x && cursorPosition.x < previewMax.x && cursorPosition.y > previewMin.y && cursorPosition.y < previewMax.y;
+
+    if(lastCursorInsideWindow != preview->cursorInsideWindow) {
+        gameState->game.hasFocus = preview->cursorInsideWindow;
+        RunLUAProtectedFunction(FocusChange);
+    }
+
+    preview->lastCursorPosition = preview->cursorPosition;
     preview->cursorPosition = V2(Clamp(cursorPosition.x - previewMin.x, 0, gameState->render.size.x), Clamp(cursorPosition.y - previewMin.y, 0, gameState->render.size.y));
 
     if(menuAction == PreviewMenuAction_CHANGE_SIZE) { ImGui::OpenPopup("ChangeSize"); }
@@ -1084,6 +1094,10 @@ static void EditorDraw(TextureDebuggerWindow* debugger)
         if (ImGui::SmallButton("Next")) {
             debugger->textureIndex++;
             debugger->textureChanged = true;
+        }
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Clear Cache")) {
+            CleanCache();
         }
 
         if(debugger->textureIndex < 0) { debugger->textureIndex = textureCacheSize - 1; }
@@ -1630,7 +1644,7 @@ static void EditorDraw(EditorConfigWindow* config)
 
     if (ImGui::BeginTabBar("Platforms", ImGuiTabBarFlags_FittingPolicyScroll)) {
         i32 nameIndex = 0;
-        while(nameIndex < ArraySize(platformNames)) {\
+        while(nameIndex < ArraySize(platformNames)) {
             bool tabOpen = true;
             if (ImGui::BeginTabItem(platformNames[nameIndex], &tabOpen, ImGuiTabItemFlags_NoCloseButton))
             {

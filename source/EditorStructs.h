@@ -44,6 +44,7 @@ struct PreviewWindow
     bool focused;
 
     bool cursorInsideWindow;
+    v2 lastCursorPosition;
     v2 cursorPosition;
     v2i changeSize;
     bool showData;

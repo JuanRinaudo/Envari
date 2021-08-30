@@ -422,6 +422,7 @@ struct RenderOverrideIndices
 struct Game {
     bool running;
     bool updateRunning;
+    bool hasFocus;
 
     i32 version;
     i32 saveSlotID;
@@ -481,7 +482,9 @@ struct Input
     u32 mouseTextureID;
     v2 mouseTextureSize;
     v2 mousePosition;
+    v2 mouseDeltaPosition;
     v2 mouseScreenPosition;
+    v2 mouseScreenDeltaPosition;
     i32 mouseWheel;
     DynamicString* textInputBuffer;
     i32 textInputIndex;

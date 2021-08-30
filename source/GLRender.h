@@ -96,6 +96,8 @@ static bool CheckVendor(const char* vendor)
 static void CleanCache()
 {
     // #TODO (Juan): Implement
+
+    shfree(textureCache);
 }
 
 static i32 TotalGPUMemoryKB()
@@ -1010,8 +1012,8 @@ static void RenderPass()
 #endif
 
     view = gameState->camera.view;
-    view._30 = -gameState->camera.size * 0.5f;
-    view._31 = view._30;
+    view._30 = -(gameState->camera.ratio * gameState->camera.size) * 0.5f;
+    view._31 = -gameState->camera.size * 0.5f;
     view._23 = 1.0f;
     projection = gameState->camera.projection;
 
@@ -1264,8 +1266,10 @@ static void RenderPass()
 
                 renderState->generateMipMaps = generateMipMapsTemp;
 
-                v2 origin = V2(-image->origin.x * texture.width, -image->origin.y * texture.height);
-                v2 size = V2((f32)texture.width, (f32)texture.height);
+                v2 origin, size;
+
+                origin = V2(-image->origin.x * texture.width, -image->origin.y * texture.height);
+                size = V2((f32)texture.width, (f32)texture.height);
 
                 f32 quadRatio = size.y / size.x;
                 f32 textureRatio = (f32)texture.height / (f32)texture.width;

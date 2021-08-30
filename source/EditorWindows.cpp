@@ -195,7 +195,10 @@ i32 CALLBACK WinMain(
         if(editorPreview.open && editorPreview.focused) {
             SDL_ShowCursor(editorPreview.cursorInsideWindow);
             if(editorPreview.cursorInsideWindow) {
-                gameState->input.mousePosition = RenderToViewport(editorPreview.cursorPosition.x, editorPreview.cursorPosition.y, gameState->camera.size, gameState->camera.ratio);
+                v2 lastMousePosition = ViewportToBuffer(editorPreview.lastCursorPosition.x, editorPreview.lastCursorPosition.y);
+                gameState->input.mousePosition = ViewportToBuffer(editorPreview.cursorPosition.x, editorPreview.cursorPosition.y);
+                gameState->input.mouseDeltaPosition.x = gameState->input.mousePosition.x - lastMousePosition.x;
+                gameState->input.mouseDeltaPosition.y = gameState->input.mousePosition.y - lastMousePosition.y;
 
                 if(gameState->input.mouseTextureID != 0) {
                     ImGui::SetMouseCursor(ImGuiMouseCursor_None);

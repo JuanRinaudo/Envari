@@ -477,16 +477,22 @@ void End2D()
     EndTemporaryMemory(&renderTemporaryMemory);
 }
 
-v2 RenderToViewport(f32 renderX, f32 renderY, f32 size, f32 ratio)
+v2 ViewportToBuffer(f32 viewportX, f32 viewportY)
 {
-    v2 position = V2(0, 0);
-    
-    f32 scaleDifference = (f32)gameState->render.size.y / (f32)gameState->render.bufferSize.y;
-    f32 scaledWidth = (f32)gameState->render.bufferSize.x * scaleDifference;
-    f32 offsetX = ((f32)gameState->render.size.x - scaledWidth) * 0.5f;
-    
-    position.x = (((renderX - offsetX) / scaledWidth) - 0.5f) * size * ratio + size * 0.5f;
-    position.y = ((renderY / gameState->render.size.y) - 0.5f) * size + size * 0.5f;
+    v2 position = V2(
+        (viewportX / gameState->render.size.x) * gameState->render.bufferSize.x,
+        (viewportY / gameState->render.size.y) * gameState->render.bufferSize.y
+    );
+
+    return position;
+}
+
+v2 ScreenToBuffer(f32 viewportX, f32 viewportY)
+{
+    v2 position = V2(
+        (viewportX / gameState->render.size.x) * gameState->render.bufferSize.x,
+        (viewportY / gameState->render.size.y) * gameState->render.bufferSize.y
+    );
 
     return position;
 }

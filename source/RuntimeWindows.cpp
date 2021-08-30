@@ -5,6 +5,11 @@
 
 #include <string>
 
+#if GAME_RELEASE
+#define Assert(Expression) 
+#define AssertMessage(Expression, Message) 
+#endif
+
 #define PLATFORM_WINDOWS
 
 #include "CodeGen/FileMap.h"
