@@ -2,6 +2,7 @@
 #define LUA_SCRIPTING_H
 
 #define RunLUAProtectedFunction(FUNCTION) sol::protected_function Func ## FUNCTION (lua[#FUNCTION]); \
+ChangeLogFlag(LogFlag_SCRIPTING_FUNCTIONS); \
 if(Func ## FUNCTION .valid()) { \
     sol::protected_function_result result = Func ## FUNCTION (); \
     if (!result.valid()) { \
@@ -121,6 +122,10 @@ void LoadLUALibrary(sol::lib library)
     }
 }
 
+void ScriptingDummy() {
+
+}
+
 void ScriptingInit()
 {
     lua.script("function Error(message) return \"ERROR: \" .. message end");
@@ -130,6 +135,15 @@ void ScriptingInit()
 	lua.set_exception_handler(&ScriptingExceptionHandler);
 
     ScriptingBindings();
+
+    lua["Init"] = ScriptingDummy;
+    lua["Update"] = ScriptingDummy;
+    lua["Unload"] = ScriptingDummy;
+    lua["EditorInit"] = ScriptingDummy;
+    lua["EditorUpdate"] = ScriptingDummy;
+    lua["EditorEnd"] = ScriptingDummy;
+    lua["EditorConsoleDebugBar"] = ScriptingDummy;
+    lua["FocusChange"] = ScriptingDummy;
 }
 
 static u32 ScriptingUpdate()

@@ -75,6 +75,9 @@ extern m44 PerspectiveProjection(f32 fovY, f32 aspect, f32 nearPlane, f32 farPla
 extern m44 OrtographicProjection(f32 left, f32 right, f32 top, f32 bottom, f32 nearPlane, f32 farPlane);
 extern m44 OrtographicProjection(f32 size, f32 aspect, f32 nearPlane, f32 farPlane);
 
+extern f32 Perlin2D(f32 x, f32 y);
+extern f32 Perlin2DOctaves(f32 x, f32 y, u32 octaves, f32 frecuency);
+
 extern void Begin2D(u32 frameBufferID, u32 width, u32 height);
 extern void DrawClear(f32 red, f32 green, f32 blue, f32 alpha);
 extern void DrawSetStyle(const char* filepath, const char* filepathHovered, const char* filepathDown, f32 slice);
@@ -118,7 +121,6 @@ extern void LoadLUAScene(const char* luaFilepath);
 
 extern u32 defaultFontID;
 
-extern f32* CreateQuadPosUV(f32 posStartX, f32 posStartY, f32 posEndX, f32 posEndY, f32 uvStartX, f32 uvStartY, f32 uvEndX, f32 uvEndY);
 extern void BindTextureID(u32 textureID, f32 width, f32 height);
 extern GLTexture LoadTextureFile(const char *texturePath, bool permanentAsset);
 extern v2 TextureSize(const char* texturePath);
@@ -568,6 +570,8 @@ void ScriptingBindings()
 
     lua["PerspectiveProjection"] = PerspectiveProjection;
     lua["OrtographicProjection"] = sol::resolve<m44(f32, f32, f32, f32)>(OrtographicProjection);
+    lua["Perlin2D"] = Perlin2D;
+    lua["Perlin2DOctaves"] = Perlin2DOctaves;
 
     // #NOTE (Juan): GLRender    
     sol::usertype<GLTexture> gltexture_usertype = lua.new_usertype<GLTexture>("gltexture");
@@ -576,7 +580,6 @@ void ScriptingBindings()
     gltexture_usertype["height"] = &GLTexture::height;
     gltexture_usertype["channels"] = &GLTexture::channels;
 
-    lua["CreateQuadPosUV"] = CreateQuadPosUV;
     lua["LoadTextureID"] = BindTextureID;
     lua["LoadSceneTexture"] = LoadSceneTextureFile;
     lua["LoadPermanentTexture"] = LoadPermanentTexture;

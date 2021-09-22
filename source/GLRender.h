@@ -268,7 +268,11 @@ static u32 LoadFont(u32 fontID, FontAtlas *atlas)
 }
 
 f32 quadVertices[20];
-f32* CreateQuadPosUV(f32 posStartX, f32 posStartY, f32 posEndX, f32 posEndY,
+u32 quadIndices[] = {
+    0, 1, 2,
+    1, 2, 3
+};
+void CreateQuadPosUV(f32 posStartX, f32 posStartY, f32 posEndX, f32 posEndY,
     f32 uvStartX, f32 uvStartY, f32 uvEndX, f32 uvEndY)
 {
     quadVertices[0] = posStartX;
@@ -291,13 +295,33 @@ f32* CreateQuadPosUV(f32 posStartX, f32 posStartY, f32 posEndX, f32 posEndY,
     quadVertices[17] = 0.0f;
     quadVertices[18] = uvEndX;
     quadVertices[19] = uvEndY;
-    return quadVertices;
 }
 
-u32 quadIndices[] = {
-    0, 1, 2,
-    1, 2, 3
-};
+u32 lastCircleSegments = 0;
+f32 circleVertices[300];
+u32 circleIndices[300];
+void CreateCircle(u32 segments)
+{
+    circleVertices[0] = 0.0f;
+    circleVertices[1] = 0.0f;
+    circleVertices[2] = 0.0f;
+
+    for(i32 i = 0; i < segments; ++i) {
+        float angle = ((float)i / (float)segments) * PI32 * 2;
+        circleVertices[i * 3 + 3] = Sin(angle);
+        circleVertices[i * 3 + 4] = Cos(angle);
+        circleVertices[i * 3 + 5] = 0.0f;
+
+        circleIndices[i * 3 + 0] = 0;
+        circleIndices[i * 3 + 1] = i;
+        circleIndices[i * 3 + 2] = i + 1;
+    }
+
+    i32 lastSegment = segments - 1;
+    circleIndices[segments * 3 + 0] = 0;
+    circleIndices[segments * 3 + 1] = segments;
+    circleIndices[segments * 3 + 2] = 1;
+}
 
 static void InitFramebuffer(i32 bufferWidth, i32 bufferHeight)
 {
@@ -562,8 +586,8 @@ static bool GetBakedQuad(FontAtlas *font, u32 charIndex, float *xpos, float *ypo
         f32 ipw = 1.0f / font->width;
         f32 iph = 1.0f / font->height;
         const stbtt_bakedchar *b = font->charData + charIndex;
-        f32 round_x = Floor((*xpos + b->xoff) + 0.5f);
-        f32 round_y = Floor((*ypos + b->yoff) + 0.5f);
+        f32 round_x = Round((*xpos + b->xoff) + 0.5f);
+        f32 round_y = Round((*ypos + b->yoff) + 0.5f);
 
         q->x0 = round_x;
         q->y0 = round_y;
@@ -819,7 +843,7 @@ static void InitGL()
     glGenBuffers(1, &overrideBuffer.vertexBuffer);
     glGenBuffers(1, &overrideBuffer.indexBuffer);
 
-    f32* vertices = CreateQuadPosUV(0, 0, 1, 1, 0, 0, 1, 1);
+    CreateQuadPosUV(0, 0, 1, 1, 0, 0, 1, 1);
     glBindVertexArray(quadBuffer.vertexArray);
     glBindBuffer(GL_ARRAY_BUFFER, quadBuffer.vertexBuffer);
     glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), quadVertices, GL_STATIC_DRAW);
@@ -1179,40 +1203,21 @@ static void RenderPass()
 
                 UseProgram(coloredProgram);
 
-                model = SetupModelMatrix(circle->origin);
+                model = SetupModelMatrix(circle->origin, V2(circle->radius, circle->radius));
                 SetupMVPUniforms(coloredProgram, renderState->renderColor);
 
-                f32 vertices[300] = {
-                    0.0f, 0.0f, 0.0f,
-                };
-
-                u32 indices[300] = {
-
-                };
-
-                for(i32 i = 0; i < circle->segments; ++i) {
-                    float angle = ((float)i / (float)circle->segments) * PI32 * 2;
-                    vertices[i * 3 + 3] = Sin(angle) * circle->radius;
-                    vertices[i * 3 + 4] = Cos(angle) * circle->radius;
-                    vertices[i * 3 + 5] = 0.0f;
-
-                    indices[i * 3 + 0] = 0;
-                    indices[i * 3 + 1] = i;
-                    indices[i * 3 + 2] = i + 1;
+                if(circle->segments != lastCircleSegments) {
+                    CreateCircle(circle->segments);
                 }
-
-                i32 lastSegment = circle->segments - 1;
-                indices[circle->segments * 3 + 0] = 0;
-                indices[circle->segments * 3 + 1] = circle->segments;
-                indices[circle->segments * 3 + 2] = 1;
+                lastCircleSegments = circle->segments;
 
                 glBindVertexArray(customBuffer.vertexArray);
 
                 glBindBuffer(GL_ARRAY_BUFFER, customBuffer.vertexBuffer);
                 glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, customBuffer.indexBuffer);
 
-                glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-                glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW); 
+                glBufferData(GL_ARRAY_BUFFER, sizeof(circleVertices), circleVertices, GL_STATIC_DRAW);
+                glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(circleIndices), circleIndices, GL_STATIC_DRAW); 
 
                 glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(f32), (void*)0);
                 glEnableVertexAttribArray(0);

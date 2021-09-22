@@ -15,6 +15,7 @@ enum LogFlag {
     LogFlag_SYSTEM = 1 << 16,
     LogFlag_GAME = 1 << 17,
     LogFlag_SCRIPTING = 1 << 18,
+    LogFlag_SCRIPTING_FUNCTIONS = 1 << 19,
 };
 
 // #NOTE (Juan): Render

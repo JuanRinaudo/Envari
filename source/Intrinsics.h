@@ -62,6 +62,12 @@ static i32 FloorToInt(f32 Value)
     return(Result);
 }
 
+static u32 FloorToUInt(f32 Value)
+{
+    u32 Result = (u32)floorf(Value);
+    return(Result);
+}
+
 static i32 CeilToInt(f32 Value)
 {
     i32 Result = (i32)ceilf(Value);
@@ -71,6 +77,12 @@ static i32 CeilToInt(f32 Value)
 static i32 TruncateToInt(f32 Value)
 {
     i32 Result = (i32)Value;
+    return(Result);
+}
+
+static f32 Round(f32 Value)
+{
+    f32 Result = roundf(Value);
     return(Result);
 }
 

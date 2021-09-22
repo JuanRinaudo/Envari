@@ -151,6 +151,19 @@ i32 CALLBACK WinMain(
     HANDLE processHandle = GetCurrentProcess();
 
     editorRenderDebugger.recording = false;
+    
+    u32 tID;
+    u8* tempBitmap = PushArray(&temporalState->arena, 512 * 512, u8);
+    for(i32 x = 0; x < 512; ++x) {
+        for(i32 y = 0; y < 512; ++y) {
+            i32 i = (i32)(x + y * 512);
+            tempBitmap[i] = (u8)(Perlin2DOctaves((f32)x, (f32)y, 8, 0.0234f) * 255.0f);
+        }
+    }
+    glGenTextures(1, &tID);
+    glBindTexture(GL_TEXTURE_2D, tID);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, 512, 512, 0, GL_ALPHA, GL_UNSIGNED_BYTE, tempBitmap);
+    glGenerateMipmap(GL_TEXTURE_2D);
 
     gameState->game.running = true;
     while (gameState->game.running)

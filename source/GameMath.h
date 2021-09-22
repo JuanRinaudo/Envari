@@ -51,7 +51,6 @@ v4 V4(f32 x, f32 y, f32 z, f32 w)
 f32 Lerp(f32 a, f32 b, f32 t)
 {
     f32 result = (1.0f - t) * a + t * b;
-
     return(result);
 }
 
@@ -773,6 +772,106 @@ transform2D Transform2D(f32 posX, f32 posY, f32 scaleX, f32 scaleY, f32 angle)
     transform.position = V2(posX, posY);
     transform.scale = V2(scaleX, scaleY);
     return transform;
+}
+
+// #NOTE(Juan): noise
+// Hash lookup table as defined by Ken Perlin.  This is a randomly arranged array of all numbers from 0-255 inclusive.
+static u32 NoiseP[] = {
+    151,160,137,91,90,15,
+    131,13,201,95,96,53,194,233,7,225,140,36,103,30,69,142,8,99,37,240,21,10,23,
+    190, 6,148,247,120,234,75,0,26,197,62,94,252,219,203,117,35,11,32,57,177,33,
+    88,237,149,56,87,174,20,125,136,171,168, 68,175,74,165,71,134,139,48,27,166,
+    77,146,158,231,83,111,229,122,60,211,133,230,220,105,92,41,55,46,245,40,244,
+    102,143,54, 65,25,63,161, 1,216,80,73,209,76,132,187,208, 89,18,169,200,196,
+    135,130,116,188,159,86,164,100,109,198,173,186, 3,64,52,217,226,250,124,123,
+    5,202,38,147,118,126,255,82,85,212,207,206,59,227,47,16,58,17,182,189,28,42,
+    223,183,170,213,119,248,152, 2,44,154,163, 70,221,153,101,155,167, 43,172,9,
+    129,22,39,253, 19,98,108,110,79,113,224,232,178,185, 112,104,218,246,97,228,
+    251,34,242,193,238,210,144,12,191,179,162,241, 81,51,145,235,249,14,239,107,
+    49,192,214, 31,181,199,106,157,184, 84,204,176,115,121,50,45,127, 4,150,254,
+    138,236,205,93,222,114,67,29,24,72,243,141,128,195,78,66,215,61,156,180
+};
+
+// static void MakePermutation(){
+// 	for(u32 i = 0; i < 256; ++i){
+// 		permutations[i] = i;
+// 	}
+
+// 	for(int i = count - 1; i > 0; --i){
+// 		u32 index = Round(Random() * (i - 1));
+
+//         u32 temp = array[i];
+// 		array[i] = array[index];
+// 		array[index] = temp;
+// 	}
+// }
+
+static v2 NoiseGetConstantVector(u32 val) {
+	u32 h = val & 3;
+    switch(h) {
+        case 0:
+            return V2(1.0f, 1.0f);
+        case 1:
+            return V2(-1.0f, 1.0f);
+        case 2:
+            return V2(-1.0f, -1.0f);
+        case 3:
+            return V2(1.0f, -1.0f);
+    }
+    return V2(0, 0);
+}
+
+static f32 NoiseFade(f32 t) {
+	return ((6.0f * t - 15.0f) * t + 10.0f) * t * t * t;
+}
+
+f32 Perlin2D(f32 x, f32 y) {
+	u32 X = FloorToUInt(x) & 255;
+	u32 Y = FloorToUInt(y) & 255;
+
+	f32 xf = x - Floor(x);
+	f32 yf = y - Floor(y);
+
+	v2 topRight = V2(xf - 1.0f, yf - 1.0f);
+	v2 topLeft = V2(xf, yf - 1.0f);
+	v2 bottomRight = V2(xf - 1.0f, yf);
+	v2 bottomLeft = V2(xf, yf);
+	
+	//Select a value in the array for each of the 4 corners
+	u32 valueTopRight = NoiseP[NoiseP[X+1]+Y+1];
+	u32 valueTopLeft = NoiseP[NoiseP[X]+Y+1];
+	u32 valueBottomRight = NoiseP[NoiseP[X+1]+Y];
+	u32 valueBottomLeft = NoiseP[NoiseP[X]+Y];
+	
+	f32 dotTopRight = Dot(topRight, NoiseGetConstantVector(valueTopRight));
+	f32 dotTopLeft = Dot(topLeft, NoiseGetConstantVector(valueTopLeft));
+	f32 dotBottomRight = Dot(bottomRight, NoiseGetConstantVector(valueBottomRight));
+	f32 dotBottomLeft = Dot(bottomLeft, NoiseGetConstantVector(valueBottomLeft));
+	
+	f32 u = NoiseFade(xf);
+	f32 v = NoiseFade(yf);
+	
+    f32 result = Lerp(u, Lerp(v, dotBottomLeft, dotTopLeft), Lerp(v, dotBottomRight, dotTopRight));
+	return result;
+}
+
+f32 Perlin2DOctaves(f32 x, f32 y, u32 octaves = 8, f32 frecuency = 0.005) {
+    f32 n = 0.0;
+    f32 a = 1.0;
+
+    for(u32 o = 0; o < octaves; ++o){
+        f32 v = a * Perlin2D(x * frecuency, y * frecuency);
+        n += v;
+        
+        a *= 0.5;
+        frecuency *= 2.0;
+    }
+
+    return n;
+} 
+
+f32 Perlin2D(i32 x, i32 y) {
+    return Perlin2D(x + 0.5f, y + 0.5f);
 }
 
 #endif

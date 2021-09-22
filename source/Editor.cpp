@@ -435,6 +435,7 @@ static void EditorDraw(ConsoleWindow* console)
         EditorLogMenuButton(console, "System", LogFlag_SYSTEM);
         EditorLogMenuButton(console, "Game", LogFlag_GAME);
         EditorLogMenuButton(console, "Scripting", LogFlag_SCRIPTING);
+        EditorLogMenuButton(console, "Scripting Functions", LogFlag_SCRIPTING_FUNCTIONS);
 
         ImGui::EndMenu();
     }

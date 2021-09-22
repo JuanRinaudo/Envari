@@ -175,6 +175,10 @@ void DrawRectangle(f32 posX, f32 posY, f32 sizeX, f32 sizeY)
 
 void DrawCircle(f32 posX, f32 posY, f32 radius, u32 segments)
 {
+    if(segments == 0) {
+        segments = 10;
+    }
+
     RenderCircle *circle = RenderPushElement(&renderTemporaryMemory, RenderCircle);
     circle->origin = V2(posX, posY);
     circle->radius = radius;
@@ -200,6 +204,8 @@ void DrawTexture(f32 posX, f32 posY, f32 sizeX, f32 sizeY, u32 textureID)
 
 void DrawImage(f32 posX, f32 posY, const char* filepath, u32 renderFlags = 0)
 {
+    AssertMessage(filepath != NULL, "Filepath is null");
+
     RenderImage *image = RenderPushElement(&renderTemporaryMemory, RenderImage);
     image->header.renderFlags = renderFlags;
     image->origin = V2(posX, posY);
