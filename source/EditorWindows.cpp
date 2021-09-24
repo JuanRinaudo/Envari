@@ -20,6 +20,7 @@
 #define SOURCE_TYPE const char* const
 
 #include "GL3W/gl3w.c"
+#define IMGUI_IMPL_OPENGL_LOADER_CUSTOM
 #define IMGUI_IMPL_OPENGL_LOADER_GL3W
 
 #define ENVARI_PLATFORM "Editor"
@@ -265,7 +266,7 @@ i32 CALLBACK WinMain(
         else {
             if(gameState->render.framebufferEnabled) {
                 glBindFramebuffer(GL_FRAMEBUFFER, gameState->render.frameBuffer);
-                glViewport(0,0, (u32)gameState->render.bufferSize.x, (u32)gameState->render.bufferSize.y);
+                glViewport(0,0, (u32)gameState->render.scaledBufferSize.x, (u32)gameState->render.scaledBufferSize.y);
             }
             else {
                 glBindFramebuffer(GL_FRAMEBUFFER, 0);

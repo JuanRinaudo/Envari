@@ -26,8 +26,6 @@ static GLRenderBuffer quadBuffer;
 static GLRenderBuffer overrideBuffer;
 static GLRenderBuffer customBuffer;
 
-static u32 DrawBuffers[1] = {GL_COLOR_ATTACHMENT0};
-
 static u32 coloredProgram;
 static u32 fontProgram;
 static u32 texturedProgram;
@@ -37,6 +35,7 @@ static u32 colorLocation;
 static u32 mvpLocation;
 
 static u32 bufferSizeLocation;
+static u32 scaledBufferSizeLocation;
 static u32 textureSizeLocation;
 static u32 dimensionsLocation;
 static u32 borderLocation;
@@ -323,7 +322,7 @@ void CreateCircle(u32 segments)
     circleIndices[segments * 3 + 2] = 1;
 }
 
-static void InitFramebuffer(i32 bufferWidth, i32 bufferHeight)
+static void CreateFramebufferGL(i32 bufferWidth, i32 bufferHeight)
 {
     glGenFramebuffers(1, &gameState->render.frameBuffer);
     glGenTextures(1, &gameState->render.renderBuffer);
@@ -333,15 +332,23 @@ static void InitFramebuffer(i32 bufferWidth, i32 bufferHeight)
 
     glBindTexture(GL_TEXTURE_2D, gameState->render.renderBuffer);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, bufferWidth, bufferHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gameState->render.renderBuffer, 0);
 
     glBindRenderbuffer(GL_RENDERBUFFER, gameState->render.depthrenderbuffer);
     glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, bufferWidth, bufferHeight);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, gameState->render.depthrenderbuffer);
 
-    glDrawBuffers(1, DrawBuffers);
+    glBindTexture(GL_TEXTURE_2D, gameState->render.frameBuffer);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    
+    glBindTexture(GL_TEXTURE_2D, gameState->render.renderBuffer);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
     if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
         Log("ERROR::FRAMEBUFFER:: Framebuffer is not complete!");
@@ -349,6 +356,32 @@ static void InitFramebuffer(i32 bufferWidth, i32 bufferHeight)
     if(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_UNSUPPORTED) {
         Log("ERROR::FRAMEBUFFER:: Framebuffer is not supported!");
     }
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+static void ResizeFramebufferGL(i32 bufferWidth, i32 bufferHeight)
+{    
+    glBindTexture(GL_TEXTURE_2D, gameState->render.frameBuffer);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    
+    glBindTexture(GL_TEXTURE_2D, gameState->render.renderBuffer);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, gameState->render.frameBuffer);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, bufferWidth, bufferHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gameState->render.renderBuffer, 0);
+
+    glBindRenderbuffer(GL_RENDERBUFFER, gameState->render.depthrenderbuffer);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, bufferWidth, bufferHeight);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, gameState->render.depthrenderbuffer);
+    
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
@@ -760,6 +793,8 @@ static void UseProgram(u32 programID)
 
         bufferSizeLocation = glGetUniformLocation(programID, "bufferSize");
         glUniform2f(bufferSizeLocation, gameState->render.bufferSize.x, gameState->render.bufferSize.y);
+        scaledBufferSizeLocation = glGetUniformLocation(programID, "scaledBufferSize");
+        glUniform2f(bufferSizeLocation, gameState->render.scaledBufferSize.x, gameState->render.scaledBufferSize.y);
         timeLocation = glGetUniformLocation(programID, "time");
 
         renderState->currentProgram = programID;

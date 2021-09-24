@@ -437,6 +437,8 @@ struct Render {
     i32 refreshRate;
     v2 size;
     v2 bufferSize;
+    f32 renderScale;
+    v2 scaledBufferSize;
     v2 windowPosition;
     v2 windowSize;
     u32 defaultFontID;

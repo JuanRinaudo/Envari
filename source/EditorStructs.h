@@ -43,6 +43,7 @@ struct PreviewWindow
     bool open;
     bool focused;
 
+    bool linearFiltering;
     bool cursorInsideWindow;
     v2 lastCursorPosition;
     v2 cursorPosition;

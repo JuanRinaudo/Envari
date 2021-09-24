@@ -136,6 +136,7 @@ static i32 SetupWindow()
     gameState->render.framebufferEnabled = TableHasKey(initialConfig, "bufferSize");
     if(gameState->render.framebufferEnabled) {
         v2 bufferSize = TableGetV2(&initialConfig, "bufferSize");
+        gameState->render.renderScale = TableGetFloat(&initialConfig, "renderScale");
         if(bufferSize.x <= 32 && bufferSize.y <= 32) {
             gameState->render.bufferSize.x = gameState->render.windowSize.x * bufferSize.x;
             gameState->render.bufferSize.y = gameState->render.windowSize.y * bufferSize.y;
@@ -144,10 +145,14 @@ static i32 SetupWindow()
             gameState->render.bufferSize.x = bufferSize.x;
             gameState->render.bufferSize.y = bufferSize.y;
         }
+        gameState->render.scaledBufferSize.x = gameState->render.bufferSize.x * gameState->render.renderScale;
+        gameState->render.scaledBufferSize.y = gameState->render.bufferSize.y * gameState->render.renderScale;
     }
     else {
         gameState->render.bufferSize.x = -1;
         gameState->render.bufferSize.y = -1;
+        gameState->render.scaledBufferSize.x = -1;
+        gameState->render.scaledBufferSize.y = -1;
     }
 
     gameState->render.refreshRate = displayMode.refresh_rate;
@@ -174,7 +179,7 @@ static i32 SetupWindow()
 static i32 CreateFramebuffer()
 {
     if(gameState->render.framebufferEnabled) {
-        InitFramebuffer((i32)gameState->render.bufferSize.x, (i32)gameState->render.bufferSize.y);
+        CreateFramebufferGL((i32)gameState->render.scaledBufferSize.x, (i32)gameState->render.scaledBufferSize.y);
     }
     else {
         gameState->render.frameBuffer = 0;
@@ -376,8 +381,6 @@ static rectangle2 GetTextureAdjustValues(TextureAdjustStyle style, v2 from, v2 t
 
 static i32 RenderFramebuffer()
 {
-    // Log("%f %f", gameState->render.bufferSize.x, gameState->render.bufferSize.y);
-    // Log("%f %f", gameState->render.windowSize.x, gameState->render.windowSize.y);
     rectangle2 adjustment = GetTextureAdjustValues(gameState->render.framebufferAdjustStyle, gameState->render.bufferSize, gameState->render.windowSize);
 
     // #NOTE (Juan): Render framebuffer to actual screen buffer, save data and then restore it
@@ -421,7 +424,7 @@ static v2 GetRenderSize()
 static void CommonBegin2D()
 {
     if(gameState->render.framebufferEnabled) {
-        Begin2D(gameState->render.frameBuffer, (u32)gameState->render.bufferSize.x, (u32)gameState->render.bufferSize.y);
+        Begin2D(gameState->render.frameBuffer, (u32)gameState->render.scaledBufferSize.x, (u32)gameState->render.scaledBufferSize.y);
     }
     else {
         Begin2D(0, (u32)gameState->render.size.x, (u32)gameState->render.size.y);

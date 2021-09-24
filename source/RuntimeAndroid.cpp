@@ -135,7 +135,7 @@ i32 main(i32 argc, char *argv[])
 
     // #NOTE (Juan): Create framebuffer
     // if(gameState->render.framebufferEnabled) {
-    //     InitFramebuffer(gameState->render.bufferWidth, gameState->render.bufferHeight);
+    //     CreateFramebuffer(gameState->render.bufferWidth, gameState->render.bufferHeight);
     // }
     // else {
     //     gameState->render.frameBuffer = 0;

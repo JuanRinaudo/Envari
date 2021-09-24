@@ -70,9 +70,21 @@ static void EditorInit(ConsoleWindow* console)
     Log("Envari Console Start");
 }
 
+static void SetupTexture(u32 textureID, u32 textureFiltering)
+{
+    glBindTexture(GL_TEXTURE_2D, textureID);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, textureFiltering);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, textureFiltering);
+}
+
 static void EditorInit(PreviewWindow* preview)
 {
-    
+    preview->linearFiltering = true;
+
+    SetupTexture(gameState->render.renderBuffer, GL_LINEAR);
+    SetupTexture(gameState->render.frameBuffer, GL_LINEAR);
 }
 
 static void EditorInit(AssetsWindow* debugger)
@@ -562,6 +574,22 @@ static void EditorDraw(ConsoleWindow* console)
     ImGui::End();
 }
 
+// struct SetupTextureData {
+//     u32 textureID;
+//     u32 filterMethod;
+// };
+
+// static void SetupTexture(const ImDrawList* parent_list, const ImDrawCmd* cmd)
+// {
+//     SetupTextureData* data = (SetupTextureData*)cmd->UserCallbackData;
+
+//     glBindTexture(GL_TEXTURE_2D, data->textureID);
+//     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+//     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+//     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, data->filterMethod);
+//     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, data->filterMethod);
+// }
+
 static void EditorDraw(PreviewWindow* preview)
 {
     if(!preview->open) { return; }
@@ -589,6 +617,13 @@ static void EditorDraw(PreviewWindow* preview)
     PreviewMenuAction menuAction = PreviewMenuAction_NONE;
     if (ImGui::BeginMenuBar()) {
         if (ImGui::BeginMenu("Menu")) {
+            if(ImGui::Checkbox("Linear Filtering", &preview->linearFiltering)) {
+                u32 filterMethod = 0;
+                if(preview->linearFiltering) { filterMethod = GL_LINEAR; }
+                else { filterMethod = GL_NEAREST; }
+                SetupTexture(gameState->render.renderBuffer, filterMethod);
+                SetupTexture(gameState->render.frameBuffer, filterMethod);
+            }
             if(ImGui::Checkbox("Preview Data", &preview->showData)){
                 ImGui::CloseCurrentPopup();
             }
@@ -645,7 +680,19 @@ static void EditorDraw(PreviewWindow* preview)
         ImGui::EndPopup();
     }
 
-    ImGui::Image((ImTextureID)gameState->render.frameBuffer, ImVec2((f32)gameState->render.size.x, (f32)gameState->render.size.y), ImVec2(0, 1), ImVec2(1, 0));
+    // SetupTextureData* data = PushStruct(&editorState->arena, SetupTextureData);
+    // data->textureID = gameState->render.frameBuffer;
+    // if(preview->linearFiltering) {
+    //     data->filterMethod = GL_LINEAR;
+    // }
+    // else {
+    //     data->filterMethod = GL_NEAREST;
+    // }
+
+    Log("%d Size: %f %f", gameState->render.frameBuffer, gameState->render.size.x, gameState->render.size.y);
+    // ImGui::GetWindowDrawList()->AddCallback(SetupTexture, (void*)data);
+    ImGui::Image((ImTextureID)gameState->render.frameBuffer, ImVec2(gameState->render.size.x, gameState->render.size.y), ImVec2(0, 1), ImVec2(1, 0));
+    // ImGui::GetWindowDrawList()->AddCallback(ImDrawCallback_ResetRenderState, 0);
 
     if(preview->showData) {
         previewMin = ImGui::GetWindowPos();
@@ -657,6 +704,8 @@ static void EditorDraw(PreviewWindow* preview)
         ImGui::Text("Render Size: %d, %d", (i32)gameState->render.size.x, (i32)gameState->render.size.y);
         ImGui::SetCursorPos(ImVec2(5, height + 23));
         ImGui::Text("Buffer Size: %d, %d", (i32)gameState->render.bufferSize.x, (i32)gameState->render.bufferSize.y);
+        ImGui::SetCursorPos(ImVec2(5, height + 43));
+        ImGui::Text("Scaled Buffer Size: %d, %d", (i32)gameState->render.scaledBufferSize.x, (i32)gameState->render.scaledBufferSize.y);
     }
 
     if(!preview->open) {        
@@ -729,6 +778,24 @@ static void EditorDraw(RenderDebuggerWindow* debugger)
 
     ImGui::Text("Window size: %.0fx%.0f", gameState->render.windowSize.x, gameState->render.windowSize.y);
     ImGui::Text("Buffer size: %.0fx%.0f", gameState->render.bufferSize.x, gameState->render.bufferSize.y);
+    v2 lastSize = gameState->render.scaledBufferSize;
+    if(ImGui::InputFloat2("Scaled Buffer Size", gameState->render.scaledBufferSize.e)) {
+        if(gameState->render.scaledBufferSize.x != lastSize.x) {
+            gameState->render.renderScale = gameState->render.scaledBufferSize.x / gameState->render.bufferSize.x;
+        }
+        else {
+            gameState->render.renderScale = gameState->render.scaledBufferSize.y / gameState->render.bufferSize.y;
+        }
+        gameState->render.scaledBufferSize.x = gameState->render.bufferSize.x * gameState->render.renderScale;
+        gameState->render.scaledBufferSize.y = gameState->render.bufferSize.y * gameState->render.renderScale;
+        ResizeFramebufferGL((i32)gameState->render.scaledBufferSize.x, (i32)gameState->render.scaledBufferSize.y);
+    }
+
+    if(ImGui::SliderFloat("Render scale", &gameState->render.renderScale, 0.01f, 8.0f)) {
+        gameState->render.scaledBufferSize.x = gameState->render.bufferSize.x * gameState->render.renderScale;
+        gameState->render.scaledBufferSize.y = gameState->render.bufferSize.y * gameState->render.renderScale;
+        ResizeFramebufferGL((i32)gameState->render.scaledBufferSize.x, (i32)gameState->render.scaledBufferSize.y);
+    }
     
     ImGui::Separator();
     
@@ -1434,7 +1501,7 @@ static void EditorDraw(LUADebuggerWindow* debugger)
                 ImGui::EndPopup();
             }
 
-            ImGui::DockSpace(dockspaceID, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode);
+            ImGui::DockSpace(dockspaceID, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode );
         }
         else {
             ImGui::PopStyleVar();
