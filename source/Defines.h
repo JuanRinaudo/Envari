@@ -6,6 +6,8 @@
 #define TO_STRING_INTERNAL(s) #s
 #define TO_STRING(s) TO_STRING_INTERNAL(s)
 
+#define MACRO_DEFINED(name) (#name [0] != TO_STRING_INTERNAL(name) [0])
+
 #ifndef DATA_SAVE_PATH
 #define DATA_SAVE_PATH "save/savedata_%0" TO_STRING(MAX_SAVE_DIGITS) "d.save"
 #endif
@@ -56,6 +58,7 @@ namespace filesystem = std::filesystem;
 
 #define TEXT_INPUT_EVENT_SIZE 32
 #define TEXT_INPUT_BUFFER_COUNT 256
+#define SHADER_FILENAME_MAX 256
 #define LUA_FILENAME_MAX 256
 
 #define KEY_UP 0
@@ -127,7 +130,7 @@ typedef double f64;
 #endif
 #endif
 
-#if GAME_EDITOR
+#if PLATFORM_EDITOR
 #define BUFFER_CHANNEL_TO_SHOW_SIZE SOUND_SAMPLE_RATE * 1
 #define BUFFER_TO_SHOW_SIZE BUFFER_CHANNEL_TO_SHOW_SIZE * SOUND_CHANNELS
 
@@ -162,7 +165,7 @@ typedef double f64;
 
 /*
     #NOTE (Juan):
-    GAME_EDITOR:
+    PLATFORM_EDITOR:
         0 - Build for public release
         1 - Build for development
 

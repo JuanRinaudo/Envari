@@ -277,12 +277,16 @@ static i32 ProcessEvent(const SDL_Event* event)
                 }
                 case SDL_WINDOWEVENT_FOCUS_GAINED: {
                     gameState->game.hasFocus = true;
+#if LUA_ENABLED
                     RunLUAProtectedFunction(FocusChange);
+#endif
                     break;
                 }
                 case SDL_WINDOWEVENT_FOCUS_LOST: {
                     gameState->game.hasFocus = false;
+#if LUA_ENABLED
                     RunLUAProtectedFunction(FocusChange);
+#endif
                     break;
                 }
             }
@@ -458,7 +462,7 @@ char* GetSavePath()
 void SaveData()
 {
     SerializeTable(&saveData, GetSavePath());
-#ifdef GAME_EDITOR
+#ifdef PLATFORM_EDITOR
     SerializeTable(&editorSave, EDITOR_SAVE_PATH);
 #endif
 #ifdef PLATFORM_WASM

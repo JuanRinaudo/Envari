@@ -18,6 +18,12 @@ static f32 Abs(f32 Value)
     return(Result);
 }
 
+static f32 Mod(f32 Value, f32 Mod)
+{
+    f32 Result = fmodf(Value, Mod);
+    return Result;
+}
+
 static u32 RotateLeft(u32 Value, i32 Amount)
 {
 #if COMPILER_MSVC

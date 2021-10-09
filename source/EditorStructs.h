@@ -109,7 +109,9 @@ struct RenderDebuggerWindow
 struct MemoryDebuggerWindow
 {
     bool open;
+#if PLATFORM_WINDOWS
     PROCESS_MEMORY_COUNTERS memoryCounters;
+#endif
 };
 
 struct TextureDebuggerWindow
@@ -119,8 +121,7 @@ struct TextureDebuggerWindow
     bool textureChanged;
     i32 textureIndex;
     i32 textureLevel;
-    i32 textureWidth;
-    i32 textureHeight;
+    v2i textureSize;
     TextureInspect inspectMode;
 };
 
@@ -154,19 +155,37 @@ struct TimeDebuggerWindow
     f32 fpsMax;
 };
 
-#ifdef LUA_ENABLED
-#define WATCH_BUFFER_SIZE 64
-#define WATCH_BUFFER_SIZE_EXT WATCH_BUFFER_SIZE + 1 
-#define WATCH_BUFFER_COUNT 8
-struct LUADebuggerWindow
+struct ShaderDebuggerWindow
 {
     bool open;
 
     bool debugging;
     char inputBuffer[CONSOLE_INPUT_BUFFER_COUNT];
+    char currentFileName[SHADER_FILENAME_MAX];
+    char* currentFileBuffer;
+    size_t currentFileBufferSize;
+
+    i32 programID;
+    i32 targetID;
+    i32 vertexShaderID;
+    i32 fragmentShaderID;
+};
+
+#ifdef LUA_ENABLED
+#define WATCH_BUFFER_SIZE 64
+#define WATCH_BUFFER_SIZE_EXT WATCH_BUFFER_SIZE + 1 
+#define WATCH_BUFFER_COUNT 16
+struct LUADebuggerWindow
+{
+    bool open;
+    
+    ImGuiID dockspaceID;
+
+    bool debugging;
+    char inputBuffer[CONSOLE_INPUT_BUFFER_COUNT];
     char currentFileName[LUA_FILENAME_MAX];
     char* currentFileBuffer;
-    u32 currentFileBufferSize;
+    size_t currentFileBufferSize;
 
     bool codeOpen;
     bool watchOpen;

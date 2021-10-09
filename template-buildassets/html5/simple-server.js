@@ -2,7 +2,7 @@ var http = require("http"),
     url = require("url"),
     path = require("path"),
     fs = require("fs")
-    port = process.argv[2] || 8888,
+    port = process.argv[2] || 7777,
     mimeTypes = {
       "html": "text/html",
       "jpeg": "image/jpeg",

@@ -2,7 +2,9 @@
 #define FOLDERMAP_H
 
 const char* ATLAS = "atlas/";
+const char* BINARYTODATA = "binarytodata/";
 const char* DATA = "data/";
+const char* DUMP = "dump/";
 const char* FONTS = "fonts/";
 const char* IMAGES = "images/";
 const char* SAVE = "save/";

@@ -152,7 +152,7 @@ static void CheckArena(MemoryArena *arena)
 
 static void InitializeStringAllocator(StringAllocator *allocator)
 {
-#if GAME_EDITOR
+#if PLATFORM_EDITOR
     allocator->stringReallocOnAsignLastFrame = 0;
     allocator->stringsAllocatedLastFrame = 0;
     allocator->totalStringsReallocated = 0;
@@ -177,7 +177,7 @@ static void FreeString(char* string)
 
 static void UpdateStringAllocator(StringAllocator *allocator)
 {
-#if GAME_EDITOR
+#if PLATFORM_EDITOR
     allocator->totalStringsReallocated += allocator->stringReallocOnAsignLastFrame;
     allocator->totalStringsAllocated += allocator->stringsAllocatedLastFrame;
 
@@ -188,7 +188,7 @@ static void UpdateStringAllocator(StringAllocator *allocator)
 
 static DynamicString* AllocateDynamicString(StringAllocator *allocator, const char* initialValue, size_t minBufferSize = 0)
 {
-#if GAME_EDITOR
+#if PLATFORM_EDITOR
     allocator->stringsAllocatedLastFrame++;
 #endif
 
@@ -212,7 +212,7 @@ static void ResizeDynamicString(DynamicString *string, size_t newSize)
     if(string->allocSize != newSize) {
         char* oldData = string->value;
 
-    #if GAME_EDITOR
+    #if PLATFORM_EDITOR
         string->allocator->stringReallocOnAsignLastFrame++;
     #endif
         string->value = (char*)malloc(newSize);
@@ -229,8 +229,8 @@ DynamicString& DynamicString::operator = (char* input)
 {
     size_t inputLength = strlen(input);
 
-    if(inputLength > allocSize) {
-        ResizeDynamicString(this, inputLength + 1);
+    if(inputLength > allocSize || inputLength < allocSize / 2) {
+        ResizeDynamicString(this, inputLength * 2 + 1);
     }
     
     size = inputLength;

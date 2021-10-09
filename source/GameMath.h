@@ -467,13 +467,7 @@ m33 IdM33()
     m33 result = {};
 
     result._00 = 1;
-    result._01 = 0;
-    result._02 = 0;
-    result._10 = 0;
     result._11 = 1;
-    result._12 = 0;
-    result._20 = 0;
-    result._21 = 0;
     result._22 = 1;
 
     return result;
@@ -484,11 +478,7 @@ m33 TranslationM33(f32 x, f32 y)
     m33 result = {};
 
     result._00 = 1;
-    result._01 = 0;
-    result._02 = 0;
-    result._10 = 0;
     result._11 = 1;
-    result._12 = 0;
     result._20 = x;
     result._21 = y;
     result._22 = 1;
@@ -506,13 +496,7 @@ m33 ScaleM33(f32 x, f32 y)
     m33 result = {};
 
     result._00 = x;
-    result._01 = 0;
-    result._02 = 0;
-    result._10 = 0;
     result._11 = y;
-    result._12 = 0;
-    result._20 = 0;
-    result._21 = 0;
     result._22 = 1;
 
     return result;
@@ -555,12 +539,8 @@ m33 RotateM33(f32 angle)
 
     result._00 = Cos(angle);
     result._01 = Sin(angle);
-    result._02 = 0;
     result._10 = -Sin(angle);
     result._11 = Cos(angle);
-    result._12 = 0;
-    result._20 = 0;
-    result._21 = 0;
     result._22 = 1;
 
     return result;
@@ -603,15 +583,10 @@ m44 M44(m33 a)
     result._00 = a._00;
     result._01 = a._01;
     result._02 = a._02;
-    result._03 = 0;
     result._10 = a._10;
     result._11 = a._11;
     result._12 = a._12;
-    result._13 = 0;
-    result._20 = 0;
-    result._21 = 0;
     result._22 = 1;
-    result._23 = 0;
     result._30 = a._20;
     result._31 = a._21;
     result._32 = a._22;
@@ -625,20 +600,8 @@ m44 IdM44()
     m44 result = {};
 
     result._00 = 1;
-    result._01 = 0;
-    result._02 = 0;
-    result._03 = 0;
-    result._10 = 0;
     result._11 = 1;
-    result._12 = 0;
-    result._13 = 0;
-    result._20 = 0;
-    result._21 = 0;
     result._22 = 1;
-    result._23 = 0;
-    result._30 = 0;
-    result._31 = 0;
-    result._32 = 0;
     result._33 = 1;
 
     return result;
@@ -649,17 +612,8 @@ m44 TranslationM44(f32 x, f32 y, f32 z)
     m44 result = {};
 
     result._00 = 1;
-    result._01 = 0;
-    result._02 = 0;
-    result._03 = 0;
-    result._10 = 0;
     result._11 = 1;
-    result._12 = 0;
-    result._13 = 0;
-    result._20 = 0;
-    result._21 = 0;
     result._22 = 1;
-    result._23 = 0;
     result._30 = x;
     result._31 = y;
     result._32 = z;
@@ -683,20 +637,8 @@ m44 ScaleM44(f32 x, f32 y, f32 z)
     m44 result = {};
 
     result._00 = x;
-    result._01 = 0;
-    result._02 = 0;
-    result._03 = 0;
-    result._10 = 0;
     result._11 = y;
-    result._12 = 0;
-    result._13 = 0;
-    result._20 = 0;
-    result._21 = 0;
     result._22 = z;
-    result._23 = 0;
-    result._30 = 0;
-    result._31 = 0;
-    result._32 = 0;
     result._33 = 1;
 
     return result;
@@ -740,12 +682,17 @@ m44 &operator *= (m44 &a, m44 b)
 
 m44 OrtographicProjection(f32 left, f32 right, f32 top, f32 bottom, f32 nearPlane, f32 farPlane)
 {
-    return M44(
-        2 / (right - left), 0, 0, -((right + left) / (right - left)),
-        0, 2 / (top - bottom), 0, -((top + bottom) / (top - bottom)),
-        0, 0, -2 / (farPlane - nearPlane), -((farPlane + nearPlane) / (farPlane - nearPlane)),
-        0, 0, 0, 1
-    );
+    m44 result = {};
+
+    result._00 = 2 / (right - left);
+    result._03 = -((right + left) / (right - left));
+    result._11 = 2 / (top - bottom);
+    result._13 = -((top + bottom) / (top - bottom));
+    result._22 = -2 / (farPlane - nearPlane);
+    result._23 = -((farPlane + nearPlane) / (farPlane - nearPlane));
+    result._33 = 1;
+
+    return result;
 }
 
 m44 OrtographicProjection(f32 size, f32 aspect, f32 nearPlane, f32 farPlane)
@@ -756,12 +703,15 @@ m44 OrtographicProjection(f32 size, f32 aspect, f32 nearPlane, f32 farPlane)
 
 m44 PerspectiveProjection(f32 fovY, f32 aspect, f32 nearPlane, f32 farPlane)
 {
-    return M44(
-        1 / (aspect * Tan(fovY / 2)), 0, 0, 0,
-        0, 1 / Tan(fovY / 2), 0, 0,
-        0, 0, -((farPlane + nearPlane) / (farPlane - nearPlane)), -((2 * farPlane * nearPlane) / (farPlane - nearPlane)),
-        0, 0, -1, 0
-    );
+    m44 result = {};
+
+    result._00 = 1 / (aspect * Tan(fovY / 2));
+    result._11 = 1 / Tan(fovY / 2);
+    result._22 = -((farPlane + nearPlane) / (farPlane - nearPlane));
+    result._23 = -((2 * farPlane * nearPlane) / (farPlane - nearPlane));
+    result._32 = -1;
+
+    return result;
 }
 
 // #NOTE(Juan): transform2D
@@ -855,6 +805,10 @@ f32 Perlin2D(f32 x, f32 y) {
 	return result;
 }
 
+f32 Perlin2D(i32 x, i32 y) {
+    return Perlin2D(x + 0.5f, y + 0.5f);
+}
+
 f32 Perlin2DOctaves(f32 x, f32 y, u32 octaves = 8, f32 frecuency = 0.005) {
     f32 n = 0.0;
     f32 a = 1.0;
@@ -868,10 +822,6 @@ f32 Perlin2DOctaves(f32 x, f32 y, u32 octaves = 8, f32 frecuency = 0.005) {
     }
 
     return n;
-} 
-
-f32 Perlin2D(i32 x, i32 y) {
-    return Perlin2D(x + 0.5f, y + 0.5f);
 }
 
 #endif

@@ -65,7 +65,7 @@ struct GLFontReference {
     FontAtlas value;
 };
 
-#ifdef GAME_EDITOR
+#ifdef PLATFORM_EDITOR
 struct WatchedProgram {
     u32 vertexShader;
     u32 fragmentShader;
@@ -109,6 +109,8 @@ enum RenderType
     RenderType_RenderTriangle,
     RenderType_RenderRectangle,
     RenderType_RenderCircle,
+    RenderType_RenderInstancedCircle,
+    RenderType_RenderInstancedCircleColored,
     RenderType_RenderTextureParameters,
     RenderType_RenderTexture,
     RenderType_RenderImage,
@@ -130,6 +132,8 @@ enum RenderType
 enum UniformType {
     UniformType_Float,
     UniformType_Vector2,
+    UniformType_Vector3,
+    UniformType_Vector4,
 };
 
 enum ButtonState {
@@ -186,7 +190,7 @@ struct RenderHeader
     RenderType type;
     u32 renderFlags;
     size_t size;
-#if GAME_EDITOR
+#if PLATFORM_EDITOR
     bool enabled;
     char debugData[128];
 #endif
@@ -282,6 +286,25 @@ struct RenderCircle
 {
     RenderHeader header;
     v2 origin;
+    f32 radius;
+    u32 segments;
+};
+
+struct RenderInstancedCircle
+{
+    RenderHeader header;
+    v2 *origins;
+    u32 count;
+    f32 radius;
+    u32 segments;
+};
+
+struct RenderInstancedCircleColored
+{
+    RenderHeader header;
+    v2 *origins;
+    v4 *colors;
+    u32 count;
     f32 radius;
     u32 segments;
 };
@@ -472,12 +495,12 @@ struct Memory {
     void *permanentStorage;
     size_t sceneStorageSize;
     void *sceneStorage;
-#ifdef GAME_EDITOR
+    size_t temporalStorageSize;
+    void *temporalStorage;
+#ifdef PLATFORM_EDITOR
     size_t editorStorageSize;
     void *editorStorage;
 #endif
-    size_t temporalStorageSize;
-    void *temporalStorage;
 };
 
 struct Input
@@ -521,13 +544,15 @@ struct TemporalData {
     MemoryArena arena;
 };
 
-#ifdef GAME_EDITOR
+#ifdef PLATFORM_EDITOR
 struct EditorData {
     b32 initialized;
     MemoryArena arena;
-    
+
+    bool layoutInited;
     bool demoWindow;
 
+    u32 dockspaceID;
     b32 editorFrameRunning;
     b32 playNextFrame;
     RenderHeader* savedRenderHeader;

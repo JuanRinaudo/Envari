@@ -9,9 +9,6 @@
 #define Assert(Expression) assert(Expression)
 #define AssertMessage(Expression, Message) assert(Expression && Message)
 
-#define PLATFORM_WINDOWS
-#define PLATFORM_EDITOR
-
 #include "CodeGen/FileMap.h"
 #include "CodeGen/ShaderMap.h"
 #include "CodeGen/EditorConfigMap.h"
@@ -23,7 +20,7 @@
 #define IMGUI_IMPL_OPENGL_LOADER_CUSTOM
 #define IMGUI_IMPL_OPENGL_LOADER_GL3W
 
-#define ENVARI_PLATFORM "Editor"
+#define ENVARI_PLATFORM_NAME "EditorWindows"
 
 #define INITLUASCRIPT EDITORCONFIG_INITLUASCRIPT
 
@@ -37,6 +34,7 @@
 
 #include "STB/stb_truetype.h"
 #include "Game.h"
+#include "Editor.cpp"
 #include "PlatformCommon.h"
 
 #include "IMGUI/imgui_demo.cpp"
@@ -49,6 +47,8 @@
 #include "IMGUI/imgui_impl_opengl3.h"
 #include "IMGUI/imgui_impl_sdl.cpp"
 #include "IMGUI/imgui_impl_opengl3.cpp"
+
+#include "EditorCommon.h"
 
 i32 CALLBACK WinMain(
     HINSTANCE Instance,
@@ -66,21 +66,21 @@ i32 CALLBACK WinMain(
     gameState->memory.permanentStorage = permanentStorage;
     gameState->memory.sceneStorageSize = Megabytes(64);
     gameState->memory.sceneStorage = malloc(gameState->memory.sceneStorageSize);
-    gameState->memory.editorStorageSize = Megabytes(64);
-    gameState->memory.editorStorage = malloc(gameState->memory.editorStorageSize);
     gameState->memory.temporalStorageSize = Megabytes(64);
     gameState->memory.temporalStorage = malloc(gameState->memory.temporalStorageSize);
+    gameState->memory.editorStorageSize = Megabytes(64);
+    gameState->memory.editorStorage = malloc(gameState->memory.editorStorageSize);
 
     gameState->memory.permanentStorage = permanentStorage;
     sceneState = (SceneData *)gameState->memory.sceneStorage;
+    temporalState = (TemporalData *)gameState->memory.temporalStorage;
     editorState = (EditorData *)gameState->memory.editorStorage;
     editorState->editorFrameRunning = true;
-    temporalState = (TemporalData *)gameState->memory.temporalStorage;
 
     InitializeArena(&permanentState->arena, gameState->memory.permanentStorageSize, (u8 *)gameState->memory.permanentStorage, sizeof(PermanentData) + sizeof(Data));
     InitializeArena(&sceneState->arena, gameState->memory.sceneStorageSize, (u8 *)gameState->memory.sceneStorage, sizeof(SceneData));
-    InitializeArena(&editorState->arena, gameState->memory.editorStorageSize, (u8 *)gameState->memory.editorStorage, sizeof(EditorData));
     InitializeArena(&temporalState->arena, gameState->memory.temporalStorageSize, (u8 *)gameState->memory.temporalStorage, sizeof(TemporalData));
+    InitializeArena(&editorState->arena, gameState->memory.editorStorageSize, (u8 *)gameState->memory.editorStorage, sizeof(EditorData));
 
     stringAllocator = PushStruct(&permanentState->arena, StringAllocator);
     InitializeStringAllocator(stringAllocator);
@@ -105,25 +105,7 @@ i32 CALLBACK WinMain(
         return -1;
     }
 
-    const char* glsl_version = 0;
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-    ImGuiIO& imguiIO = ImGui::GetIO();
-    imguiIO.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-    // imguiIO.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable; // Viewports not working correctly. Fix and re-enable
-    imguiIO.ConfigWindowsMoveFromTitleBarOnly = true;
-    
-    ImGuiStyle* style = &ImGui::GetStyle();
-    if (imguiIO.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
-    {
-        style->WindowRounding = 0.0f;
-        style->Colors[ImGuiCol_WindowBg].w = 1.0f;
-    }
-
-    ImGui::StyleColorsDark();
-
-    ImGui_ImplSDL2_InitForOpenGL(sdlWindow, glContext);
-    ImGui_ImplOpenGL3_Init(glsl_version);
+    InitImGui();
 
     InitGL();
 
@@ -135,6 +117,12 @@ i32 CALLBACK WinMain(
     DeserializeTable(&permanentState->arena, &saveData, GetSavePath());
     
     EditorInit();
+    
+    editorTimeDebugger.frameTimeBuffer = (f32*)malloc(sizeof(f32) * TIME_BUFFER_SIZE);
+    editorTimeDebugger.frameTimeMax = 1;
+    editorTimeDebugger.fpsBuffer = (f32*)malloc(sizeof(f32) * TIME_BUFFER_SIZE);
+    editorTimeDebugger.fpsMax = 1;
+    editorRenderDebugger.recording = false;
 
 #ifdef LUA_ENABLED
     ScriptingInit();
@@ -144,27 +132,7 @@ i32 CALLBACK WinMain(
 
     SoundInit();
 
-    editorTimeDebugger.frameTimeBuffer = (f32*)malloc(sizeof(f32) * TIME_BUFFER_SIZE);
-    editorTimeDebugger.frameTimeMax = 1;
-    editorTimeDebugger.fpsBuffer = (f32*)malloc(sizeof(f32) * TIME_BUFFER_SIZE);
-    editorTimeDebugger.fpsMax = 1;
-
     HANDLE processHandle = GetCurrentProcess();
-
-    editorRenderDebugger.recording = false;
-    
-    u32 tID;
-    u8* tempBitmap = PushArray(&temporalState->arena, 512 * 512, u8);
-    for(i32 x = 0; x < 512; ++x) {
-        for(i32 y = 0; y < 512; ++y) {
-            i32 i = (i32)(x + y * 512);
-            tempBitmap[i] = (u8)(Perlin2DOctaves((f32)x, (f32)y, 8, 0.0234f) * 255.0f);
-        }
-    }
-    glGenTextures(1, &tID);
-    glBindTexture(GL_TEXTURE_2D, tID);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, 512, 512, 0, GL_ALPHA, GL_UNSIGNED_BYTE, tempBitmap);
-    glGenerateMipmap(GL_TEXTURE_2D);
 
     gameState->game.running = true;
     while (gameState->game.running)
@@ -264,19 +232,12 @@ i32 CALLBACK WinMain(
             End2D();
         }
         else {
-            if(gameState->render.framebufferEnabled) {
-                glBindFramebuffer(GL_FRAMEBUFFER, gameState->render.frameBuffer);
-                glViewport(0,0, (u32)gameState->render.scaledBufferSize.x, (u32)gameState->render.scaledBufferSize.y);
-            }
-            else {
-                glBindFramebuffer(GL_FRAMEBUFFER, 0);
-                glViewport(0,0, (u32)gameState->render.size.x, (u32)gameState->render.size.y);
-            }
-
             RenderDebugStart();
             RenderPass();
             RenderDebugEnd();
+        }
 
+        if(gameState->render.framebufferEnabled) {
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
         }
 
@@ -296,24 +257,10 @@ i32 CALLBACK WinMain(
                 
                 editorRenderDebugger.wireframeMode = tempWireframeMode;
             }
-            else {
-                glViewport(0, 0, (u32)gameState->render.size.x, (u32)gameState->render.size.y);
-                glClearColor(0, 0, 0, 1);
-                glClear(GL_COLOR_BUFFER_BIT);
-            }
         }
 
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-
-        if (imguiIO.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
-        {
-            SDL_Window* backup_current_window = SDL_GL_GetCurrentWindow();
-            SDL_GLContext backup_current_context = SDL_GL_GetCurrentContext();
-            ImGui::UpdatePlatformWindows();
-            ImGui::RenderPlatformWindowsDefault();
-            SDL_GL_MakeCurrent(backup_current_window, backup_current_context);
-        }
 
         CheckInput();
         

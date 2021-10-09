@@ -1,10 +1,7 @@
 #ifndef FILEMAP_H
 #define FILEMAP_H
 
-const char* CONFIG_SAVE = "config.save";
-const char* EDITOR_SAVE = "editor.save";
 const char* IMGUI_INI = "imgui.ini";
-const char* SAVEDATA_SAVE = "saveData.save";
 const char* DATA_ANDROIDCONFIG_ENVT = "data/androidConfig.envt";
 const char* DATA_EDITORCONFIG_ENVT = "data/editorConfig.envt";
 const char* DATA_WASMCONFIG_ENVT = "data/wasmConfig.envt";
@@ -90,18 +87,29 @@ const char* SCRIPTS_CODEGEN_SHADERMAP_LUA = "scripts/codegen/ShaderMap.lua";
 const char* SCRIPTS_ENVARI_COMMON_LUA = "scripts/envari/common.lua";
 const char* SCRIPTS_ENVARI_DKJSON_LUA = "scripts/envari/dkjson.lua";
 const char* SCRIPTS_ENVARI_LTN12_LUA = "scripts/envari/ltn12.lua";
+const char* SCRIPTS_ENVARI_MATHEXTENSION_LUA = "scripts/envari/mathextension.lua";
 const char* SCRIPTS_ENVARI_MIME_LUA = "scripts/envari/mime.lua";
 const char* SCRIPTS_ENVARI_SDLSCANCODES_LUA = "scripts/envari/SDLscancodes.lua";
 const char* SCRIPTS_ENVARI_SOCKET_LUA = "scripts/envari/socket.lua";
 const char* SCRIPTS_ENVARI_VSCODE_DEBUGGEE_LUA = "scripts/envari/vscode-debuggee.lua";
+const char* SHADERS_CORE_CALCPOSMVP_VERT = "shaders/core/calcposmvp.vert";
 const char* SHADERS_CORE_COLORED_FRAG = "shaders/core/colored.frag";
 const char* SHADERS_CORE_COLORED_VERT = "shaders/core/colored.vert";
+const char* SHADERS_CORE_COLOREDINSTANCED_FRAG = "shaders/core/coloredInstanced.frag";
+const char* SHADERS_CORE_COLOREDINSTANCED_VERT = "shaders/core/coloredInstanced.vert";
+const char* SHADERS_CORE_COLOREDINSTANCEDARTSY_FRAG = "shaders/core/coloredInstancedArtsy.frag";
+const char* SHADERS_CORE_COLOREDINSTANCEDARTSY_VERT = "shaders/core/coloredInstancedArtsy.vert";
 const char* SHADERS_CORE_FONT_FRAG = "shaders/core/font.frag";
 const char* SHADERS_CORE_TEXTURED_FRAG = "shaders/core/textured.frag";
 const char* SHADERS_CORE_TEXTURED_VERT = "shaders/core/textured.vert";
 const char* SHADERS_CORE_TEXTURED9SLICE_FRAG = "shaders/core/textured9slice.frag";
+const char* SHADERS_ES_CALCPOSMVP_VERT = "shaders/es/calcposmvp.vert";
 const char* SHADERS_ES_COLORED_FRAG = "shaders/es/colored.frag";
 const char* SHADERS_ES_COLORED_VERT = "shaders/es/colored.vert";
+const char* SHADERS_ES_COLOREDINSTANCED_FRAG = "shaders/es/coloredInstanced.frag";
+const char* SHADERS_ES_COLOREDINSTANCED_VERT = "shaders/es/coloredInstanced.vert";
+const char* SHADERS_ES_COLOREDINSTANCEDARTSY_FRAG = "shaders/es/coloredInstancedArtsy.frag";
+const char* SHADERS_ES_COLOREDINSTANCEDARTSY_VERT = "shaders/es/coloredInstancedArtsy.vert";
 const char* SHADERS_ES_FONT_FRAG = "shaders/es/font.frag";
 const char* SHADERS_ES_TEXTURED_FRAG = "shaders/es/textured.frag";
 const char* SHADERS_ES_TEXTURED_VERT = "shaders/es/textured.vert";

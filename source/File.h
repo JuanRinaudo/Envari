@@ -17,8 +17,25 @@
 
 #include <stdio.h>
 
+static size_t GetFileSize(const char* filepath) {
+	AssertMessage(filepath != 0, "Filepath is null");
+
+    FILE* file = fopen(filepath, FILE_MODE_READ_BINARY);
+
+	size_t size = 0;
+	if (file) {
+		fseek(file, 0, SEEK_END);
+        size = ftell(file);
+		fclose(file);
+	}
+
+	return size;
+}
+
 static void* LoadFileToMemory(const char* filepath, const char* mode, size_t* fileSize)
 {
+	AssertMessage(filepath != 0, "Filepath is null");
+
     FILE* file = fopen(filepath, mode);
 
 	void* fileBuffer = 0;
@@ -29,6 +46,27 @@ static void* LoadFileToMemory(const char* filepath, const char* mode, size_t* fi
 		rewind(file);
 
 		fileBuffer = malloc(size);
+		fread(fileBuffer, 1, size, file);
+        fclose(file);
+	}
+
+    return fileBuffer;
+}
+
+static void* LoadFileToMemory(const char* filepath, const char* mode, size_t bufferSize)
+{
+	AssertMessage(filepath != 0, "Filepath is null");
+	
+    FILE* file = fopen(filepath, mode);
+
+	void* fileBuffer = 0;
+	if (file) {
+		fseek(file, 0, SEEK_END);
+        size_t size = ftell(file);
+		rewind(file);
+
+		fileBuffer = malloc(bufferSize);
+		ZeroSize(bufferSize, fileBuffer);
 		fread(fileBuffer, 1, size, file);
         fclose(file);
 	}

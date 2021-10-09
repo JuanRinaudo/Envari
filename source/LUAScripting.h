@@ -15,7 +15,7 @@ else { \
     LogWarning("Function '"#FUNCTION"', not valid"); \
 }
 
-#ifdef GAME_EDITOR
+#ifdef PLATFORM_EDITOR
 char watchList[4096];
 std::filesystem::file_time_type watchListTimes[20];
 size_t watchListSize = 0;
@@ -29,6 +29,25 @@ extern "C" {
 
 extern void ScriptingBindings();
 extern void ScriptingMathBindings();
+
+void LoadScriptString(const char* string)
+{
+    sol::load_result loadResult = lua.load(string);
+
+    if(loadResult.valid()) {
+        sol::protected_function_result result = loadResult();
+        if(!result.valid()) {
+            sol::error luaError = loadResult;
+            std::string errorReport = luaError.what();
+            LogError(errorReport.c_str());
+        }
+    }
+    else {
+        sol::error luaError = loadResult;
+        std::string errorReport = luaError.what();
+        LogError(errorReport.c_str());
+    }
+}
 
 void LoadScriptFile(const char* filePath)
 {
@@ -48,7 +67,7 @@ void LoadScriptFile(const char* filePath)
         LogError(errorReport.c_str());
     }
 
-    #ifdef GAME_EDITOR
+    #ifdef PLATFORM_EDITOR
     if(!strstr(watchList, filePath)) {
         watchListTimes[watchFiles] = filesystem::last_write_time(filePath);
         watchFiles++;
@@ -155,7 +174,7 @@ static u32 ScriptingUpdate()
     return 1;
 }
 
-#ifdef GAME_EDITOR
+#if PLATFORM_EDITOR && PLATFORM_WINDOWS
 void ScriptingDebugStart()
 {
     luaopen_socket_core(lua);
@@ -170,7 +189,7 @@ void ScriptingDebugStart()
 
 void ScriptingWatchChanges()
 {
-    #ifdef GAME_EDITOR
+    #ifdef PLATFORM_EDITOR
     i32 nameIndex = 0;
     i32 fileIndex = 0;
     i32 watchIndex = 0;
@@ -219,7 +238,7 @@ void ScriptingWatchChanges()
     #endif
 }
 
-#if GAME_EDITOR
+#if PLATFORM_EDITOR
 void GetWatchValue(i32 watchType, char* name, char* valueBuffer)
 {
     i32 pushCount = 0;

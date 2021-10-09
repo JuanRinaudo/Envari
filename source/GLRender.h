@@ -4,7 +4,7 @@
 #define DEFAULT_FONT_ATLAS_WIDTH 1024
 #define DEFAULT_FONT_ATLAS_HEIGHT 1024
 
-#define INFO_LOG_BUFFER_SIZE 512
+#define INFO_LOG_BUFFER_SIZE 1024
 
 #ifdef GL_PROFILE_GLES3
 #include <GLES3/gl3.h>
@@ -18,29 +18,39 @@ const char* shaderPath = "shaders/glcore";
 #include "Default/Font.h"
 #endif
 
+static m33 model;
 static m44 view;
 static m44 projection;
-static m33 model;
+static m44 projectionView;
+static m44 mvp;
 
 static GLRenderBuffer quadBuffer;
 static GLRenderBuffer overrideBuffer;
 static GLRenderBuffer customBuffer;
 
+static GLuint vao;
+static GLuint vbo;
+static GLuint vbo2;
+static GLuint tbo;
+
+static u32 calcposmvpProgram;
+
 static u32 coloredProgram;
+static u32 coloredInstancedProgram;
 static u32 fontProgram;
 static u32 texturedProgram;
 static u32 textured9SliceProgram;
 
-static u32 colorLocation;
-static u32 mvpLocation;
+u32 colorLocation;
+u32 mvpLocation;
 
-static u32 bufferSizeLocation;
-static u32 scaledBufferSizeLocation;
-static u32 textureSizeLocation;
-static u32 dimensionsLocation;
-static u32 borderLocation;
+u32 bufferSizeLocation;
+u32 scaledBufferSizeLocation;
+u32 textureSizeLocation;
+u32 dimensionsLocation;
+u32 borderLocation;
 
-static u32 timeLocation;
+u32 timeLocation;
 
 static GLTextureCache* textureCache = NULL;
 
@@ -76,7 +86,7 @@ static GLVendor currentVendor = GL_VENDOR_UNKOWN;
 // GLuint* uGPUIDs = new GLuint[uNoOfGPUs];
 // wglGetGPUIDsAMD( uNoOfGPUs, uGPUIDs );
 
-#ifdef GAME_EDITOR
+#ifdef PLATFORM_EDITOR
 static i32 watchedProgramsCount = 0;
 static WatchedProgram watchedPrograms[50];
 #endif
@@ -324,16 +334,15 @@ void CreateCircle(u32 segments)
 
 static void CreateFramebufferGL(i32 bufferWidth, i32 bufferHeight)
 {
-    glGenFramebuffers(1, &gameState->render.frameBuffer);
     glGenTextures(1, &gameState->render.renderBuffer);
-    glGenRenderbuffers(1, &gameState->render.depthrenderbuffer);
-
-    glBindFramebuffer(GL_FRAMEBUFFER, gameState->render.frameBuffer);
-
     glBindTexture(GL_TEXTURE_2D, gameState->render.renderBuffer);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, bufferWidth, bufferHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
+
+    glGenFramebuffers(1, &gameState->render.frameBuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER, gameState->render.frameBuffer);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gameState->render.renderBuffer, 0);
 
+    glGenRenderbuffers(1, &gameState->render.depthrenderbuffer);
     glBindRenderbuffer(GL_RENDERBUFFER, gameState->render.depthrenderbuffer);
     glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, bufferWidth, bufferHeight);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, gameState->render.depthrenderbuffer);
@@ -472,7 +481,6 @@ u32 GenerateFont(const char *filepath, f32 fontSize, u32 width, u32 height)
     return GenerateFont(data, data_size, filepath, fontSize, width, height);
 }
 
-//GL_VERTEX_SHADER GL_FRAGMENT_SHADER
 static bool LoadShader(u32 shaderType, const char* filepath, u32* shaderID, size_t* sourceSize)
 {
     *shaderID = glCreateShader(shaderType);
@@ -509,7 +517,6 @@ static bool LoadShader(u32 shaderType, const char* filepath, u32* shaderID, size
 
 u32 CompileProgram(const char *vertexShaderPath, const char *fragmentShaderPath)
 {
-    // NOTE(Juan): Shaders
     u32 vertexShader, fragmentShader;
     size_t vertexShaderSize, fragmentShaderSize;
     LoadShader(GL_VERTEX_SHADER, vertexShaderPath, &vertexShader, &vertexShaderSize);
@@ -530,10 +537,10 @@ u32 CompileProgram(const char *vertexShaderPath, const char *fragmentShaderPath)
         LogError(infoLog);
     }
 
-    glDeleteShader(vertexShader);
-    glDeleteShader(fragmentShader);
+    // glDeleteShader(vertexShader);
+    // glDeleteShader(fragmentShader);
 
-    #ifdef GAME_EDITOR
+    #ifdef PLATFORM_EDITOR
     WatchedProgram watched;
     watched.vertexShader = vertexShader;
     watched.fragmentShader = fragmentShader;
@@ -546,6 +553,47 @@ u32 CompileProgram(const char *vertexShaderPath, const char *fragmentShaderPath)
     watchedPrograms[watchedProgramsCount] = watched;
     watchedProgramsCount++;
     #endif
+
+    return shaderProgram;
+}
+
+u32 CompileTransformFeedbackProgram(const char *vertexShaderPath)
+{
+    u32 vertexShader;
+    size_t vertexShaderSize;
+    LoadShader(GL_VERTEX_SHADER, vertexShaderPath, &vertexShader, &vertexShaderSize);
+
+    i32 shaderProgram = glCreateProgram();
+    
+    glAttachShader(shaderProgram, vertexShader);
+
+    // #TODO(Juan): This should be in input argument!
+    const GLchar* feedbackVaryings[] = { "mvp" };
+    glTransformFeedbackVaryings(shaderProgram, 1, feedbackVaryings, GL_INTERLEAVED_ATTRIBS);
+
+    glLinkProgram(shaderProgram);
+
+    i32 success;
+    char infoLog[INFO_LOG_BUFFER_SIZE];
+    glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
+    if (!success) {
+        glGetProgramInfoLog(shaderProgram, INFO_LOG_BUFFER_SIZE, NULL, infoLog);
+        LogError("ERROR::PROGRAM::LINK_FAILED");
+        LogError(infoLog);
+    }
+
+    glDeleteShader(vertexShader);
+
+    // #ifdef PLATFORM_EDITOR
+    // WatchedProgram watched;
+    // watched.vertexShader = vertexShader;
+    // watched.shaderProgram = shaderProgram;
+    // strcpy(watched.vertexFilepath, vertexShaderPath);
+    // watched.vertexTime = filesystem::last_write_time(vertexShaderPath);
+
+    // watchedPrograms[watchedProgramsCount] = watched;
+    // watchedProgramsCount++;
+    // #endif
 
     return shaderProgram;
 }
@@ -563,7 +611,7 @@ u32 CompileProgramPlatform(const char *vertexShaderPlatform, const char *fragmen
 
 static void WatchChanges()
 {
-    #ifdef GAME_EDITOR
+    #ifdef PLATFORM_EDITOR
     for(i32 i = 0; i < watchedProgramsCount; ++i) {
         WatchedProgram watched = watchedPrograms[i];
 
@@ -767,7 +815,7 @@ static v2 CalculateTextSize(FontAtlas *font, const char* string, size_t stringSi
 
 static void UseProgram(u32 programID)
 {
-    #if GAME_EDITOR
+    #if PLATFORM_EDITOR
         if(editorRenderDebugger.wireframeMode) {
             glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
             programID = coloredProgram;
@@ -777,10 +825,12 @@ static void UseProgram(u32 programID)
         }
     #endif
 
-    if(renderState->overrideProgram) { programID = renderState->overrideProgram; }
+    if(renderState->overrideProgram) {
+        programID = renderState->overrideProgram;
+    }
 
     if(programID != renderState->currentProgram) {
-        #ifdef GAME_EDITOR
+        #ifdef PLATFORM_EDITOR
         editorRenderDebugger.programChanges++;
         #endif
 
@@ -806,6 +856,28 @@ static void UseProgram(u32 programID)
     }
 }
 
+static void UseTransformFeedbackProgram(u32 programID)
+{
+    if(renderState->overrideProgram) { programID = renderState->overrideProgram; }
+
+    if(programID != renderState->currentProgram) {
+        #ifdef PLATFORM_EDITOR
+        editorRenderDebugger.programChanges++;
+        #endif
+
+        glUseProgram(programID);
+
+        timeLocation = glGetUniformLocation(programID, "time");
+
+        renderState->currentProgram = programID;
+    }
+
+    if(timeLocation != 0)
+    {
+        glUniform1f(timeLocation, gameState->time.gameTime);
+    }
+}
+
 static void SetupTextureParameters(u32 textureTarget)
 {
     glTexParameteri(textureTarget, GL_TEXTURE_WRAP_S, renderState->wrapS);
@@ -820,20 +892,22 @@ static m33 SetupModelMatrix(v2 origin = V2(0, 0), v2 size = V2(1, 1), f32 angle 
     matrix *= ScaleM33(size);
     matrix *= RotateM33(angle);
     matrix *= TranslationM33(origin);
-    m33* parentTransform = gameState->render.transformStack + gameState->render.transformIndex;
-    matrix *= *parentTransform;
+    if(gameState->render.transformIndex > 0) {
+        m33* parentTransform = gameState->render.transformStack + gameState->render.transformIndex;
+        matrix *= *parentTransform;
+    }
     return matrix;
 }
 
-static void SetupMVPUniforms(u32 programID, v4 color)
+static void SetupMVPUniform()
 {
-    if(renderState->overrideProgram) { programID = renderState->overrideProgram; }
-
-    glUniform4f(colorLocation, renderState->renderColor.r, renderState->renderColor.g, renderState->renderColor.b, renderState->renderColor.a);
-
-    m44 mvp = (projection * view) * M44(model);
-
+    mvp = projectionView * M44(model);
     glUniformMatrix4fv(mvpLocation, 1, false, mvp.e);
+}
+
+static void SetupColorUniform(v4 color)
+{
+    glUniform4f(colorLocation, color.r, color.g, color.b, color.a);
 }
 
 static void BindBuffer()
@@ -860,12 +934,17 @@ static void BindBuffer()
     }
 }
 
+m44* mvpData;
+u32 lastCount;
 static void InitGL()
 {
     coloredProgram = CompileProgramPlatform(COLORED_VERT, COLORED_FRAG);
+    coloredInstancedProgram = CompileProgramPlatform(COLOREDINSTANCED_VERT, COLOREDINSTANCED_FRAG);
     fontProgram = CompileProgramPlatform(TEXTURED_VERT, FONT_FRAG);
     texturedProgram = CompileProgramPlatform(TEXTURED_VERT, TEXTURED_FRAG);
     textured9SliceProgram = CompileProgramPlatform(TEXTURED_VERT, TEXTURED9SLICE_FRAG);
+
+    calcposmvpProgram = CompileTransformFeedbackProgram(SHADERS_CORE_CALCPOSMVP_VERT);
     
     dimensionsLocation = glGetUniformLocation(textured9SliceProgram, "dimensions");
     borderLocation = glGetUniformLocation(textured9SliceProgram, "border");
@@ -877,6 +956,11 @@ static void InitGL()
     glGenVertexArrays(1, &overrideBuffer.vertexArray);
     glGenBuffers(1, &overrideBuffer.vertexBuffer);
     glGenBuffers(1, &overrideBuffer.indexBuffer);
+
+    glGenVertexArrays(1, &vao);
+    glGenBuffers(1, &tbo);
+    glGenBuffers(1, &vbo);
+    glGenBuffers(1, &vbo2);
 
     CreateQuadPosUV(0, 0, 1, 1, 0, 0, 1, 1);
     glBindVertexArray(quadBuffer.vertexArray);
@@ -930,7 +1014,8 @@ static void RenderStyledText_(RenderStyledText* styledText)
     }                
 
     model = SetupModelMatrix(origin);
-    SetupMVPUniforms(texturedProgram, renderState->renderColor);
+    SetupMVPUniform();
+    SetupColorUniform(renderState->renderColor);
 
     f32 posX = 0;
     f32 posY = currentFont.lineHeight;
@@ -982,10 +1067,10 @@ static void RenderStyledText_(RenderStyledText* styledText)
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, customBuffer.indexBuffer);
             glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(quadIndices), quadIndices, GL_STATIC_DRAW); 
 
-            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)0);
             glEnableVertexAttribArray(0);
-            glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)(3 * sizeof(f32)));
+            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)0);
             glEnableVertexAttribArray(1);
+            glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)(3 * sizeof(f32)));
 
             glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
         } else {
@@ -1007,14 +1092,15 @@ static void RenderImage9Slice_(RenderImage9Slice* image9Slice)
     glUniform2f(borderLocation, image9Slice->slice / texture.width, image9Slice->slice / texture.height);
 
     model = SetupModelMatrix(image9Slice->origin, size);
-    SetupMVPUniforms(texturedProgram, renderState->renderColor);
+    SetupMVPUniform();
+    SetupColorUniform(renderState->renderColor);
 
     BindBuffer();
 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)0);
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)(3 * sizeof(f32)));
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)0);
     glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)(3 * sizeof(f32)));
 
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 }
@@ -1025,7 +1111,7 @@ static void RenderPass()
 
     // #NOTE (Juan): Check if there are layers setted and sort commands by layer
     bool hasLayers = renderState->usedLayers > 0;
-#if GAME_EDITOR
+#if PLATFORM_EDITOR
     hasLayers = hasLayers && (editorState->editorFrameRunning || editorState->playNextFrame);
 #endif
     if(hasLayers) {
@@ -1058,13 +1144,13 @@ static void RenderPass()
         }
 
         renderHeader = (RenderHeader*)sortedRenderStart;
-#if GAME_EDITOR
+#if PLATFORM_EDITOR
         editorState->savedRenderHeader = renderHeader;
 #endif
     }
     RenderHeader* sortedRenderStart = renderHeader;
 
-#if GAME_EDITOR
+#if PLATFORM_EDITOR
     if(!(editorState->editorFrameRunning || editorState->playNextFrame)) {
         renderHeader = editorState->savedRenderHeader;
     }
@@ -1076,10 +1162,12 @@ static void RenderPass()
     view._23 = 1.0f;
     projection = gameState->camera.projection;
 
+    projectionView = projection * view;
+
     while(renderHeader->id > 0 && (void*)renderHeader < (void*)(renderTemporaryMemory.arena->base + renderTemporaryMemory.used)) {
         model = IdM33();
 
-#if GAME_EDITOR
+#if PLATFORM_EDITOR
         if(!renderHeader->enabled) {
             renderHeader = (RenderHeader *)((u8 *)renderHeader + renderHeader->size);
             continue;
@@ -1158,7 +1246,8 @@ static void RenderPass()
                 UseProgram(coloredProgram);
 
                 model = SetupModelMatrix();
-                SetupMVPUniforms(coloredProgram, renderState->renderColor);
+                SetupMVPUniform();
+                SetupColorUniform(renderState->renderColor);
 
                 f32 lineVertices[] = {
                     line->start.x, line->start.y, 0.0f,
@@ -1176,8 +1265,8 @@ static void RenderPass()
                 glBufferData(GL_ARRAY_BUFFER, sizeof(lineVertices), lineVertices, GL_STATIC_DRAW);
                 glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW); 
 
-                glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(f32), (void*)0);
                 glEnableVertexAttribArray(0);
+                glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(f32), (void*)0);
 
                 glDrawArrays(GL_LINES, 0, 2);
                 break;
@@ -1188,7 +1277,8 @@ static void RenderPass()
                 UseProgram(coloredProgram);
 
                 model = SetupModelMatrix();
-                SetupMVPUniforms(coloredProgram, renderState->renderColor);
+                SetupMVPUniform();
+                SetupColorUniform(renderState->renderColor);
 
                 f32 triangleVertices[] = {
                     triangle->point1.x, triangle->point1.y, 0.0f,
@@ -1207,8 +1297,8 @@ static void RenderPass()
                 glBufferData(GL_ARRAY_BUFFER, sizeof(triangleVertices), triangleVertices, GL_STATIC_DRAW);
                 glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW); 
 
-                glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(f32), (void*)0);
                 glEnableVertexAttribArray(0);
+                glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(f32), (void*)0);
 
                 glDrawArrays(GL_TRIANGLES, 0, 3);
                 break;
@@ -1219,16 +1309,17 @@ static void RenderPass()
                 UseProgram(coloredProgram);
 
                 model = SetupModelMatrix(rectangle->origin, rectangle->size);
-                SetupMVPUniforms(coloredProgram, renderState->renderColor);
+                SetupMVPUniform();
+                SetupColorUniform(renderState->renderColor);
 
                 glBindVertexArray(quadBuffer.vertexArray);
                 glBindBuffer(GL_ARRAY_BUFFER, quadBuffer.vertexBuffer);
                 glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, quadBuffer.indexBuffer);
 
-                glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)0);
                 glEnableVertexAttribArray(0);
-                glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)(3 * sizeof(f32)));
+                glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)0);
                 glEnableVertexAttribArray(1);
+                glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)(3 * sizeof(f32)));
 
                 glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
                 break;
@@ -1239,7 +1330,8 @@ static void RenderPass()
                 UseProgram(coloredProgram);
 
                 model = SetupModelMatrix(circle->origin, V2(circle->radius, circle->radius));
-                SetupMVPUniforms(coloredProgram, renderState->renderColor);
+                SetupMVPUniform();
+                SetupColorUniform(renderState->renderColor);
 
                 if(circle->segments != lastCircleSegments) {
                     CreateCircle(circle->segments);
@@ -1254,10 +1346,119 @@ static void RenderPass()
                 glBufferData(GL_ARRAY_BUFFER, sizeof(circleVertices), circleVertices, GL_STATIC_DRAW);
                 glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(circleIndices), circleIndices, GL_STATIC_DRAW); 
 
-                glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(f32), (void*)0);
                 glEnableVertexAttribArray(0);
+                glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(f32), (void*)0);
 
                 glDrawElements(GL_TRIANGLES, (circle->segments + 1) * 3, GL_UNSIGNED_INT, 0);
+                break;
+            }
+            case RenderType_RenderInstancedCircle: {
+                RenderInstancedCircle *batchCircle = (RenderInstancedCircle *)renderHeader;
+
+                UseProgram(coloredInstancedProgram);
+
+                SetupColorUniform(renderState->renderColor);
+
+                if(batchCircle->segments != lastCircleSegments) {
+                    CreateCircle(batchCircle->segments);
+                }
+                lastCircleSegments = batchCircle->segments;
+
+                glBindVertexArray(customBuffer.vertexArray);
+
+                glBindBuffer(GL_ARRAY_BUFFER, customBuffer.vertexBuffer);
+                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, customBuffer.indexBuffer);
+
+                glBufferData(GL_ARRAY_BUFFER, sizeof(circleVertices), circleVertices, GL_STATIC_DRAW);
+                glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(circleIndices), circleIndices, GL_STATIC_DRAW); 
+
+                glEnableVertexAttribArray(0);
+                glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(f32), (void*)0);
+
+                glBindBuffer(GL_ARRAY_BUFFER, vbo);
+                glBufferData(GL_ARRAY_BUFFER, sizeof(v2) * batchCircle->count, (f32*)batchCircle->origins, GL_STATIC_DRAW);
+
+                glEnableVertexAttribArray(1);
+                glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(v2), 0);
+                glVertexAttribDivisor(1, 1);
+                
+                u32 projectionLocation = glGetUniformLocation(renderState->currentProgram, "projection");
+                glUniformMatrix4fv(projectionLocation, 1, false, projection.e);
+
+                u32 viewLocation = glGetUniformLocation(renderState->currentProgram, "view");
+                glUniformMatrix4fv(viewLocation, 1, false, view.e);
+
+                u32 parentMVPLocation = glGetUniformLocation(renderState->currentProgram, "parentMVP");
+                m33* parentTransform = gameState->render.transformStack + gameState->render.transformIndex;
+                glUniformMatrix4fv(parentMVPLocation, 1, false, (f32*)M44(*parentTransform).e);
+
+                u32 scaleLocation = glGetUniformLocation(renderState->currentProgram, "scale");
+                glUniform2f(scaleLocation, batchCircle->radius, batchCircle->radius);
+
+                u32 countLocation = glGetUniformLocation(renderState->currentProgram, "count");
+                glUniform1i(countLocation, batchCircle->count);
+
+                glDrawElementsInstanced(GL_TRIANGLES, (batchCircle->segments + 1) * 3, GL_UNSIGNED_INT, 0, batchCircle->count);
+
+                glVertexAttribDivisor(1, 0);
+
+                break;
+            }
+            case RenderType_RenderInstancedCircleColored: {
+                RenderInstancedCircleColored *batchCircleColored = (RenderInstancedCircleColored *)renderHeader;
+
+                UseProgram(coloredInstancedProgram);
+
+                SetupColorUniform(renderState->renderColor);
+
+                if(batchCircleColored->segments != lastCircleSegments) {
+                    CreateCircle(batchCircleColored->segments);
+                }
+                lastCircleSegments = batchCircleColored->segments;
+
+                glBindVertexArray(customBuffer.vertexArray);
+
+                glBindBuffer(GL_ARRAY_BUFFER, customBuffer.vertexBuffer);
+                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, customBuffer.indexBuffer);
+
+                glBufferData(GL_ARRAY_BUFFER, sizeof(circleVertices), circleVertices, GL_STATIC_DRAW);
+                glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(circleIndices), circleIndices, GL_STATIC_DRAW); 
+
+                glEnableVertexAttribArray(0);
+                glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(f32), (void*)0);
+
+                glBindBuffer(GL_ARRAY_BUFFER, vbo);
+                glBufferData(GL_ARRAY_BUFFER, sizeof(v2) * batchCircleColored->count, (f32*)batchCircleColored->origins, GL_STATIC_DRAW);
+
+                glEnableVertexAttribArray(1);
+                glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(v2), 0);
+                glVertexAttribDivisor(1, 1);
+
+                glBindBuffer(GL_ARRAY_BUFFER, vbo2);
+                glBufferData(GL_ARRAY_BUFFER, sizeof(v4) * batchCircleColored->count, (f32*)batchCircleColored->colors, GL_STATIC_DRAW);
+
+                glEnableVertexAttribArray(2);
+                glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, sizeof(v4), 0);
+                glVertexAttribDivisor(2, 1);
+                
+                u32 projectionLocation = glGetUniformLocation(renderState->currentProgram, "projection");
+                glUniformMatrix4fv(projectionLocation, 1, false, projection.e);
+
+                u32 viewLocation = glGetUniformLocation(renderState->currentProgram, "view");
+                glUniformMatrix4fv(viewLocation, 1, false, view.e);
+
+                u32 parentMVPLocation = glGetUniformLocation(renderState->currentProgram, "parentMVP");
+                m33* parentTransform = gameState->render.transformStack + gameState->render.transformIndex;
+                glUniformMatrix4fv(parentMVPLocation, 1, false, (f32*)M44(*parentTransform).e);
+
+                u32 scaleLocation = glGetUniformLocation(renderState->currentProgram, "scale");
+                glUniform2f(scaleLocation, batchCircleColored->radius, batchCircleColored->radius);
+
+                u32 countLocation = glGetUniformLocation(renderState->currentProgram, "count");
+                glUniform1i(countLocation, batchCircleColored->count);
+
+                glDrawElementsInstanced(GL_TRIANGLES, (batchCircleColored->segments + 1) * 3, GL_UNSIGNED_INT, 0, batchCircleColored->count);
+
                 break;
             }
             case RenderType_RenderTextureParameters: {
@@ -1275,7 +1476,8 @@ static void RenderPass()
                 UseProgram(texturedProgram);
 
                 model = SetupModelMatrix(texture->origin, texture->size);
-                SetupMVPUniforms(texturedProgram, renderState->renderColor);
+                SetupMVPUniform();
+                SetupColorUniform(renderState->renderColor);
 
                 glBindTexture(GL_TEXTURE_2D, texture->textureID);
                 glUniform2f(textureSizeLocation, texture->size.x, texture->size.y);
@@ -1283,10 +1485,10 @@ static void RenderPass()
 
                 BindBuffer();
 
-                glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)0);
                 glEnableVertexAttribArray(0);
-                glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)(3 * sizeof(f32)));
+                glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)0);
                 glEnableVertexAttribArray(1);
+                glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)(3 * sizeof(f32)));
 
                 glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
                 break;
@@ -1333,14 +1535,15 @@ static void RenderPass()
                 // }
 
                 model = SetupModelMatrix(origin, size);
-                SetupMVPUniforms(texturedProgram, renderState->renderColor);
+                SetupMVPUniform();
+                SetupColorUniform(renderState->renderColor);
 
                 BindBuffer();
 
-                glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)0);
                 glEnableVertexAttribArray(0);
-                glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)(3 * sizeof(f32)));
+                glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)0);
                 glEnableVertexAttribArray(1);
+                glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)(3 * sizeof(f32)));
 
                 glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
                 break;
@@ -1357,7 +1560,8 @@ static void RenderPass()
                 v2 size = V2((f32)texture.width, (f32)texture.height);
 
                 model = SetupModelMatrix(origin, size);
-                SetupMVPUniforms(texturedProgram, renderState->renderColor);
+                SetupMVPUniform();
+                SetupColorUniform(renderState->renderColor);
 
                 CreateQuadPosUV(0, 0, 1, 1, imageUV->uvMin.x, imageUV->uvMin.y, imageUV->uvMax.x, imageUV->uvMax.y);
 
@@ -1369,10 +1573,10 @@ static void RenderPass()
                 glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, customBuffer.indexBuffer);
                 glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(quadIndices), quadIndices, GL_STATIC_DRAW); 
 
-                glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)0);
                 glEnableVertexAttribArray(0);
-                glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)(3 * sizeof(f32)));
+                glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)0);
                 glEnableVertexAttribArray(1);
+                glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)(3 * sizeof(f32)));
 
                 glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
                 break;
@@ -1397,7 +1601,8 @@ static void RenderPass()
                 v2 size = V2(spriteRect.width, spriteRect.height);
 
                 model = SetupModelMatrix(origin, size);
-                SetupMVPUniforms(coloredProgram, renderState->renderColor);
+                SetupMVPUniform();
+                SetupColorUniform(renderState->renderColor);
 
                 CreateQuadPosUV(0, 0, 1, 1, spriteRect.x / texture.width, spriteRect.y / texture.height, 
                     (spriteRect.x + spriteRect.width) / texture.width, (spriteRect.y + spriteRect.height) / texture.height);
@@ -1410,10 +1615,10 @@ static void RenderPass()
                 glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, customBuffer.indexBuffer);
                 glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(quadIndices), quadIndices, GL_STATIC_DRAW); 
 
-                glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)0);
                 glEnableVertexAttribArray(0);
-                glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)(3 * sizeof(f32)));
+                glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)0);
                 glEnableVertexAttribArray(1);
+                glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)(3 * sizeof(f32)));
 
                 glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
                 break;
@@ -1432,7 +1637,8 @@ static void RenderPass()
                 SetupTextureParameters(GL_TEXTURE_2D);
 
                 model = SetupModelMatrix(renderChar->origin);
-                SetupMVPUniforms(texturedProgram, renderState->renderColor);
+                SetupMVPUniform();
+                SetupColorUniform(renderState->renderColor);
 
                 f32 posX = 0;
                 f32 posY = currentFont.fontSize;
@@ -1448,10 +1654,10 @@ static void RenderPass()
                 glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, customBuffer.indexBuffer);
                 glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(quadIndices), quadIndices, GL_STATIC_DRAW); 
 
-                glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)0);
                 glEnableVertexAttribArray(0);
-                glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)(3 * sizeof(f32)));
+                glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)0);
                 glEnableVertexAttribArray(1);
+                glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)(3 * sizeof(f32)));
 
                 glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
                 break;
@@ -1467,7 +1673,8 @@ static void RenderPass()
                 v2 textSize = CalculateTextSize(&currentFont, text->string, text->stringSize);
 
                 model = SetupModelMatrix(text->origin);
-                SetupMVPUniforms(texturedProgram, renderState->renderColor);
+                SetupMVPUniform();
+                SetupColorUniform(renderState->renderColor);
 
                 f32 posX = 0;
                 f32 posY = currentFont.lineHeight;
@@ -1490,10 +1697,10 @@ static void RenderPass()
                     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, customBuffer.indexBuffer);
                     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(quadIndices), quadIndices, GL_STATIC_DRAW); 
 
-                    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)0);
                     glEnableVertexAttribArray(0);
-                    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)(3 * sizeof(f32)));
+                    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)0);
                     glEnableVertexAttribArray(1);
+                    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)(3 * sizeof(f32)));
 
                     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
                 }
@@ -1571,6 +1778,14 @@ static void RenderPass()
                     v2 vector = *((v2*)(uniform + 1));
                     glUniform2f(uniform->location, vector.x, vector.y);
                 }
+                else if(uniform->type == UniformType_Vector2) {
+                    v3 vector = *((v3*)(uniform + 1));
+                    glUniform3f(uniform->location, vector.x, vector.y, vector.z);
+                }
+                else if(uniform->type == UniformType_Vector2) {
+                    v4 vector = *((v4*)(uniform + 1));
+                    glUniform4f(uniform->location, vector.x, vector.y, vector.z, vector.w);
+                }
                 break;
             }
             case RenderType_RenderOverrideProgram: {
@@ -1610,7 +1825,7 @@ static void RenderPass()
         }
 
         AssertMessage(renderHeader->size > 0, "Rendering loop error: header has no size");
-        #ifdef GAME_EDITOR
+        #ifdef PLATFORM_EDITOR
         editorRenderDebugger.drawCount++;
         #endif
         renderHeader = (RenderHeader *)((u8 *)renderHeader + renderHeader->size);

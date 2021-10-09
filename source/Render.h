@@ -1,7 +1,7 @@
 #ifndef RENDER_H
 #define RENDER_H
 
-#ifdef GAME_EDITOR
+#ifdef PLATFORM_EDITOR
 void RenderDebugStart()
 {
     editorRenderDebugger.drawCount = 0;
@@ -25,7 +25,7 @@ static RenderHeader *RenderPushElement_(TemporaryMemory *memory, size_t size, Re
         result->id = renderState->lastRenderID;
         result->type = type;
         result->size = size;
-#if GAME_EDITOR
+#if PLATFORM_EDITOR
         result->enabled = true;
 #endif
     }
@@ -39,7 +39,7 @@ static RenderHeader *RenderPushElement_(TemporaryMemory *memory, size_t size, Re
 static char *RenderPushString(TemporaryMemory *memory, const char* string, size_t size)
 {
     RenderHeader *header = RenderPushElement_(memory, sizeof(RenderTempData) + size + 1, RenderType_RenderTempData);
-#if GAME_EDITOR
+#if PLATFORM_EDITOR
     strcpy(header->debugData, "String");
 #endif
     char *data = ((char *)header) + sizeof(RenderTempData);
@@ -183,6 +183,57 @@ void DrawCircle(f32 posX, f32 posY, f32 radius, u32 segments)
     circle->origin = V2(posX, posY);
     circle->radius = radius;
     circle->segments = segments;
+}
+
+void DrawInstancedCircles(u32 instanceCount, std::vector<f32> positions, f32 radius, u32 segments)
+{
+    if(segments == 0) {
+        segments = 10;
+    }
+
+    size_t tempMemorySize = sizeof(v2) * instanceCount;
+    RenderHeader *header = RenderPushElement_(&renderTemporaryMemory, sizeof(RenderTempData) + tempMemorySize, RenderType_RenderTempData);
+#if PLATFORM_EDITOR
+    strcpy(header->debugData, "BatchCirclesPositionsData");
+#endif
+    u8 *positionsData = ((u8*)header) + sizeof(RenderTempData);
+    memcpy((void*)positionsData, (void*)positions.data(), tempMemorySize);
+
+    RenderInstancedCircle *batchCircle = RenderPushElement(&renderTemporaryMemory, RenderInstancedCircle);
+    batchCircle->origins = (v2*)positionsData;
+    batchCircle->count = instanceCount;
+    batchCircle->radius = radius;
+    batchCircle->segments = segments;
+}
+
+void DrawInstancedCirclesColored(u32 instanceCount, std::vector<f32> positions, std::vector<f32> colors, f32 radius, u32 segments)
+{
+    if(segments == 0) {
+        segments = 10;
+    }
+
+    size_t tempMemorySize = sizeof(v2) * instanceCount;
+    RenderHeader *header = RenderPushElement_(&renderTemporaryMemory, sizeof(RenderTempData) + tempMemorySize, RenderType_RenderTempData);
+#if PLATFORM_EDITOR
+    strcpy(header->debugData, "BatchCirclesPositionsData");
+#endif
+    u8 *positionsData = ((u8*)header) + sizeof(RenderTempData);
+    memcpy((void*)positionsData, (void*)positions.data(), tempMemorySize);
+
+    tempMemorySize = sizeof(v4) * instanceCount;
+    header = RenderPushElement_(&renderTemporaryMemory, sizeof(RenderTempData) + tempMemorySize, RenderType_RenderTempData);
+#if PLATFORM_EDITOR
+    strcpy(header->debugData, "BatchCirclesColorsData");
+#endif
+    u8 *colorsData = ((u8*)header) + sizeof(RenderTempData);
+    memcpy((void*)colorsData, (void*)colors.data(), tempMemorySize);
+
+    RenderInstancedCircleColored *batchCircleColored = RenderPushElement(&renderTemporaryMemory, RenderInstancedCircleColored);
+    batchCircleColored->origins = (v2*)positionsData;
+    batchCircleColored->colors = (v4*)colorsData;
+    batchCircleColored->count = instanceCount;
+    batchCircleColored->radius = radius;
+    batchCircleColored->segments = segments;
 }
 
 void DrawTextureParameters(u32 wrapS, u32 wrapT, u32 minFilter, u32 magFilter)
@@ -402,6 +453,8 @@ void DrawSetUniform(u32 locationID, UniformType type)
     switch(type) {
         case UniformType_Float: { size = 4; break; }
         case UniformType_Vector2: { size = 8; break; }
+        case UniformType_Vector3: { size = 12; break; }
+        case UniformType_Vector4: { size = 16; break; }
     }
     uniform->header.size += size;
 }
@@ -467,7 +520,7 @@ void Begin2D(u32 frameBufferID, u32 width, u32 height)
     ZeroSize(sizeof(RenderHeader), clearFirstHeader);
     
 	glBindFramebuffer(GL_FRAMEBUFFER, frameBufferID);
-	glViewport(0,0, width, height);
+	glViewport(0, 0, width, height);
     
     DrawSetTransform();
     DrawTextureParameters(DEFAULT_WRAP_S, DEFAULT_WRAP_T, DEFAULT_MIN_FILTER, DEFAULT_MAG_FILTER);    

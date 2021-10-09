@@ -10,8 +10,6 @@
 #define AssertMessage(Expression, Message) 
 #endif
 
-#define PLATFORM_WINDOWS
-
 #include "CodeGen/FileMap.h"
 #include "CodeGen/ShaderMap.h"
 #include "CodeGen/WindowsConfigMap.h"

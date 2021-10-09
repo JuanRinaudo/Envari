@@ -1,8 +1,12 @@
 #ifndef LUA_SCRIPTING_BINDINGS_CPP
 #define LUA_SCRIPTING_BINDINGS_CPP
 
-#ifndef PLATFORM_WASM
-#include "GL3W/gl3w.h"
+#if PLATFORM_WASM
+    #include <GLES3/gl3.h>
+    #define GL_PROFILE_GLES3
+#else
+    #include "GL3W/gl3w.h"
+#endif
 
 #include "STB/stb_truetype.h" 
 
@@ -17,8 +21,10 @@
 
 #include <SDL.h>
 
-#ifdef GAME_EDITOR
-#include <psapi.h>
+#ifdef PLATFORM_EDITOR
+    #ifdef PLATFORM_WINDOWS
+        #include <psapi.h>
+    #endif
 #include "IMGUI/imgui.h"
 #include "EditorStructs.h"
 extern ConsoleWindow editorConsole;
@@ -26,7 +32,7 @@ extern ConsoleWindow editorConsole;
 
 extern sol::state lua;
 
-#ifdef GAME_EDITOR
+#ifdef PLATFORM_EDITOR
 extern void Log_(ConsoleWindow* console, ConsoleLogType type, const char* file, u32 line, const char* fmt, ...);
 #define Log(fmt, ...) Log_(&editorConsole, ConsoleLogType_NORMAL, __FILE__, __LINE__, fmt, ##__VA_ARGS__)
 #define LogError(fmt, ...) Log_(&editorConsole, ConsoleLogType_ERROR, __FILE__, __LINE__, fmt, ##__VA_ARGS__)
@@ -76,9 +82,20 @@ extern m44 OrtographicProjection(f32 left, f32 right, f32 top, f32 bottom, f32 n
 extern m44 OrtographicProjection(f32 size, f32 aspect, f32 nearPlane, f32 farPlane);
 
 extern f32 Perlin2D(f32 x, f32 y);
+extern f32 Perlin2D(i32 x, i32 y);
 extern f32 Perlin2DOctaves(f32 x, f32 y, u32 octaves, f32 frecuency);
 
-extern void Begin2D(u32 frameBufferID, u32 width, u32 height);
+extern u32 colorLocation;
+extern u32 mvpLocation;
+
+extern u32 bufferSizeLocation;
+extern u32 scaledBufferSizeLocation;
+extern u32 textureSizeLocation;
+extern u32 dimensionsLocation;
+extern u32 borderLocation;
+
+extern u32 timeLocation;
+
 extern void DrawClear(f32 red, f32 green, f32 blue, f32 alpha);
 extern void DrawSetStyle(const char* filepath, const char* filepathHovered, const char* filepathDown, f32 slice);
 extern void DrawColor(f32 red, f32 green, f32 blue, f32 alpha);
@@ -94,6 +111,8 @@ extern void DrawLine(f32 startX, f32 startY, f32 endX, f32 endY);
 extern void DrawTriangle(f32 p1X, f32 p1Y, f32 p2X, f32 p2Y, f32 p3X, f32 p3Y);
 extern void DrawRectangle(f32 posX, f32 posY, f32 sizeX, f32 sizeY);
 extern void DrawCircle(f32 posX, f32 posY, f32 radius, u32 segments);
+extern void DrawInstancedCircles(u32 instanceCount, std::vector<f32> positions, f32 radius, u32 segments);
+extern void DrawInstancedCirclesColored(u32 instanceCount, std::vector<f32> positions, std::vector<f32> colors, f32 radius, u32 segments);
 extern void DrawTextureParameters(u32 wrapS, u32 wrapT, u32 minFilter, u32 magFilter);
 extern void DrawTexture(f32 posX, f32 posY, f32 sizeX, f32 sizeY, u32 textureID);
 extern void DrawImage(f32 posX, f32 posY, const char* filepath, u32 renderFlags);
@@ -112,7 +131,6 @@ extern void DrawSetUniform(u32 locationID, UniformType type);
 extern void DrawOverrideProgram(u32 programID);
 extern void DrawOverrideVertices(f32* vertices, u32 count);
 extern void DrawOverrideIndices(u32* indices, u32 count);
-extern void End2D();
 extern v4 ColorHexRGBA(u32 hex);
 extern v4 ColorHexRGB(u32 hex);
 
@@ -171,7 +189,6 @@ extern void RuntimeQuit();
 extern void ChangeLogFlag_(u32 newFlag);
 
 extern void SerializeTable(SerializableTable** table, const char* filepath);
-#endif
 
 GenerateTableGetExtern(String, char*)
 GenerateTableSetExtern(String, const char*, SerializableType_STRING)
@@ -249,6 +266,46 @@ static void DrawDisableOverrideIndices()
 static void DrawDisableOverrideProgram()
 {    
     DrawOverrideProgram(0);
+}
+
+static void SetUniform1F(u32 programID, u32 locationID, f32 v0)
+{
+#if PLATFORM_WASM
+    glUseProgram(programID);
+    glUniform1f(locationID, v0);
+#else
+    glProgramUniform1f(programID, locationID, v0);
+#endif
+}
+
+static void SetUniform2F(u32 programID, u32 locationID, f32 v0, f32 v1)
+{
+#if PLATFORM_WASM
+    glUseProgram(programID);
+    glUniform2f(locationID, v0, v1);
+#else
+    glProgramUniform2f(programID, locationID, v0, v1);
+#endif
+}
+
+static void SetUniform3F(u32 programID, u32 locationID, f32 v0, f32 v1, f32 v2)
+{
+#if PLATFORM_WASM
+    glUseProgram(programID);
+    glUniform3f(locationID, v0, v1, v2);
+#else
+    glProgramUniform3f(programID, locationID, v0, v1, v2);
+#endif
+}
+
+static void SetUniform4F(u32 programID, u32 locationID, f32 v0, f32 v1, f32 v2, f32 v3)
+{
+#if PLATFORM_WASM
+    glUseProgram(programID);
+    glUniform4f(locationID, v0, v1, v2, v3);
+#else
+    glProgramUniform4f(programID, locationID, v0, v1, v2, v3);
+#endif
 }
 
 // #NOTE(Juan): GLRender
@@ -342,7 +399,7 @@ static SoundInstance* SoundPlaySimple(const char* filepath, f32 volume) {
     return SoundPlay(filepath, volume, false);
 }
 
-#ifdef GAME_EDITOR
+#ifdef PLATFORM_EDITOR
 // #NOTE(Juan): Editor
 static std::tuple<bool, bool> ImGuiBegin(const char* name, bool open, u32 flags) {
     bool shouldDraw = ImGui::Begin(name, &open, flags);
@@ -410,6 +467,11 @@ static void ImGuiAddImage(ImDrawList* drawList, i32 id, f32 x, f32 y, f32 width,
 
 void ScriptingBindings()
 {
+    // #NOTE (Juan): Platform
+    lua["PLATFORM_EDITOR"] = MACRO_DEFINED(PLATFORM_EDITOR);
+    lua["PLATFORM_WINDOWS"] = MACRO_DEFINED(PLATFORM_WINDOWS);
+    lua["PLATFORM_WASM"] = MACRO_DEFINED(PLATFORM_WASM);
+
     // #NOTE (Juan): Lua
     lua["LoadScriptFile"] = sol::resolve<void(const char*)>(LoadScriptFile);
     lua["LoadLibrary"] = LoadLUALibrary;
@@ -512,6 +574,17 @@ void ScriptingBindings()
     lua["TextureAdjustStyle_FitRatio"] = TextureAdjustStyle_FitRatio;
     lua["TextureAdjustStyle_KeepRatioX"] = TextureAdjustStyle_KeepRatioX;
     lua["TextureAdjustStyle_KeepRatioY"] = TextureAdjustStyle_KeepRatioY;
+    
+    lua["colorLocation"] = &colorLocation;
+    lua["mvpLocation"] = &mvpLocation;
+    
+    lua["bufferSizeLocation"] = &bufferSizeLocation;
+    lua["scaledBufferSizeLocation"] = &scaledBufferSizeLocation;
+    lua["textureSizeLocation"] = &textureSizeLocation;
+    lua["dimensionsLocation"] = &dimensionsLocation;
+    lua["borderLocation"] = &borderLocation;
+    
+    lua["timeLocation"] = &timeLocation;
 
     lua["DrawClear"] = DrawClear;
     lua["DrawSetStyle"] = DrawSetStyle;
@@ -529,6 +602,8 @@ void ScriptingBindings()
     lua["DrawTriangle"] = DrawTriangle;
     lua["DrawRectangle"] = DrawRectangle;
     lua["DrawCircle"] = DrawCircle;
+    lua["DrawInstancedCircles"] = DrawInstancedCircles;
+    lua["DrawInstancedCirclesColored"] = DrawInstancedCirclesColored;
     lua["DrawTextureParameters"] = DrawTextureParameters;
     lua["DrawTexture"] = DrawTexture;
     lua["DrawImage"] = DrawImage;
@@ -570,10 +645,11 @@ void ScriptingBindings()
 
     lua["PerspectiveProjection"] = PerspectiveProjection;
     lua["OrtographicProjection"] = sol::resolve<m44(f32, f32, f32, f32)>(OrtographicProjection);
-    lua["Perlin2D"] = Perlin2D;
+    lua["Perlin2D"] = sol::resolve<f32(f32, f32)>(Perlin2D);
+    lua["Perlin2DInt"] = sol::resolve<f32(i32, i32)>(Perlin2D);
     lua["Perlin2DOctaves"] = Perlin2DOctaves;
 
-    // #NOTE (Juan): GLRender    
+    // #NOTE (Juan): GLRender
     sol::usertype<GLTexture> gltexture_usertype = lua.new_usertype<GLTexture>("gltexture");
     gltexture_usertype["textureID"] = &GLTexture::textureID;
     gltexture_usertype["width"] = &GLTexture::width;
@@ -591,6 +667,10 @@ void ScriptingBindings()
     lua["CompileProgram"] = CompileProgram;
     lua["CompileProgramPlatform"] = CompileProgramPlatform;
     lua["GetUniformLocation"] = glGetUniformLocation;
+    lua["SetUniform1F"] = SetUniform1F;
+    lua["SetUniform2F"] = SetUniform2F;
+    lua["SetUniform3F"] = SetUniform3F;
+    lua["SetUniform4F"] = SetUniform4F;
     lua["UniformType_Float"] = UniformType_Float;
     lua["UniformType_Vector2"] = UniformType_Vector2;
 
@@ -714,7 +794,7 @@ void ScriptingBindings()
     lua["RuntimeQuit"] = RuntimeQuit;
 
     // #NOTE (Juan): Editor
-#ifdef GAME_EDITOR
+#ifdef PLATFORM_EDITOR
     lua["ChangeLogFlag"] = ChangeLogFlag_;
 
     lua["LogFlag_PERFORMANCE"] = LogFlag_PERFORMANCE;

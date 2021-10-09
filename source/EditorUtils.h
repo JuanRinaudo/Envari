@@ -37,4 +37,19 @@ const char* GetFilteringTypeName(u32 wrapType)
     }
 }
 
+const char* GetShaderTypeName(u32 vertexType)
+{
+    switch (vertexType)
+    {
+    case GL_VERTEX_SHADER:
+        return "Vertex";
+    case GL_GEOMETRY_SHADER:
+        return "Geometry";
+    case GL_FRAGMENT_SHADER:
+        return "Fragment";
+    default:
+        return "Unknown";
+    }
+}
+
 #endif

@@ -19,7 +19,7 @@ struct TemporaryMemory
 
 struct StringAllocator
 {
-#if GAME_EDITOR
+#if PLATFORM_EDITOR
     size_t stringReallocOnAsignLastFrame;
     size_t stringsAllocatedLastFrame;
     size_t totalStringsReallocated;

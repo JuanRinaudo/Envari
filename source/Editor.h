@@ -60,6 +60,10 @@ static TimeDebuggerWindow editorTimeDebugger;
 static void EditorInit(TimeDebuggerWindow* debugger);
 static void EditorDraw(TimeDebuggerWindow* debugger);
 
+static ShaderDebuggerWindow editorShaderDebugger;
+static void EditorInit(ShaderDebuggerWindow* debugger);
+static void EditorDraw(ShaderDebuggerWindow* debugger);
+
 #ifdef LUA_ENABLED
 static LUADebuggerWindow editorLUADebugger;
 static void EditorInit(LUADebuggerWindow* debugger);

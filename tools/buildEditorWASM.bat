@@ -26,22 +26,46 @@ REM To build lualib.a the compiler inside scr/Makefile needs to change from gcc 
 
 @echo Start time %time%
 
-if not exist build\html5\LUAScriptingBindings.%ScriptingDate::=.%.tmp (
+if not exist build\editorhtml5\LUAScriptingBindings.%ScriptingDate::=.%.tmp (
     @echo Rebuilding LUA Bindings
-    call Envari\tools\buildWASMBindings.bat
+    call Envari\tools\buildEditorWASMBindings.bat
     del /F *.tmp >NUL 2>NUL
-    echo timestamp > build\html5\LUAScriptingBindings.%ScriptingDate::=.%.tmp
+    echo timestamp > build\editorhtml5\LUAScriptingBindings.%ScriptingDate::=.%.tmp
 )
 
 @REM -ftime-report ^
 @echo Building
-em++ -IEnvari\LUA\include Envari\source\RuntimeWASM.cpp build\html5\LUAScriptingBindings.o Envari\LUA\include\liblua.a ^
+@REM em++ -IEnvari\LUA\include Envari\source\EditorWASM.cpp build\editorhtml5\LUAScriptingBindings.o Envari\LUA\include\liblua.a ^
+@REM     -gsource-map ^
+@REM     -O2 ^
+@REM     --pre-js buildassets/html5/prejs.js ^
+@REM     --source-map-base http://localhost:7777/ ^
+@REM     -DLUA_ENABLED=1 ^
+@REM     -DPLATFORM_WASM=1 ^
+@REM     -DPLATFORM_EDITOR=1 ^
+@REM     -s EXPORTED_FUNCTIONS=_main,_main_loaded,_main_end ^
+@REM     -s EXPORTED_RUNTIME_METHODS=ccall,cwrap ^
+@REM     -s ERROR_ON_UNDEFINED_SYMBOLS=0 ^
+@REM     -s USE_SDL=2 ^
+@REM     -s ALLOW_MEMORY_GROWTH=1 ^
+@REM     -s FORCE_FILESYSTEM=1 ^
+@REM     -s MIN_WEBGL_VERSION=2 ^
+@REM     -s MAX_WEBGL_VERSION=2 ^
+@REM     -s LEGACY_GL_EMULATION=1 ^
+@REM     -s WASM=1 ^
+@REM     -s NO_EXIT_RUNTIME=1 ^
+@REM     -lidbfs.js ^
+@REM     -std=c++17 ^
+@REM     -o build\editorhtml5\index.js ^ 
+@REM     --no-heap-copy & Envari\tools\printEndTime.bat
+em++ -IEnvari\LUA\include Envari\source\EditorWASM.cpp build\editorhtml5\LUAScriptingBindings.o Envari\LUA\include\liblua.a ^
     -gsource-map ^
     -O2 ^
     --pre-js buildassets/html5/prejs.js ^
     --source-map-base http://localhost:7777/ ^
     -DLUA_ENABLED=1 ^
     -DPLATFORM_WASM=1 ^
+    -DPLATFORM_EDITOR=1 ^
     -s EXPORTED_FUNCTIONS=_main,_main_loaded,_main_end ^
     -s EXPORTED_RUNTIME_METHODS=ccall,cwrap ^
     -s ERROR_ON_UNDEFINED_SYMBOLS=0 ^
@@ -55,7 +79,7 @@ em++ -IEnvari\LUA\include Envari\source\RuntimeWASM.cpp build\html5\LUAScripting
     -s NO_EXIT_RUNTIME=1 ^
     -lidbfs.js ^
     -std=c++17 ^
-    -o build\html5\index.js ^ 
+    -o build\editorhtml5\index.js ^ 
     --no-heap-copy & Envari\tools\printEndTime.bat
 @REM @echo End time %time%
 
