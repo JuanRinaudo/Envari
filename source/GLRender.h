@@ -87,8 +87,10 @@ static GLVendor currentVendor = GL_VENDOR_UNKOWN;
 // wglGetGPUIDsAMD( uNoOfGPUs, uGPUIDs );
 
 #ifdef PLATFORM_EDITOR
+#define WATCHED_PROGRAMS_MAX_COUNT 50
+static f32 lastWatchSecond = 0;
 static i32 watchedProgramsCount = 0;
-static WatchedProgram watchedPrograms[50];
+static WatchedProgram watchedPrograms[WATCHED_PROGRAMS_MAX_COUNT];
 #endif
 
 static MemoryArena* GetTargetArena(bool permanentAsset)
@@ -515,6 +517,18 @@ static bool LoadShader(u32 shaderType, const char* filepath, u32* shaderID, size
     return success;
 }
 
+bool GetProgramValid(u32 programID) {
+    #if PLATFORM_WASM
+    return EM_ASM_INT({
+        return GL.programs[$0] != null;
+    }, debugger->programID);
+    #else
+    i32 success;
+    glGetProgramiv(programID, GL_LINK_STATUS, &success);
+    return success == GL_TRUE;
+    #endif
+}
+
 u32 CompileProgram(const char *vertexShaderPath, const char *fragmentShaderPath)
 {
     u32 vertexShader, fragmentShader;
@@ -522,7 +536,7 @@ u32 CompileProgram(const char *vertexShaderPath, const char *fragmentShaderPath)
     LoadShader(GL_VERTEX_SHADER, vertexShaderPath, &vertexShader, &vertexShaderSize);
     LoadShader(GL_FRAGMENT_SHADER, fragmentShaderPath, &fragmentShader, &fragmentShaderSize);
 
-    i32 shaderProgram = glCreateProgram();
+    u32 shaderProgram = glCreateProgram();
 
     glAttachShader(shaderProgram, vertexShader);
     glAttachShader(shaderProgram, fragmentShader);
@@ -537,9 +551,6 @@ u32 CompileProgram(const char *vertexShaderPath, const char *fragmentShaderPath)
         LogError(infoLog);
     }
 
-    // glDeleteShader(vertexShader);
-    // glDeleteShader(fragmentShader);
-
     #ifdef PLATFORM_EDITOR
     WatchedProgram watched;
     watched.vertexShader = vertexShader;
@@ -552,6 +563,9 @@ u32 CompileProgram(const char *vertexShaderPath, const char *fragmentShaderPath)
 
     watchedPrograms[watchedProgramsCount] = watched;
     watchedProgramsCount++;
+    #else    
+    glDeleteShader(vertexShader);
+    glDeleteShader(fragmentShader);
     #endif
 
     return shaderProgram;
@@ -582,18 +596,19 @@ u32 CompileTransformFeedbackProgram(const char *vertexShaderPath)
         LogError(infoLog);
     }
 
+    #ifdef PLATFORM_EDITOR
+    WatchedProgram watched;
+    watched.vertexShader = vertexShader;
+    watched.fragmentShader = 0;
+    watched.shaderProgram = shaderProgram;
+    strcpy(watched.vertexFilepath, vertexShaderPath);
+    watched.vertexTime = filesystem::last_write_time(vertexShaderPath);
+
+    watchedPrograms[watchedProgramsCount] = watched;
+    watchedProgramsCount++;
+    #else
     glDeleteShader(vertexShader);
-
-    // #ifdef PLATFORM_EDITOR
-    // WatchedProgram watched;
-    // watched.vertexShader = vertexShader;
-    // watched.shaderProgram = shaderProgram;
-    // strcpy(watched.vertexFilepath, vertexShaderPath);
-    // watched.vertexTime = filesystem::last_write_time(vertexShaderPath);
-
-    // watchedPrograms[watchedProgramsCount] = watched;
-    // watchedProgramsCount++;
-    // #endif
+    #endif
 
     return shaderProgram;
 }
@@ -615,47 +630,53 @@ static void WatchChanges()
     for(i32 i = 0; i < watchedProgramsCount; ++i) {
         WatchedProgram watched = watchedPrograms[i];
 
-        filesystem::file_time_type vertexTime = filesystem::last_write_time(watched.vertexFilepath);
-        filesystem::file_time_type fragmentTime = filesystem::last_write_time(watched.fragmentFilepath);
+        bool programShaderChanged = false;
 
-        if(vertexTime != watched.vertexTime || fragmentTime != watched.fragmentTime) {
-            watched.vertexTime = vertexTime;
-            watched.fragmentTime = fragmentTime;
-            watchedPrograms[i] = watched;
+        if(watched.vertexShader != 0) {
+            filesystem::file_time_type vertexTime = filesystem::last_write_time(watched.vertexFilepath);
+            if(vertexTime != watched.vertexTime) {
+                watched.vertexTime = vertexTime;
+                programShaderChanged = true;
+            }
+        }
 
+        if(watched.fragmentShader != 0) {
+            filesystem::file_time_type fragmentTime = filesystem::last_write_time(watched.fragmentFilepath);
+            if(fragmentTime != watched.fragmentTime) {
+                watched.fragmentTime = fragmentTime;
+                programShaderChanged = true;
+            }
+        }
+
+        if(programShaderChanged) {
             Log("Started to reload program %d, vertex %s (%d), fragment %s (%d)", watched.shaderProgram, watched.vertexFilepath, watched.vertexShader, watched.fragmentFilepath, watched.fragmentShader);
-            glDetachShader(watched.shaderProgram, watched.vertexShader);
-            glDetachShader(watched.shaderProgram, watched.fragmentShader);
+            glDeleteShader(watched.vertexShader);
+            glDeleteShader(watched.fragmentShader);
+            if(watched.vertexShader != 0) { glDetachShader(watched.shaderProgram, watched.vertexShader); }
+            if(watched.fragmentShader != 0) {glDetachShader(watched.shaderProgram, watched.fragmentShader); }
             
             size_t vertexSouceSize, fragmentSouceSize;
             
             i32 success;
-
             success = LoadShader(GL_VERTEX_SHADER, watched.vertexFilepath, &watched.vertexShader, &vertexSouceSize);
-
-            if(success) {
+            if(watched.fragmentShader && success) {
                 success = LoadShader(GL_FRAGMENT_SHADER, watched.fragmentFilepath, &watched.fragmentShader, &fragmentSouceSize);
             }
 
             if(success) {
-                glAttachShader(watched.shaderProgram, watched.vertexShader);
-                glAttachShader(watched.shaderProgram, watched.fragmentShader);
+                if(watched.vertexShader != 0) { glAttachShader(watched.shaderProgram, watched.vertexShader); }
+                if(watched.fragmentShader != 0) { glAttachShader(watched.shaderProgram, watched.fragmentShader); }
                 glLinkProgram(watched.shaderProgram);
             }
 
             char infoLog[INFO_LOG_BUFFER_SIZE];
             glGetProgramiv(watched.shaderProgram, GL_LINK_STATUS, &success);
             if (!success) {
-                glDeleteShader(watched.vertexShader);
-                glDeleteShader(watched.fragmentShader);
                 glGetProgramInfoLog(watched.shaderProgram, INFO_LOG_BUFFER_SIZE, NULL, infoLog);
                 LogError("ERROR::PROGRAM::LINK_FAILED\n");
                 LogError(infoLog);
                 return;
             }
-
-            glDeleteShader(watched.vertexShader);
-            glDeleteShader(watched.fragmentShader);
         }
     }
     #endif
@@ -1401,63 +1422,6 @@ static void RenderPass()
                 glDrawElementsInstanced(GL_TRIANGLES, (batchCircle->segments + 1) * 3, GL_UNSIGNED_INT, 0, batchCircle->count);
 
                 glVertexAttribDivisor(1, 0);
-
-                break;
-            }
-            case RenderType_RenderInstancedCircleColored: {
-                RenderInstancedCircleColored *batchCircleColored = (RenderInstancedCircleColored *)renderHeader;
-
-                UseProgram(coloredInstancedProgram);
-
-                SetupColorUniform(renderState->renderColor);
-
-                if(batchCircleColored->segments != lastCircleSegments) {
-                    CreateCircle(batchCircleColored->segments);
-                }
-                lastCircleSegments = batchCircleColored->segments;
-
-                glBindVertexArray(customBuffer.vertexArray);
-
-                glBindBuffer(GL_ARRAY_BUFFER, customBuffer.vertexBuffer);
-                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, customBuffer.indexBuffer);
-
-                glBufferData(GL_ARRAY_BUFFER, sizeof(circleVertices), circleVertices, GL_STATIC_DRAW);
-                glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(circleIndices), circleIndices, GL_STATIC_DRAW); 
-
-                glEnableVertexAttribArray(0);
-                glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(f32), (void*)0);
-
-                glBindBuffer(GL_ARRAY_BUFFER, vbo);
-                glBufferData(GL_ARRAY_BUFFER, sizeof(v2) * batchCircleColored->count, (f32*)batchCircleColored->origins, GL_STATIC_DRAW);
-
-                glEnableVertexAttribArray(1);
-                glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(v2), 0);
-                glVertexAttribDivisor(1, 1);
-
-                glBindBuffer(GL_ARRAY_BUFFER, vbo2);
-                glBufferData(GL_ARRAY_BUFFER, sizeof(v4) * batchCircleColored->count, (f32*)batchCircleColored->colors, GL_STATIC_DRAW);
-
-                glEnableVertexAttribArray(2);
-                glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, sizeof(v4), 0);
-                glVertexAttribDivisor(2, 1);
-                
-                u32 projectionLocation = glGetUniformLocation(renderState->currentProgram, "projection");
-                glUniformMatrix4fv(projectionLocation, 1, false, projection.e);
-
-                u32 viewLocation = glGetUniformLocation(renderState->currentProgram, "view");
-                glUniformMatrix4fv(viewLocation, 1, false, view.e);
-
-                u32 parentMVPLocation = glGetUniformLocation(renderState->currentProgram, "parentMVP");
-                m33* parentTransform = gameState->render.transformStack + gameState->render.transformIndex;
-                glUniformMatrix4fv(parentMVPLocation, 1, false, (f32*)M44(*parentTransform).e);
-
-                u32 scaleLocation = glGetUniformLocation(renderState->currentProgram, "scale");
-                glUniform2f(scaleLocation, batchCircleColored->radius, batchCircleColored->radius);
-
-                u32 countLocation = glGetUniformLocation(renderState->currentProgram, "count");
-                glUniform1i(countLocation, batchCircleColored->count);
-
-                glDrawElementsInstanced(GL_TRIANGLES, (batchCircleColored->segments + 1) * 3, GL_UNSIGNED_INT, 0, batchCircleColored->count);
 
                 break;
             }

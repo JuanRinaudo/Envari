@@ -112,6 +112,9 @@ static void EditorDefaultLayout()
         editorLUADebugger.codeOpen = true;
 #endif
 
+        ImGui::DockBuilderDockWindow("Shaders", dockMain);
+        editorShaderDebugger.open = true;
+
         ImGui::DockBuilderFinish(editorState->dockspaceID);
     }
 }
@@ -169,7 +172,7 @@ static void EditorInit(TimeDebuggerWindow* debugger)
 
 static void EditorInit(ShaderDebuggerWindow* debugger)
 {
-    debugger->programID = -1;
+    debugger->programIndex = -1;
 }
 
 #ifdef LUA_ENABLED
@@ -1453,15 +1456,17 @@ static void EditorDraw(ShaderDebuggerWindow* debugger)
         return;
     }
 
+    bool focused = ImGui::IsWindowFocused(ImGuiFocusedFlags_DockHierarchy);
+
     bool programIDChanged = false;
-    if(debugger->programID == -1) {
+    if(debugger->programIndex == -1) {
         programIDChanged = true;
-        debugger->programID = 0;
+        debugger->programIndex = 0;
     }
 
-    if(ImGui::InputInt("Program ID", &debugger->programID, 1, 1)) {
-        if(debugger->programID < 0) {
-            debugger->programID = 0;
+    if(ImGui::InputInt("Program Index", &debugger->programIndex, 1, 1)) {
+        if(debugger->programIndex < 0) {
+            debugger->programIndex = 0;
         }
 
         if(debugger->currentFileBuffer) {
@@ -1472,6 +1477,9 @@ static void EditorDraw(ShaderDebuggerWindow* debugger)
         programIDChanged = true;
     }
 
+    WatchedProgram watched = watchedPrograms[debugger->programIndex];
+    u32 programID = watched.shaderProgram;
+
     if(programIDChanged) {
         debugger->targetID = -1;
         debugger->vertexShaderID = -1;
@@ -1479,7 +1487,7 @@ static void EditorDraw(ShaderDebuggerWindow* debugger)
 
         i32 shaderCount = 0;
         u32 shaders[2];
-        glGetAttachedShaders(debugger->programID, 2, &shaderCount, shaders);
+        glGetAttachedShaders(programID, 2, &shaderCount, shaders);
 
         ImGui::Text("Shaders:");
         for(int i = 0; i < shaderCount; ++i) {
@@ -1501,34 +1509,40 @@ static void EditorDraw(ShaderDebuggerWindow* debugger)
         LoadTargetIDShader();
     }
     
-    bool validProgram = debugger->currentFileBuffer;
-#if PLATFORM_WASM
-    validProgram = EM_ASM_INT({
-        return GL.programs[$0] != null;
-    }, debugger->programID);
-#endif
+    bool validProgram = GetProgramValid(programID);
 
-    if(validProgram) {
+    if(validProgram && debugger->currentFileBuffer != 0) {
         ImVec2 contentMin = ImGui::GetWindowContentRegionMin();
         ImVec2 contentMax = ImGui::GetWindowContentRegionMax();
-        float contentHeight = contentMax.y - contentMin.y - 60;
+        float contentHeight = contentMax.y - contentMin.y - 76;
 
         ImGui::Text("Shaders:");
-        ImGui::SameLine();
-        if(debugger->vertexShaderID >= 0 && ImGui::Button("Vertex")) {
-            debugger->targetID = debugger->vertexShaderID;
-            LoadTargetIDShader();
+        if(debugger->vertexShaderID >= 0) {
+            ImGui::SameLine();
+            if(ImGui::SmallButton("Vertex")) {
+                debugger->targetID = debugger->vertexShaderID;
+                LoadTargetIDShader();
+            }
         }
-        ImGui::SameLine();
-        if(debugger->fragmentShaderID >= 0 && ImGui::Button("Fragment")) {
-            debugger->targetID = debugger->fragmentShaderID;
-            LoadTargetIDShader();
+        if(debugger->fragmentShaderID >= 0) {
+            ImGui::SameLine();
+            if(ImGui::SmallButton("Fragment")) {
+                debugger->targetID = debugger->fragmentShaderID;
+                LoadTargetIDShader();
+            }
+        }
+
+        if(debugger->targetID == debugger->vertexShaderID) {
+            ImGui::Text("File: %s", watched.vertexFilepath);
+        }
+        if(debugger->targetID == debugger->fragmentShaderID) {
+            ImGui::Text("File: %s", watched.fragmentFilepath);
         }
 
         ImGui::InputTextMultiline("##source", debugger->currentFileBuffer, debugger->currentFileBufferSize, ImVec2(-FLT_MIN, contentHeight), ImGuiInputTextFlags_AllowTabInput|ImGuiInputTextFlags_CallbackResize, &ShaderSourceEditCallback);    
         
-        // if(ImGui::Button("Load") || (imguiIO.KeyCtrl && ImGui::IsKeyPressed(SDL_SCANCODE_S))) {
-        if(ImGui::Button("Load")) {
+        ImGuiIO imguiIO = ImGui::GetIO();
+        if(ImGui::Button("Load") || (focused && imguiIO.KeyCtrl && ImGui::IsKeyPressed(SDL_SCANCODE_S))) {
             SOURCE_TYPE source = static_cast<SOURCE_TYPE>(debugger->currentFileBuffer);
 
             i32 size = (i32)debugger->currentFileBufferSize;
@@ -1552,11 +1566,11 @@ static void EditorDraw(ShaderDebuggerWindow* debugger)
                 LogError(infoLog);
             }
 
-            glLinkProgram(debugger->programID);
+            glLinkProgram(programID);
 
-            glGetProgramiv(debugger->programID, GL_LINK_STATUS, &success);
+            glGetProgramiv(programID, GL_LINK_STATUS, &success);
             if (!success) {
-                glGetProgramInfoLog(debugger->programID, INFO_LOG_BUFFER_SIZE, NULL, infoLog);
+                glGetProgramInfoLog(programID, INFO_LOG_BUFFER_SIZE, NULL, infoLog);
                 LogError("ERROR::PROGRAM::LINK_FAILED");
                 LogError(infoLog);
             }
@@ -1741,6 +1755,8 @@ static void EditorDraw(LUADebuggerWindow* debugger)
         ImGui::SetNextWindowSize(ImVec2(400,300), ImGuiCond_FirstUseEver);
         ImGui::SetNextWindowDockID(debugger->dockspaceID, ImGuiCond_FirstUseEver);
         if(ImGui::Begin(luaCodeWindowName, &debugger->codeOpen), ImGuiWindowFlags_DockNodeHost) {
+            bool focused = ImGui::IsWindowFocused(ImGuiFocusedFlags_DockHierarchy);
+
             char selectedFilename[LUA_FILENAME_MAX];
             if (ImGui::BeginTabBar("LoadedFiles", ImGuiTabBarFlags_Reorderable | ImGuiTabBarFlags_FittingPolicyScroll)) {
                 i32 nameIndex = 0;
@@ -1791,7 +1807,7 @@ static void EditorDraw(LUADebuggerWindow* debugger)
                     ImGui::SetItemDefaultFocus();
                 }
                 ImGui::SameLine();
-                if(ImGui::Button("Load") || (imguiIO.KeyCtrl && ImGui::IsKeyPressed(SDL_SCANCODE_S))) {
+                if(ImGui::Button("Load") || (focused && imguiIO.KeyCtrl && ImGui::IsKeyPressed(SDL_SCANCODE_S))) {
                     LoadScriptString(debugger->currentFileBuffer);
                 }
                 // ImVec2 size = ImGui::GetWindowSize();
@@ -2022,6 +2038,7 @@ static void EditorInit()
     char loadNameBuffer[128];
 
     editorState->editorFrameRunning = TableGetBool(&editorSave, "editorFrameRunning", true);
+    editorState->layoutInited = TableGetBool(&editorSave, "layoutInited", false);
 
     // editorConsole.open = TableGetBool(&editorSave, "editorConsoleOpen");
     editorConsole.open = true;
@@ -2055,6 +2072,9 @@ static void EditorInit()
     editorSoundDebugger.open = TableGetBool(&editorSave, "editorSoundDebuggerOpen");
     EditorInit(&editorSoundDebugger);
     soundMuted = TableGetBool(&editorSave, "editorSoundDebuggersoundMuted");
+
+    editorShaderDebugger.open = TableGetBool(&editorSave, "editorShaderDebuggerOpen");
+    EditorInit(&editorShaderDebugger);
 
 #ifdef LUA_ENABLED
     editorLUADebugger.open = TableGetBool(&editorSave, "editorLUADebuggerOpen");
@@ -2146,6 +2166,8 @@ static void EditorEnd()
     char saveKeyBuffer[128];
     
     TableSetBool(&temporalState->arena, &editorSave, "editorFrameRunning", editorState->editorFrameRunning);
+    TableSetBool(&temporalState->arena, &editorSave, "layoutInited", editorState->layoutInited);
+
     TableSetBool(&temporalState->arena, &editorSave, "editorConsoleOpen", editorConsole.open);
     TableSetI32(&temporalState->arena, &editorSave, "editorLogFlags", editorConsole.logFlags);
     TableSetBool(&temporalState->arena, &editorSave, "editorPreviewOpen", editorPreview.open);
@@ -2173,10 +2195,12 @@ static void EditorEnd()
     TableSetBool(&temporalState->arena, &editorSave, "editorConfigOpen", editorConfig.open);
     TableSetString(&temporalState->arena, &editorSave, "editorConfigRuntimesPath", editorConfig.runtimesPath->value);
     TableSetString(&temporalState->arena, &editorSave, "editorConfigDataPath", editorConfig.dataPath->value);
+
     TableSetString(&temporalState->arena, &editorSave, "windows86OutputConfigOutputPath", windows86OutputConfig.outputPath->value);
     TableSetString(&temporalState->arena, &editorSave, "windows64OutputConfigOutputPath", windows64OutputConfig.outputPath->value);
     TableSetString(&temporalState->arena, &editorSave, "androidOutputConfigOutputPath", androidOutputConfig.outputPath->value);
     TableSetString(&temporalState->arena, &editorSave, "wasmOutputOutputConfigOutputPath", wasmOutputConfig.outputPath->value);
+
     SerializeTable(&editorSave, EDITOR_SAVE_PATH);
 
 #ifdef PLATFORM_WASM

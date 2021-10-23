@@ -112,7 +112,6 @@ extern void DrawTriangle(f32 p1X, f32 p1Y, f32 p2X, f32 p2Y, f32 p3X, f32 p3Y);
 extern void DrawRectangle(f32 posX, f32 posY, f32 sizeX, f32 sizeY);
 extern void DrawCircle(f32 posX, f32 posY, f32 radius, u32 segments);
 extern void DrawInstancedCircles(u32 instanceCount, std::vector<f32> positions, f32 radius, u32 segments);
-extern void DrawInstancedCirclesColored(u32 instanceCount, std::vector<f32> positions, std::vector<f32> colors, f32 radius, u32 segments);
 extern void DrawTextureParameters(u32 wrapS, u32 wrapT, u32 minFilter, u32 magFilter);
 extern void DrawTexture(f32 posX, f32 posY, f32 sizeX, f32 sizeY, u32 textureID);
 extern void DrawImage(f32 posX, f32 posY, const char* filepath, u32 renderFlags);
@@ -603,7 +602,6 @@ void ScriptingBindings()
     lua["DrawRectangle"] = DrawRectangle;
     lua["DrawCircle"] = DrawCircle;
     lua["DrawInstancedCircles"] = DrawInstancedCircles;
-    lua["DrawInstancedCirclesColored"] = DrawInstancedCirclesColored;
     lua["DrawTextureParameters"] = DrawTextureParameters;
     lua["DrawTexture"] = DrawTexture;
     lua["DrawImage"] = DrawImage;

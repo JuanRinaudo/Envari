@@ -136,46 +136,6 @@ static u32 GameUpdate()
         DrawTexture(gameState->input.mousePosition.x, gameState->input.mousePosition.y, gameState->input.mouseTextureSize.x, gameState->input.mouseTextureSize.y, gameState->input.mouseTextureID);
     }
 
-    // DrawSetLayer(0, false);
-    // DrawSetTransform();
-
-    // DrawClear(0, 0, 0, 1);
-    // DrawColor(1, 0, 0, 1);
-
-    // f32 t = gameState->time.gameTime;
-    // f32 st = Sin(t);
-    // f32 sst = st * 0.5f + 0.5f;
-    // f32 ast = Abs(Sin(t));
-    // f32 mt = Mod(t, 1);
-
-    // if(count.x < 0 || count.y < 0) {
-    //     count = V2I(FloorToInt(gameState->render.bufferSize.x / distance.x), FloorToInt(gameState->render.bufferSize.y / distance.y));
-    // }
-    
-    // u32 circleCount = count.x * count.y;
-    // if(circleCount != lastCircleCount) {
-    //     Log("Circle count: %d", circleCount);
-    // }
-    // lastCircleCount = circleCount;
-
-    // batchPositions.resize(circleCount);
-    // batchColors.resize(circleCount);
-
-    // u32 k = 0;
-    // for(u32 j = 0; j < count.y; ++j) {
-    //     for(u32 i = 0; i < count.x; ++i) {
-    //         f32 colorB = Sin(i * 0.2f + t * 0.5f + j * perLineOffset) * 0.5f + 0.5f;
-    //         // DrawColor(0, colorB, 0, 1);
-    //         // DrawCircle(0 + i * distance.x, j * distance.y + Sin(i + t * ySpeed) * yOffset, radius, 8);
-    //         batchPositions[k] = V2(0 + i * distance.x, j * distance.y + Sin(i + t * ySpeed) * yOffset);
-    //         batchColors[k] = V4(0, colorB, 1, 1);
-    //         ++k;
-    //     }
-    // }
-
-    // DrawInstancedCirclesColored(batchPositions, batchColors, radius, 8);
-    // DrawInstancedCircles(batchPositions, radius, 8);
-
     return 1;
 }
 

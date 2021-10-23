@@ -165,7 +165,7 @@ struct ShaderDebuggerWindow
     char* currentFileBuffer;
     size_t currentFileBufferSize;
 
-    i32 programID;
+    i32 programIndex;
     i32 targetID;
     i32 vertexShaderID;
     i32 fragmentShaderID;

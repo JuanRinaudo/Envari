@@ -203,7 +203,10 @@ i32 CALLBACK WinMain(
         UpdateStringAllocator(stringAllocator);
 
 #ifdef LUA_ENABLED
-        ScriptingWatchChanges();
+        if(gameState->time.gameTime > lastWatchSecond + 1) {
+            ScriptingWatchChanges();
+            lastWatchSecond = gameState->time.gameTime;
+        }
 #endif
 
         WatchChanges();

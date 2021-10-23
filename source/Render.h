@@ -206,36 +206,6 @@ void DrawInstancedCircles(u32 instanceCount, std::vector<f32> positions, f32 rad
     batchCircle->segments = segments;
 }
 
-void DrawInstancedCirclesColored(u32 instanceCount, std::vector<f32> positions, std::vector<f32> colors, f32 radius, u32 segments)
-{
-    if(segments == 0) {
-        segments = 10;
-    }
-
-    size_t tempMemorySize = sizeof(v2) * instanceCount;
-    RenderHeader *header = RenderPushElement_(&renderTemporaryMemory, sizeof(RenderTempData) + tempMemorySize, RenderType_RenderTempData);
-#if PLATFORM_EDITOR
-    strcpy(header->debugData, "BatchCirclesPositionsData");
-#endif
-    u8 *positionsData = ((u8*)header) + sizeof(RenderTempData);
-    memcpy((void*)positionsData, (void*)positions.data(), tempMemorySize);
-
-    tempMemorySize = sizeof(v4) * instanceCount;
-    header = RenderPushElement_(&renderTemporaryMemory, sizeof(RenderTempData) + tempMemorySize, RenderType_RenderTempData);
-#if PLATFORM_EDITOR
-    strcpy(header->debugData, "BatchCirclesColorsData");
-#endif
-    u8 *colorsData = ((u8*)header) + sizeof(RenderTempData);
-    memcpy((void*)colorsData, (void*)colors.data(), tempMemorySize);
-
-    RenderInstancedCircleColored *batchCircleColored = RenderPushElement(&renderTemporaryMemory, RenderInstancedCircleColored);
-    batchCircleColored->origins = (v2*)positionsData;
-    batchCircleColored->colors = (v4*)colorsData;
-    batchCircleColored->count = instanceCount;
-    batchCircleColored->radius = radius;
-    batchCircleColored->segments = segments;
-}
-
 void DrawTextureParameters(u32 wrapS, u32 wrapT, u32 minFilter, u32 magFilter)
 {
     RenderTextureParameters *textureParameters = RenderPushElement(&renderTemporaryMemory, RenderTextureParameters);

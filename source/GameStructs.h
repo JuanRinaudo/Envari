@@ -110,7 +110,6 @@ enum RenderType
     RenderType_RenderRectangle,
     RenderType_RenderCircle,
     RenderType_RenderInstancedCircle,
-    RenderType_RenderInstancedCircleColored,
     RenderType_RenderTextureParameters,
     RenderType_RenderTexture,
     RenderType_RenderImage,
@@ -294,16 +293,6 @@ struct RenderInstancedCircle
 {
     RenderHeader header;
     v2 *origins;
-    u32 count;
-    f32 radius;
-    u32 segments;
-};
-
-struct RenderInstancedCircleColored
-{
-    RenderHeader header;
-    v2 *origins;
-    v4 *colors;
     u32 count;
     f32 radius;
     u32 segments;
