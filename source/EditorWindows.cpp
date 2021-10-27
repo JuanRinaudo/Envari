@@ -167,11 +167,14 @@ i32 CALLBACK WinMain(
         }
      
         if(editorRenderDebugger.recording) {
-            char test[256] = "dump/frame_001.png";
-            test[11] = (gameState->time.gameFrames / 100) % 10 + 48;
-            test[12] = (gameState->time.gameFrames / 10) % 10 + 48;
-            test[13] = (gameState->time.gameFrames) % 10 + 48;
-            DumpTexture(test, 1, 512, 512);
+            char frameNameBuffer[256];
+            sprintf(frameNameBuffer, "dump/frame_%05d.png", gameState->time.gameFrames);
+            if(gameState->render.framebufferEnabled != 0) {
+                DumpTexture(frameNameBuffer, gameState->render.frameBuffer, (u32)gameState->render.scaledBufferSize.x, (u32)gameState->render.scaledBufferSize.y);
+            }
+            else {
+                Log("No framebuffer found, texture cannot be dumped (for now)");
+            }
         }
 
         if(editorPreview.open && editorPreview.focused) {
