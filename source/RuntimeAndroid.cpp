@@ -118,11 +118,6 @@ i32 main(i32 argc, char *argv[])
 
     glContext = SDL_GL_CreateContext(sdlWindow);
 
-    // i32 fpsLimit = TableGetInt(&initialConfig, ANDROIDCONFIG_FPSLIMIT);
-    // i32 fpsDelta = 1000 / fpsLimit;
-    // i32 vsync = TableGetInt(&initialConfig, ANDROIDCONFIG_VSYNC);
-    // SDL_GL_SetSwapInterval(vsync);
-
     const char* glsl_version = 0;
 
 // #ifdef LUA_ENABLED

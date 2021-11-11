@@ -5,11 +5,6 @@ SDL_Window* sdlWindow;
 SDL_DisplayMode displayMode;
 SDL_GLContext glContext;
 
-i32 fpsLimit;
-i32 fpsFixed;
-f32 fpsDelta;
-i32 vsync;
-
 std::chrono::steady_clock::time_point timeStart;
 std::chrono::steady_clock::time_point timeEnd;
 
@@ -190,13 +185,13 @@ static i32 CreateFramebuffer()
 
 static i32 SetupTime()
 {
-    fpsLimit = TableGetInt(&initialConfig, "fpsLimit");
-    fpsFixed = TableGetInt(&initialConfig, "fpsFixed");
-    fpsDelta = 1000.0f / fpsLimit;
-    vsync = TableGetInt(&initialConfig, "vsync");
+    gameState->time.fpsLimit = TableGetInt(&initialConfig, "fpsLimit", -1);
+    gameState->time.fpsFixed = TableGetInt(&initialConfig, "fpsFixed", -1);
+    gameState->time.fpsDelta = 1000.0f / gameState->time.fpsLimit;
+    gameState->render.vsync = TableGetBool(&initialConfig, "vsync", false);
 #ifndef __EMSCRIPTEN__
     // #TODO (Juan): Check why this brings problems with emcripten even if it is disabled
-    SDL_GL_SetSwapInterval(vsync);
+    SDL_GL_SetSwapInterval(gameState->render.vsync);
 #endif
 
     gameState->game.updateRunning = true;
@@ -211,27 +206,25 @@ static i32 SetupTime()
 static i32 TimeTick()
 {
     f32 startTime = 0;
-    if(fpsFixed > 0)
+    if(gameState->time.fpsFixed > 0)
     {
-        gameState->time.deltaTime = 1.0f / fpsFixed;
-        gameState->time.startTime += gameState->time.deltaTime;
-        startTime = gameState->time.startTime;
+        gameState->time.deltaTime = 1.0f / gameState->time.fpsFixed;
+        gameState->time.lastFrameGameTime += gameState->time.deltaTime;
     }
     else
     {
         startTime = SDL_GetTicks() / 1000.0f;
-        gameState->time.startTime = startTime;
         gameState->time.deltaTime = startTime - gameState->time.lastFrameGameTime;
+        gameState->time.lastFrameGameTime = startTime;
     }
 
     gameState->time.frames++;
-    gameState->time.lastFrameGameTime = startTime;
 
     // #NOTE(Juan): Do a fps limit if enabled
-    if(fpsLimit > 0) {
+    if(gameState->time.fpsLimit > 0) {
         auto timeNow = std::chrono::steady_clock::now();
         i64 epochTime = timeNow.time_since_epoch().count();
-        i64 deltaFPSNanoseconds = (u32)(fpsDelta * 1000000);
+        i64 deltaFPSNanoseconds = (u32)(gameState->time.fpsDelta * 1000000);
         timeEnd = timeNow + std::chrono::nanoseconds(deltaFPSNanoseconds - epochTime % deltaFPSNanoseconds);
 
         auto diff = timeNow - timeStart;
@@ -245,6 +238,16 @@ static i32 TimeTick()
         gameState->time.gameTime += gameState->time.deltaTime;
         gameState->time.gameFrames++;
     }
+
+#if PLATFORM_EDITOR
+    if(editorTimeDebugger.timeloop) {
+        if(gameState->time.gameFrames > editorTimeDebugger.loopEndFrame) {
+            gameState->time.gameFrames = editorTimeDebugger.loopStartFrame;
+            gameState->time.lastFrameGameTime = (gameState->time.fpsDelta / 1000) * (gameState->time.gameFrames - 1);
+            gameState->time.gameTime = gameState->time.fpsDelta * gameState->time.gameFrames;
+        }
+    }
+#endif
 
     return 1;
 }
@@ -446,7 +449,7 @@ static void CommonShowCursor()
 
 static i32 WaitFPSLimit()
 {
-    if(fpsLimit > 0) {
+    if(gameState->time.fpsLimit > 0) {
         std::this_thread::sleep_until(timeEnd);
     }
 

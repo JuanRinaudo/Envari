@@ -3,15 +3,17 @@
 #include <psapi.h>
 #include <chrono>
 #include <thread>
-
 #include <string>
+
+#define USE_OPTICK 0
+#include "optick.h"
 
 #define Assert(Expression) assert(Expression)
 #define AssertMessage(Expression, Message) assert(Expression && Message)
 
 #include "CodeGen/FileMap.h"
 #include "CodeGen/ShaderMap.h"
-#include "CodeGen/EditorConfigMap.h"
+#include "CodeGen/EditorWindowsConfigMap.h"
 
 #define SHADER_PREFIX "shaders/core/"
 #define SOURCE_TYPE const char* const
@@ -22,7 +24,7 @@
 
 #define ENVARI_PLATFORM_NAME "EditorWindows"
 
-#define INITLUASCRIPT EDITORCONFIG_INITLUASCRIPT
+#define INITLUASCRIPT EDITORWINDOWSCONFIG_INITLUASCRIPT
 
 #include <SDL.h>
 
@@ -87,7 +89,7 @@ i32 CALLBACK WinMain(
 
     InitEngine();
 
-    DeserializeDataTable(&permanentState->arena, &initialConfig, DATA_EDITORCONFIG_ENVT);
+    DeserializeDataTable(&permanentState->arena, &initialConfig, DATA_EDITORWINDOWSCONFIG_ENVT);
 
     if(!InitSDL()) {
         return -1;
@@ -137,6 +139,8 @@ i32 CALLBACK WinMain(
     gameState->game.running = true;
     while (gameState->game.running)
     {
+        OPTICK_FRAME("MainThread");
+        
         GetProcessMemoryInfo(processHandle, &editorMemoryDebugger.memoryCounters, sizeof(PROCESS_MEMORY_COUNTERS));
 
         LARGE_INTEGER performanceStart;
@@ -168,9 +172,9 @@ i32 CALLBACK WinMain(
      
         if(editorRenderDebugger.recording) {
             char frameNameBuffer[256];
-            sprintf(frameNameBuffer, "dump/frame_%05d.png", gameState->time.gameFrames);
+            sprintf(frameNameBuffer, "dump/frame_%05d%s", gameState->time.gameFrames, formatExtensions[(int)editorRenderDebugger.recordingFormat]);
             if(gameState->render.framebufferEnabled != 0) {
-                DumpTexture(frameNameBuffer, gameState->render.frameBuffer, (u32)gameState->render.scaledBufferSize.x, (u32)gameState->render.scaledBufferSize.y);
+                RecordFrame(frameNameBuffer, gameState->render.frameBuffer, (u32)gameState->render.scaledBufferSize.x, (u32)gameState->render.scaledBufferSize.y);
             }
             else {
                 Log("No framebuffer found, texture cannot be dumped (for now)");

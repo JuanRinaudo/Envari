@@ -399,22 +399,40 @@ static void ResizeFramebufferGL(i32 bufferWidth, i32 bufferHeight)
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "STB/stb_image_write.h"
 
-void WritePNG(char *filename, i32 x, i32 y, i32 comp, void *data, i32 stride_bytes)
+void WriteFrame(char *filename, RecordingFormat format, i32 width, i32 height, i32 comp, void *data)
 {
-    stbi_write_png(filename, x, y, comp, data, stride_bytes);
+	OPTICK_THREAD("WriteFrame");
+    
+    switch(format) {
+        case RecordingFormat_PNG:
+            stbi_write_png(filename, width, height, comp, data, width * 3);
+            break;
+        case RecordingFormat_BMP:
+            stbi_write_bmp(filename, width, height, comp, data);
+            break;
+        case RecordingFormat_TGA:
+            stbi_write_tga(filename, width, height, comp, data);
+            break;
+        case RecordingFormat_JPG:
+            stbi_write_jpg(filename, width, height, comp, data, 100);
+            break;
+        case RecordingFormat_HDR:
+            break;
+    }
+    
     free(filename);
     free(data);
 }
 
 #ifndef PLATFORM_WASM
-void DumpTexture(const char *filepath, i32 textureID, u32 width, u32 height)
+void RecordFrame(const char *filepath, i32 textureID, u32 width, u32 height)
 {
     u8* data = (u8*)malloc(width * height * 3);
     glBindTexture(GL_TEXTURE_2D, textureID);
     glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
     char* savePath = (char*)malloc(strlen(filepath));
     strcpy(savePath, filepath);
-    std::thread saveImage(WritePNG, savePath, width, height, 3, data, width * 3);
+    std::thread saveImage(WriteFrame, savePath, editorRenderDebugger.recordingFormat, width, height, 3, data);
     saveImage.detach();
 }
 #endif
@@ -521,7 +539,7 @@ bool GetProgramValid(u32 programID) {
     #if PLATFORM_WASM
     return EM_ASM_INT({
         return GL.programs[$0] != null;
-    }, debugger->programID);
+    }, programID);
     #else
     i32 success;
     glGetProgramiv(programID, GL_LINK_STATUS, &success);
@@ -1128,6 +1146,8 @@ static void RenderImage9Slice_(RenderImage9Slice* image9Slice)
 
 static void RenderPass()
 {
+	OPTICK_EVENT();
+
     RenderHeader *renderHeader = (RenderHeader *)renderTemporaryMemory.arena->base;
 
     // #NOTE (Juan): Check if there are layers setted and sort commands by layer

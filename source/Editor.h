@@ -28,53 +28,53 @@ PreviewWindow editorPreview;
 static void EditorInit(PreviewWindow* preview);
 static void EditorDraw(PreviewWindow* preview);
 
-static AssetsWindow assetsWindow;
+AssetsWindow assetsWindow;
 static void EditorInit(AssetsWindow* debugger);
 static void EditorDraw(AssetsWindow* debugger);
 
-static PerformanceDebuggerWindow editorPerformanceDebugger;
+PerformanceDebuggerWindow editorPerformanceDebugger;
 static void EditorInit(PerformanceDebuggerWindow* debugger);
 static void EditorDraw(PerformanceDebuggerWindow* debugger);
 
-static RenderDebuggerWindow editorRenderDebugger;
+RenderDebuggerWindow editorRenderDebugger;
 static void EditorInit(RenderDebuggerWindow* debugger);
 static void EditorDraw(RenderDebuggerWindow* debugger);
 
-static MemoryDebuggerWindow editorMemoryDebugger;
+MemoryDebuggerWindow editorMemoryDebugger;
 static void EditorInit(MemoryDebuggerWindow* debugger);
 static void EditorDraw(MemoryDebuggerWindow* debugger);
 
-static TextureDebuggerWindow editorTextureDebugger;
+TextureDebuggerWindow editorTextureDebugger;
 static void EditorInit(TextureDebuggerWindow* debugger);
 static void EditorDraw(TextureDebuggerWindow* debugger);
 
-static SoundDebuggerWindow editorSoundDebugger;
+SoundDebuggerWindow editorSoundDebugger;
 static void EditorInit(SoundDebuggerWindow* debugger);
 static void EditorDraw(SoundDebuggerWindow* debugger);
 
-static InputDebuggerWindow editorInputDebugger;
+InputDebuggerWindow editorInputDebugger;
 static void EditorInit(InputDebuggerWindow* debugger);
 static void EditorDraw(InputDebuggerWindow* debugger);
 
-static TimeDebuggerWindow editorTimeDebugger;
+TimeDebuggerWindow editorTimeDebugger;
 static void EditorInit(TimeDebuggerWindow* debugger);
 static void EditorDraw(TimeDebuggerWindow* debugger);
 
-static ShaderDebuggerWindow editorShaderDebugger;
+ShaderDebuggerWindow editorShaderDebugger;
 static void EditorInit(ShaderDebuggerWindow* debugger);
 static void EditorDraw(ShaderDebuggerWindow* debugger);
 
 #ifdef LUA_ENABLED
-static LUADebuggerWindow editorLUADebugger;
+LUADebuggerWindow editorLUADebugger;
 static void EditorInit(LUADebuggerWindow* debugger);
 static void EditorDraw(LUADebuggerWindow* debugger);
 #endif
 
-static EditorConfigWindow editorConfig;
+EditorConfigWindow editorConfig;
 static void EditorInit(EditorConfigWindow* help);
 static void EditorDraw(EditorConfigWindow* help);
 
-static HelpWindow editorHelp;
+HelpWindow editorHelp;
 static void EditorInit(HelpWindow* help);
 static void EditorDraw(HelpWindow* help);
 

@@ -177,13 +177,13 @@ static u32 ScriptingUpdate()
 #if PLATFORM_EDITOR && PLATFORM_WINDOWS
 void ScriptingDebugStart()
 {
-    luaopen_socket_core(lua);
-    luaopen_mime_core(lua);
+    // luaopen_socket_core(lua);
+    // luaopen_mime_core(lua);
 
-    lua.script("local json = require(\"dkjson\");\n"
-    "local debuggee = require(\"vscode-debuggee\")\n"
-    "local startResult, breakerType = debuggee.start(json)\n"
-    "LogConsole(\"debuggee start -> \" .. tostring(startResult) .. \" \" .. tostring(breakerType))");
+    // lua.script("local json = require(\"dkjson\");\n"
+    // "local debuggee = require(\"vscode-debuggee\")\n"
+    // "local startResult, breakerType = debuggee.start(json)\n"
+    // "LogConsole(\"debuggee start -> \" .. tostring(startResult) .. \" \" .. tostring(breakerType))");
 }
 #endif
 
@@ -248,7 +248,7 @@ void GetWatchValue(i32 watchType, char* name, char* valueBuffer)
         char innerBuffer[WATCH_BUFFER_SIZE_EXT];
         u32 nameIndex = 0;
         u32 bufferIndex = 0;
-        u32 nameSize = strlen(name);
+        size_t nameSize = strlen(name);
         bool firstSection = true;
         while(nameIndex < nameSize) {
             if(name[nameIndex] == '[' || name[nameIndex] == ']' || name[nameIndex] == '.') {

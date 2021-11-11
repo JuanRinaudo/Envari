@@ -442,6 +442,7 @@ struct Game {
 };
 
 struct Render {
+    bool vsync;
     bool framebufferEnabled;
     u32 frameBuffer;
     u32 renderBuffer;
@@ -472,11 +473,14 @@ struct Camera {
 
 struct Time {
     f32 lastFrameGameTime;
-    f32 startTime;
     f32 gameTime;
     f32 deltaTime;
     i64 gameFrames;
     i64 frames;
+
+    i32 fpsLimit;
+    i32 fpsFixed;
+    f32 fpsDelta;
 };
 
 struct Memory {

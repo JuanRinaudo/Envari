@@ -74,6 +74,15 @@ enum TextureInspect
     TextureInspect_CACHE,
 };
 
+enum RecordingFormat
+{
+    RecordingFormat_PNG,
+    RecordingFormat_BMP,
+    RecordingFormat_TGA,
+    RecordingFormat_JPG,
+    RecordingFormat_HDR,
+};
+
 struct AssetsWindow
 {
     bool open;
@@ -96,7 +105,8 @@ struct RenderDebuggerWindow
     bool open;
 
     bool recording;
-    i32 renderMemory;
+    RecordingFormat recordingFormat;
+    size_t renderMemory;
     i32 drawCount;
     i32 programChanges;
 
@@ -153,6 +163,9 @@ struct TimeDebuggerWindow
     f32* fpsBuffer;
     f32 fpsMin;
     f32 fpsMax;
+    bool timeloop;
+    i32 loopStartFrame;
+    i32 loopEndFrame;
 };
 
 struct ShaderDebuggerWindow
@@ -165,6 +178,7 @@ struct ShaderDebuggerWindow
     char* currentFileBuffer;
     size_t currentFileBufferSize;
 
+    bool programIDChanged;
     i32 programIndex;
     i32 targetID;
     i32 vertexShaderID;

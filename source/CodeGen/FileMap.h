@@ -3,7 +3,8 @@
 
 const char* IMGUI_INI = "imgui.ini";
 const char* DATA_ANDROIDCONFIG_ENVT = "data/androidConfig.envt";
-const char* DATA_EDITORCONFIG_ENVT = "data/editorConfig.envt";
+const char* DATA_EDITORWASMCONFIG_ENVT = "data/editorWasmConfig.envt";
+const char* DATA_EDITORWINDOWSCONFIG_ENVT = "data/editorWindowsConfig.envt";
 const char* DATA_WASMCONFIG_ENVT = "data/wasmConfig.envt";
 const char* DATA_WINDOWSCONFIG_ENVT = "data/windowsConfig.envt";
 const char* FONTS_ROBOTOMONO_REGULAR_TTF = "fonts/RobotoMono-Regular.ttf";

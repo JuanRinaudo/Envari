@@ -22,9 +22,9 @@
 #include <SDL.h>
 
 #ifdef PLATFORM_EDITOR
-    #ifdef PLATFORM_WINDOWS
-        #include <psapi.h>
-    #endif
+#ifdef PLATFORM_WINDOWS
+    #include <psapi.h>
+#endif
 #include "IMGUI/imgui.h"
 #include "EditorStructs.h"
 extern ConsoleWindow editorConsole;
@@ -188,6 +188,10 @@ extern void RuntimeQuit();
 extern void ChangeLogFlag_(u32 newFlag);
 
 extern void SerializeTable(SerializableTable** table, const char* filepath);
+
+#ifdef PLATFORM_EDITOR
+extern ShaderDebuggerWindow editorShaderDebugger;
+#endif
 
 GenerateTableGetExtern(String, char*)
 GenerateTableSetExtern(String, const char*, SerializableType_STRING)
@@ -525,7 +529,6 @@ void ScriptingBindings()
     lua["render"] = &gameState->render;
 
     sol::usertype<Time> time_usertype = lua.new_usertype<Time>("time");
-    time_usertype["startTime"] = &Time::startTime;
     time_usertype["gameTime"] = &Time::gameTime;
     time_usertype["deltaTime"] = &Time::deltaTime;
     time_usertype["lastFrameGameTime"] = &Time::lastFrameGameTime;
@@ -794,6 +797,11 @@ void ScriptingBindings()
     // #NOTE (Juan): Editor
 #ifdef PLATFORM_EDITOR
     lua["ChangeLogFlag"] = ChangeLogFlag_;
+
+    sol::usertype<ShaderDebuggerWindow> editorShaderDebugger_usertype = lua.new_usertype<ShaderDebuggerWindow>("editorShaderDebugger");
+    editorShaderDebugger_usertype["programIDChanged"] = &ShaderDebuggerWindow::programIDChanged;
+    editorShaderDebugger_usertype["programIndex"] = &ShaderDebuggerWindow::programIndex;
+    lua["editorShaderDebugger"] = &editorShaderDebugger;
 
     lua["LogFlag_PERFORMANCE"] = LogFlag_PERFORMANCE;
     lua["LogFlag_RENDER"] = LogFlag_RENDER;
