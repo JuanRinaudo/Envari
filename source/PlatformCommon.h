@@ -241,10 +241,19 @@ static i32 TimeTick()
 
 #if PLATFORM_EDITOR
     if(editorTimeDebugger.timeloop) {
-        if(gameState->time.gameFrames > editorTimeDebugger.loopEndFrame) {
-            gameState->time.gameFrames = editorTimeDebugger.loopStartFrame;
-            gameState->time.lastFrameGameTime = (gameState->time.fpsDelta / 1000) * (gameState->time.gameFrames - 1);
-            gameState->time.gameTime = gameState->time.fpsDelta * gameState->time.gameFrames;
+        if(editorTimeDebugger.loopFormat == TimeFormat_FRAMES) {
+            if(gameState->time.gameFrames > editorTimeDebugger.loopEndFrame) {
+                gameState->time.gameFrames = editorTimeDebugger.loopStartFrame;
+                gameState->time.lastFrameGameTime = (gameState->time.fpsDelta / 1000) * (gameState->time.gameFrames - 1);
+                gameState->time.gameTime = gameState->time.fpsDelta * gameState->time.gameFrames;
+            }
+        }
+        else if(editorTimeDebugger.loopFormat == TimeFormat_TIME) {
+            if(gameState->time.gameTime > editorTimeDebugger.loopEndTime) {
+                gameState->time.gameTime = editorTimeDebugger.loopStartTime;
+                gameState->time.lastFrameGameTime = gameState->time.gameTime - (gameState->time.fpsDelta / 1000);
+                gameState->time.gameFrames = FloorToInt(gameState->time.gameTime / (gameState->time.fpsDelta / 1000));
+            }
         }
     }
 #endif

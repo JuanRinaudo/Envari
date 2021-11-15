@@ -83,6 +83,12 @@ enum RecordingFormat
     RecordingFormat_HDR,
 };
 
+enum TimeFormat
+{
+    TimeFormat_FRAMES,
+    TimeFormat_TIME,
+};
+
 struct AssetsWindow
 {
     bool open;
@@ -106,6 +112,7 @@ struct RenderDebuggerWindow
 
     bool recording;
     RecordingFormat recordingFormat;
+    i32 jpgQuality;
     size_t renderMemory;
     i32 drawCount;
     i32 programChanges;
@@ -164,8 +171,11 @@ struct TimeDebuggerWindow
     f32 fpsMin;
     f32 fpsMax;
     bool timeloop;
+    TimeFormat loopFormat;
     i32 loopStartFrame;
     i32 loopEndFrame;
+    f32 loopStartTime;
+    f32 loopEndTime;
 };
 
 struct ShaderDebuggerWindow

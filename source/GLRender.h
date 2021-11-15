@@ -399,7 +399,7 @@ static void ResizeFramebufferGL(i32 bufferWidth, i32 bufferHeight)
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "STB/stb_image_write.h"
 
-void WriteFrame(char *filename, RecordingFormat format, i32 width, i32 height, i32 comp, void *data)
+void WriteFrame(char *filename, RecordingFormat format, i32 width, i32 height, i32 comp, i32 quality, void *data)
 {
 	OPTICK_THREAD("WriteFrame");
     
@@ -414,7 +414,7 @@ void WriteFrame(char *filename, RecordingFormat format, i32 width, i32 height, i
             stbi_write_tga(filename, width, height, comp, data);
             break;
         case RecordingFormat_JPG:
-            stbi_write_jpg(filename, width, height, comp, data, 100);
+            stbi_write_jpg(filename, width, height, comp, data, quality);
             break;
         case RecordingFormat_HDR:
             break;
@@ -432,7 +432,7 @@ void RecordFrame(const char *filepath, i32 textureID, u32 width, u32 height)
     glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
     char* savePath = (char*)malloc(strlen(filepath));
     strcpy(savePath, filepath);
-    std::thread saveImage(WriteFrame, savePath, editorRenderDebugger.recordingFormat, width, height, 3, data);
+    std::thread saveImage(WriteFrame, savePath, editorRenderDebugger.recordingFormat, width, height, 3, editorRenderDebugger.jpgQuality, data);
     saveImage.detach();
 }
 #endif

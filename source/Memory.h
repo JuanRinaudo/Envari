@@ -11,6 +11,15 @@ inline void ZeroSize(size_t size, void *pointer)
         *byte++ = 0;
     }
 }
+inline void ZeroSize(size_t size, f32 *pointer)
+{
+    // TODO(Juan): Check this for performance
+    f32 *fValue = (f32 *)pointer;
+    while(size--)
+    {
+        *fValue++ = 0;
+    }
+}
 
 #define PushStruct(arena, type) (type *)PushSize_(arena, sizeof(type))
 #define PushArray(arena, count, type) (type *)PushSize_(arena, ((count)*sizeof(type)))

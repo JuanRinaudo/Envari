@@ -146,12 +146,6 @@ i32 main(i32 argc, char** argv)
 
     EditorInit();
 
-    editorTimeDebugger.frameTimeBuffer = (f32*)malloc(sizeof(f32) * TIME_BUFFER_SIZE);
-    editorTimeDebugger.frameTimeMax = 1;
-    editorTimeDebugger.fpsBuffer = (f32*)malloc(sizeof(f32) * TIME_BUFFER_SIZE);
-    editorTimeDebugger.fpsMax = 1;
-    editorRenderDebugger.recording = false;
-
 #ifdef LUA_ENABLED
     ScriptingInit();
 #endif

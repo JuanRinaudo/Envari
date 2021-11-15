@@ -119,12 +119,6 @@ i32 CALLBACK WinMain(
     DeserializeTable(&permanentState->arena, &saveData, GetSavePath());
     
     EditorInit();
-    
-    editorTimeDebugger.frameTimeBuffer = (f32*)malloc(sizeof(f32) * TIME_BUFFER_SIZE);
-    editorTimeDebugger.frameTimeMax = 1;
-    editorTimeDebugger.fpsBuffer = (f32*)malloc(sizeof(f32) * TIME_BUFFER_SIZE);
-    editorTimeDebugger.fpsMax = 1;
-    editorRenderDebugger.recording = false;
 
 #ifdef LUA_ENABLED
     ScriptingInit();
@@ -172,7 +166,7 @@ i32 CALLBACK WinMain(
      
         if(editorRenderDebugger.recording) {
             char frameNameBuffer[256];
-            sprintf(frameNameBuffer, "dump/frame_%05d%s", gameState->time.gameFrames, formatExtensions[(int)editorRenderDebugger.recordingFormat]);
+            sprintf(frameNameBuffer, "dump/frame_%05d%s", gameState->time.gameFrames, recordingFormatExtensions[(int)editorRenderDebugger.recordingFormat]);
             if(gameState->render.framebufferEnabled != 0) {
                 RecordFrame(frameNameBuffer, gameState->render.frameBuffer, (u32)gameState->render.scaledBufferSize.x, (u32)gameState->render.scaledBufferSize.y);
             }

@@ -79,8 +79,33 @@ static void SetupTexture(u32 textureID, u32 textureFiltering)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, textureFiltering);
 }
 
+static void CloseAllWindows() 
+{
+    editorConsole.open = false;
+    editorPreview.open = false;
+    assetsWindow.open = false;
+    editorPerformanceDebugger.open = false;
+    editorRenderDebugger.open = false;
+    editorMemoryDebugger.open = false;
+    editorTextureDebugger.open = false;
+    editorSoundDebugger.open = false;
+    editorInputDebugger.open = false;
+    editorTimeDebugger.open = false;
+    editorShaderDebugger.open = false;
+#ifdef LUA_ENABLED
+    editorLUADebugger.open = false;
+    editorLUADebugger.codeOpen = false;
+    editorLUADebugger.watchOpen = false;
+    editorLUADebugger.stackOpen = false;
+#endif
+    editorConfig.open = false;
+    editorHelp.open = false;
+}
+
 static void EditorCodeLayout()
 {
+    CloseAllWindows();
+    
     if(ImGui::DockBuilderGetNode(editorState->dockspaceID)) {
         editorConsole.open = true;
         editorPreview.open = true;
@@ -118,6 +143,8 @@ static void EditorCodeLayout()
 
 static void EditorShadersLayout()
 {
+    CloseAllWindows();
+    
     if(ImGui::DockBuilderGetNode(editorState->dockspaceID)) {
         editorConsole.open = true;
         editorPreview.open = true;
@@ -159,6 +186,9 @@ static void EditorShadersLayout()
         editorShaderDebugger.open = true;
 
         ImGui::DockBuilderFinish(editorState->dockspaceID);
+        
+        ImGuiWindow* consoleWindow = ImGui::FindWindowByName("Console");
+        consoleWindow->DockNode->TabBar->NextSelectedTabId = consoleWindow->ID;
     }
 }
 
@@ -188,7 +218,9 @@ static void EditorInit(PerformanceDebuggerWindow* debugger)
 
 static void EditorInit(RenderDebuggerWindow* debugger)
 {
-    
+    debugger->recording = false;
+    debugger->recordingFormat = RecordingFormat_PNG;
+    debugger->jpgQuality = 100;
 }
 
 static void EditorInit(MemoryDebuggerWindow* debugger)
@@ -215,7 +247,15 @@ static void EditorInit(InputDebuggerWindow* debugger)
 
 static void EditorInit(TimeDebuggerWindow* debugger)
 {
-    
+    editorTimeDebugger.frameTimeBuffer = (f32*)malloc(sizeof(f32) * TIME_BUFFER_SIZE);
+    ZeroSize(TIME_BUFFER_SIZE, editorTimeDebugger.frameTimeBuffer);
+    editorTimeDebugger.frameTimeMax = 1;
+    editorTimeDebugger.fpsBuffer = (f32*)malloc(sizeof(f32) * TIME_BUFFER_SIZE);
+    ZeroSize(TIME_BUFFER_SIZE, editorTimeDebugger.fpsBuffer);
+    editorTimeDebugger.fpsMax = 1;
+    editorRenderDebugger.recording = false;
+
+    debugger->loopFormat = TimeFormat_FRAMES;
 }
 
 static void EditorInit(ShaderDebuggerWindow* debugger)
@@ -894,8 +934,9 @@ static void EditorDraw(RenderDebuggerWindow* debugger)
     ImGui::Checkbox("Record frames", &debugger->recording);
 
     int formatIndex = (int)debugger->recordingFormat;
-    ImGui::Combo("Combo", &formatIndex, formatExtensions, ArrayCount(formatExtensions));
+    ImGui::Combo("Format", &formatIndex, recordingFormatExtensions, ArrayCount(recordingFormatExtensions));
     debugger->recordingFormat = (RecordingFormat)formatIndex;
+    ImGui::SliderInt("JPG Quality", &debugger->jpgQuality, 1, 100);
 #endif
     ImGui::Separator();
 
@@ -1461,9 +1502,19 @@ static void EditorDraw(TimeDebuggerWindow* debugger)
 
     if(gameState->time.fpsFixed != -1) {
         ImGui::Checkbox("Time loop", &debugger->timeloop);
+        
+        int formatIndex = (int)debugger->loopFormat;
+        ImGui::Combo("Loop type", &formatIndex, timeFormatsLabels, ArrayCount(timeFormatsLabels));
+        debugger->loopFormat = (TimeFormat)formatIndex;
 
-        ImGui::InputInt("Loop start frame", &debugger->loopStartFrame, 1, 1);
-        ImGui::InputInt("Loop end frame", &debugger->loopEndFrame, 1, 1);
+        if(debugger->loopFormat == TimeFormat_FRAMES) {
+            ImGui::InputInt("Loop start frame", &debugger->loopStartFrame, 1, 1);
+            ImGui::InputInt("Loop end frame", &debugger->loopEndFrame, 1, 1);
+        }
+        else if(debugger->loopFormat == TimeFormat_TIME) {
+            ImGui::InputFloat("Loop start time", &debugger->loopStartTime, 1, 1);
+            ImGui::InputFloat("Loop end time", &debugger->loopEndTime, 1, 1);
+        }
 
         ImGui::Separator();
     }
