@@ -399,6 +399,7 @@ static void ResizeFramebufferGL(i32 bufferWidth, i32 bufferHeight)
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "STB/stb_image_write.h"
 
+#if PLATFORM_EDITOR
 void WriteFrame(char *filename, RecordingFormat format, i32 width, i32 height, i32 comp, i32 quality, void *data)
 {
 	OPTICK_THREAD("WriteFrame");
@@ -423,6 +424,7 @@ void WriteFrame(char *filename, RecordingFormat format, i32 width, i32 height, i
     free(filename);
     free(data);
 }
+#endif
 
 #ifndef PLATFORM_WASM
 void RecordFrame(const char *filepath, i32 textureID, u32 width, u32 height)

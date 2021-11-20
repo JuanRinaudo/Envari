@@ -171,6 +171,8 @@ struct TimeDebuggerWindow
     f32 fpsMin;
     f32 fpsMax;
     bool timeloop;
+    i32 framesMultiplier;
+    f32 timeScale;
     TimeFormat loopFormat;
     i32 loopStartFrame;
     i32 loopEndFrame;

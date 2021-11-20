@@ -2,8 +2,9 @@
 
 #include <chrono>
 #include <thread>
-
 #include <string>
+
+#include "OptickDummy.h"
 
 #include "CodeGen/FileMap.h"
 #include "CodeGen/ShaderMap.h"

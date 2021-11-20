@@ -472,6 +472,7 @@ struct Camera {
 };
 
 struct Time {
+    f32 realLastFrameGameTime;
     f32 lastFrameGameTime;
     f32 gameTime;
     f32 deltaTime;

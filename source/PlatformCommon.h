@@ -214,8 +214,10 @@ static i32 TimeTick()
     else
     {
         startTime = SDL_GetTicks() / 1000.0f;
-        gameState->time.deltaTime = startTime - gameState->time.lastFrameGameTime;
-        gameState->time.lastFrameGameTime = startTime;
+        gameState->time.deltaTime = startTime - gameState->time.realLastFrameGameTime;
+        gameState->time.realLastFrameGameTime = startTime;
+        gameState->time.deltaTime *= editorTimeDebugger.timeScale;
+        gameState->time.lastFrameGameTime = gameState->time.lastFrameGameTime + gameState->time.deltaTime;
     }
 
     gameState->time.frames++;

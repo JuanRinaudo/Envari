@@ -130,6 +130,7 @@ i32 CALLBACK WinMain(
 
     HANDLE processHandle = GetCurrentProcess();
 
+    int frameCount = 0;
     gameState->game.running = true;
     while (gameState->game.running)
     {
@@ -163,7 +164,7 @@ i32 CALLBACK WinMain(
             ImGui_ImplSDL2_ProcessEvent(&event);
             ProcessEvent(&event);
         }
-     
+    
         if(editorRenderDebugger.recording) {
             char frameNameBuffer[256];
             sprintf(frameNameBuffer, "dump/frame_%05d%s", gameState->time.gameFrames, recordingFormatExtensions[(int)editorRenderDebugger.recordingFormat]);
@@ -278,7 +279,11 @@ i32 CALLBACK WinMain(
         editorPerformanceDebugger.updateCycles = updateCyclesEnd - updateCyclesStart;
         editorPerformanceDebugger.luaUpdateCycles = luaUpdateCyclesEnd - luaUpdateCyclesStart;
 
-        WaitFPSLimit();
+        ++frameCount;
+        if(frameCount >= editorTimeDebugger.framesMultiplier) {
+            WaitFPSLimit();
+            frameCount = 0;
+        }
     }
     
 #ifdef LUA_ENABLED

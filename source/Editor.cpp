@@ -172,10 +172,12 @@ static void EditorShadersLayout()
         ImGuiID dockMain = editorState->dockspaceID;
         ImGuiID dockLeft = ImGui::DockBuilderSplitNode(dockMain, ImGuiDir_Left, 0.55f, NULL, &dockMain);
         ImGuiID dockTop = ImGui::DockBuilderSplitNode(dockMain, ImGuiDir_Up, 0.35f, NULL, &dockMain);
+        ImGuiID dockTopRight;
+        ImGuiID dockTopLeft = ImGui::DockBuilderSplitNode(dockTop, ImGuiDir_Left, 0.4f, NULL, &dockTopRight);
 
         ImGui::DockBuilderDockWindow("Preview", dockLeft);
-        ImGui::DockBuilderDockWindow("Render", dockTop);
-        ImGui::DockBuilderDockWindow("Console", dockTop);
+        ImGui::DockBuilderDockWindow("Render", dockTopRight);
+        ImGui::DockBuilderDockWindow("Console", dockTopLeft);
 
 #if LUA_ENABLED
         ImGui::DockBuilderDockWindow("LUA Code", dockMain);
@@ -187,8 +189,8 @@ static void EditorShadersLayout()
 
         ImGui::DockBuilderFinish(editorState->dockspaceID);
         
-        ImGuiWindow* consoleWindow = ImGui::FindWindowByName("Console");
-        consoleWindow->DockNode->TabBar->NextSelectedTabId = consoleWindow->ID;
+        ImGui::SetWindowFocus("Console");
+        ImGui::SetWindowFocus("Shaders");
     }
 }
 
@@ -247,15 +249,17 @@ static void EditorInit(InputDebuggerWindow* debugger)
 
 static void EditorInit(TimeDebuggerWindow* debugger)
 {
-    editorTimeDebugger.frameTimeBuffer = (f32*)malloc(sizeof(f32) * TIME_BUFFER_SIZE);
-    ZeroSize(TIME_BUFFER_SIZE, editorTimeDebugger.frameTimeBuffer);
-    editorTimeDebugger.frameTimeMax = 1;
-    editorTimeDebugger.fpsBuffer = (f32*)malloc(sizeof(f32) * TIME_BUFFER_SIZE);
-    ZeroSize(TIME_BUFFER_SIZE, editorTimeDebugger.fpsBuffer);
-    editorTimeDebugger.fpsMax = 1;
-    editorRenderDebugger.recording = false;
+    debugger->frameTimeBuffer = (f32*)malloc(sizeof(f32) * TIME_BUFFER_SIZE);
+    ZeroSize(TIME_BUFFER_SIZE, debugger->frameTimeBuffer);
+    debugger->frameTimeMax = 1;
+    debugger->fpsBuffer = (f32*)malloc(sizeof(f32) * TIME_BUFFER_SIZE);
+    ZeroSize(TIME_BUFFER_SIZE, debugger->fpsBuffer);
+    debugger->fpsMax = 1;
 
-    debugger->loopFormat = TimeFormat_FRAMES;
+    debugger->framesMultiplier = 1;
+    debugger->timeScale = 1;
+
+    debugger->loopFormat = gameState->time.fpsFixed != -1 ? TimeFormat_FRAMES : TimeFormat_TIME;
 }
 
 static void EditorInit(ShaderDebuggerWindow* debugger)
@@ -1516,7 +1520,18 @@ static void EditorDraw(TimeDebuggerWindow* debugger)
             ImGui::InputFloat("Loop end time", &debugger->loopEndTime, 1, 1);
         }
 
+        ImGui::InputInt("Frame multiplier", &debugger->framesMultiplier, 1, 1);
+        if(debugger->framesMultiplier < 1) { debugger->framesMultiplier = 1; }
+
         ImGui::Separator();
+    }
+    else {
+        ImGui::Checkbox("Time loop", &debugger->timeloop);
+
+        ImGui::InputFloat("Loop start time", &debugger->loopStartTime, 1, 1);
+        ImGui::InputFloat("Loop end time", &debugger->loopEndTime, 1, 1);
+
+        ImGui::InputFloat("Time scale", &debugger->timeScale, .1f, 1);
     }
 
     ImGui::Text("Frame Time Min: %f Max: %f", debugger->frameTimeMin, debugger->frameTimeMax);
@@ -2176,7 +2191,7 @@ static void EditorInit()
     editorPerformanceDebugger.open = TableGetBool(&editorSave, "editorPerformanceDebuggerOpen");
     EditorInit(&editorPerformanceDebugger);
 
-    editorRenderDebugger.open = TableGetBool(&editorSave, "editorRenderDebuggerOpen");
+    editorRenderDebugger.open = TableGetBool(&editorSave, "editorRenderDebuggerOpen"); 
     EditorInit(&editorRenderDebugger);
 
     editorMemoryDebugger.open = TableGetBool(&editorSave, "editorMemoryDebuggerOpen");
