@@ -194,7 +194,7 @@ i32 main()
     char workingDirectory[512];
     _getcwd(workingDirectory, 512);
 
-    i32 workingDirectorySize = strlen(workingDirectory);
+    size_t workingDirectorySize = strlen(workingDirectory);
 
     char filePath[512];
     strcpy(filePath, __FILE__);
@@ -211,7 +211,7 @@ i32 main()
     const char* folderName = "../CodeGen/";
     strncat(filePath, folderName, strlen(folderName));
     const char* folderPath = filePath;
-    i32 folderPathSize = strlen(folderPath);
+    size_t folderPathSize = strlen(folderPath);
     cout << "Codegen folder path: " << folderPath << '\n';
 
     char scriptingPath[512];
@@ -315,7 +315,7 @@ i32 main()
 
         if(definition->type == EntryType_ENVARI_TABLE) {
             ofstream tableCodegen;
-            i32 nameSize = strlen(definition->name) - 5;
+            size_t nameSize = strlen(definition->name) - 5;
             char* name = PushString(&stringArena, definition->name, nameSize);
             *name = (char)toupper(*name);
             PushString(&stringArena, "Map.h", 6);

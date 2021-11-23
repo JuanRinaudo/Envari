@@ -216,7 +216,9 @@ static i32 TimeTick()
         startTime = SDL_GetTicks() / 1000.0f;
         gameState->time.deltaTime = startTime - gameState->time.realLastFrameGameTime;
         gameState->time.realLastFrameGameTime = startTime;
+#if UNITY_EDITOR
         gameState->time.deltaTime *= editorTimeDebugger.timeScale;
+#endif
         gameState->time.lastFrameGameTime = gameState->time.lastFrameGameTime + gameState->time.deltaTime;
     }
 

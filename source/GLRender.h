@@ -933,7 +933,7 @@ static m33 SetupModelMatrix(v2 origin = V2(0, 0), v2 size = V2(1, 1), f32 angle 
     matrix *= ScaleM33(size);
     matrix *= RotateM33(angle);
     matrix *= TranslationM33(origin);
-    if(gameState->render.transformIndex > 0) {
+    if(gameState->render.transformIndex >= 0) {
         m33* parentTransform = gameState->render.transformStack + gameState->render.transformIndex;
         matrix *= *parentTransform;
     }
