@@ -1451,6 +1451,7 @@ static void EditorDraw(InputDebuggerWindow* debugger)
     float elementSize = 50;
 
     ImGui::TextUnformatted("Mouse");
+    ImGui::Text("Any mouse state: %d", gameState->input.anyMouseState);
     ImGui::PushItemWidth(elementSize);
     for(i32 i = 0; i < MOUSE_COUNT; ++i) {
         if(i > 0 && i < MOUSE_COUNT && i % 10 != 0) {
@@ -1464,6 +1465,7 @@ static void EditorDraw(InputDebuggerWindow* debugger)
     }
 
     ImGui::TextUnformatted("Keyboard");
+    ImGui::Text("Any key state: %d", gameState->input.anyKeyState);
     for(i32 i = 0; i < KEY_COUNT; ++i) {
         if(i > 0 && i < KEY_COUNT &&  i % 10 != 0) {
             ImGui::SameLine();

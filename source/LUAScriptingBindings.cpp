@@ -147,7 +147,7 @@ extern u32 GenerateBitmapFontStrip(const char *filepath, const char* glyphs, u32
 extern u32 CompileProgram(const char *vertexShaderSource, const char *fragmentShaderSource);
 extern u32 CompileProgramPlatform(const char *vertexShaderPlatform, const char *fragmentShaderPlatform);
 
-extern SoundInstance* SoundPlay(const char* filepath, f32 volume, bool loop);
+extern SoundInstance* SoundPlay(const char* filepath, f32 volume, bool loop, bool unique);
 extern void SoundStop(SoundInstance* instance);
 extern void SetMasterVolume(float value);
 extern float dbToVolume(float db);
@@ -398,8 +398,8 @@ LUAEditorSaveGetSet(F32, f32)
 LUAEditorSaveGetSet(V2, v2)
 
 // #NOTE(Juan): Sound
-static SoundInstance* SoundPlaySimple(const char* filepath, f32 volume) {
-    return SoundPlay(filepath, volume, false);
+static SoundInstance* SoundPlaySimple(const char* filepath, f32 volume, bool unique) {
+    return SoundPlay(filepath, volume, false, unique);
 }
 
 #ifdef PLATFORM_EDITOR
@@ -545,7 +545,9 @@ void ScriptingBindings()
     input_usertype["mouseWheel"] = &Input::mouseWheel;
     input_usertype["textInputBuffer"] = sol::property([](Input &input) { return input.textInputBuffer->value; }, [](Input &input, char* value) { return *input.textInputBuffer = value; });
     input_usertype["keyState"] = sol::property([](Input &input) { return &input.keyState; });
+    input_usertype["anyKeyState"] = &Input::anyKeyState;
     input_usertype["mouseState"] = sol::property([](Input &input) { return &input.mouseState; });
+    input_usertype["anyMouseState"] = &Input::anyMouseState;
     lua["input"] = &gameState->input;
 
     lua["SetCustomCursor"] = SetCustomCursor;
@@ -664,6 +666,8 @@ void ScriptingBindings()
     // lua["TextureSizeID"] = sol::resolve<std::tuple<f32, f32>(u32)>(TextureSizeBinding);
     lua["GetTextureID"] = GetTextureID;
     lua["GenerateFont"] = sol::resolve<u32(const char*, f32, u32, u32)>(GenerateFont);
+    lua["DEFAULT_FONT_ATLAS_WIDTH"] = DEFAULT_FONT_ATLAS_WIDTH;
+    lua["DEFAULT_FONT_ATLAS_HEIGHT"] = DEFAULT_FONT_ATLAS_HEIGHT;
     lua["GenerateBitmapFontStrip"] = GenerateBitmapFontStrip;
     lua["CompileProgram"] = CompileProgram;
     lua["CompileProgramPlatform"] = CompileProgramPlatform;

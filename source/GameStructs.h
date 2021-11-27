@@ -510,7 +510,9 @@ struct Input
     i32 textInputIndex;
     i32 textInputSize;
     u8 mouseState[MOUSE_COUNT];
+    u8 anyMouseState;
     u8 keyState[KEY_COUNT];
+    u8 anyKeyState;
     u8 textInputEvent[TEXT_INPUT_EVENT_SIZE];
 };
 

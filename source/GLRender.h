@@ -1,9 +1,6 @@
 #ifndef GLRENDER_H
 #define GLRENDER_H
 
-#define DEFAULT_FONT_ATLAS_WIDTH 1024
-#define DEFAULT_FONT_ATLAS_HEIGHT 1024
-
 #define INFO_LOG_BUFFER_SIZE 1024
 
 #ifdef GL_PROFILE_GLES3
@@ -424,9 +421,7 @@ void WriteFrame(char *filename, RecordingFormat format, i32 width, i32 height, i
     free(filename);
     free(data);
 }
-#endif
 
-#ifndef PLATFORM_WASM
 void RecordFrame(const char *filepath, i32 textureID, u32 width, u32 height)
 {
     u8* data = (u8*)malloc(width * height * 3);
@@ -642,6 +637,14 @@ u32 CompileProgramPlatform(const char *vertexShaderPlatform, const char *fragmen
     PushString(&temporalState->arena, fragmentShaderPlatform);
     
     return CompileProgram(vertexShaderPath, fragmentShaderPath);
+}
+
+u32 CompileTransformFeedbackProgramPlatform(const char *vertexShaderPlatform)
+{
+    char* vertexShaderPath = PushString(&temporalState->arena, SHADER_PREFIX, sizeof(SHADER_PREFIX) - 1);
+    PushString(&temporalState->arena, vertexShaderPlatform);
+    
+    return CompileTransformFeedbackProgram(vertexShaderPath);
 }
 
 static void WatchChanges()
@@ -985,7 +988,7 @@ static void InitGL()
     texturedProgram = CompileProgramPlatform(TEXTURED_VERT, TEXTURED_FRAG);
     textured9SliceProgram = CompileProgramPlatform(TEXTURED_VERT, TEXTURED9SLICE_FRAG);
 
-    calcposmvpProgram = CompileTransformFeedbackProgram(SHADERS_CORE_CALCPOSMVP_VERT);
+    // calcposmvpProgram = CompileTransformFeedbackProgramPlatform(CALCPOSMVP_VERT);
     
     dimensionsLocation = glGetUniformLocation(textured9SliceProgram, "dimensions");
     borderLocation = glGetUniformLocation(textured9SliceProgram, "border");

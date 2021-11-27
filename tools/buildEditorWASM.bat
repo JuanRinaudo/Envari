@@ -60,7 +60,7 @@ if not exist build\editorhtml5\LUAScriptingBindings.%ScriptingDate::=.%.tmp (
 @REM     --no-heap-copy & Envari\tools\printEndTime.bat
 em++ -IEnvari\LUA\include Envari\source\EditorWASM.cpp build\editorhtml5\LUAScriptingBindings.o Envari\LUA\include\liblua.a ^
     -gsource-map ^
-    -O2 ^
+    -O3 ^
     --pre-js buildassets/html5/prejs.js ^
     --source-map-base http://localhost:7777/ ^
     -DLUA_ENABLED=1 ^

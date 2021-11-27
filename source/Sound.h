@@ -17,10 +17,18 @@ ma_device soundDevice;
 i32 soundMixIndex = -1;
 SoundInstance soundMix[SOUND_MIX_SIZE];
 
+static SoundInstance* soundDecoderCache = NULL;
+
 bool soundMuted;
 
 f32 soundRangeMin;
 f32 soundRangeMax;
+
+void CleanSoundCache()
+{
+    
+    shfree(soundDecoderCache);
+}
 
 void SoundStop(SoundInstance* sound)
 {    
@@ -28,14 +36,14 @@ void SoundStop(SoundInstance* sound)
     if(instance->decoder != 0) {
         i32 index = instance->index;
         
+        ma_decoder_uninit(instance->decoder);
+        
         instance->playing = false;
         instance->index = -1;
         free(instance->filepath);
         instance->filepath = 0;
         free(instance->decoder);
         instance->decoder = 0;
-        
-        ma_decoder_uninit(instance->decoder);
 
         soundMix[index] = soundMix[soundMixIndex];
         soundMix[index].index = index;
@@ -157,11 +165,19 @@ void SetMasterVolume(float value)
     ma_device_set_master_volume(&soundDevice, value);
 }
 
-SoundInstance* SoundPlay(const char* filepath, f32 volume, bool loop = false)
+SoundInstance* SoundPlay(const char* filepath, f32 volume, bool loop = false, bool unique = false)
 {
     if(soundMixIndex >= SOUND_MIX_SIZE) {
         Log("Too many sounds being played at the same time.\n");
         return NULL;
+    }
+    
+    for(i32 i = 0; i <= soundMixIndex; ++i) {
+        if(soundMix[i].playing && unique) {
+            if(strcmp(soundMix[i].filepath, filepath) == 0) {
+                return NULL;
+            }
+        }
     }
 
     ma_decoder* decoder = (ma_decoder*)malloc(sizeof(ma_decoder));
@@ -176,8 +192,9 @@ SoundInstance* SoundPlay(const char* filepath, f32 volume, bool loop = false)
     instance->index = soundMixIndex;
     instance->decoder = decoder;
 
-    instance->filepath = (char*)malloc(strlen(filepath));
-    strcpy(instance->filepath, filepath);
+    instance->filepath = (char*)malloc(strlen(filepath) + 1);
+    strncpy(instance->filepath, filepath, strlen(filepath));
+    instance->filepath[strlen(filepath)] = '\0';
 
     instance->volumeModifier = volume;
     instance->loop = loop;

@@ -5,6 +5,8 @@
 
 #include <string>
 
+#include "OptickDummy.h"
+
 #if GAME_RELEASE
 #define Assert(Expression) 
 #define AssertMessage(Expression, Message) 
