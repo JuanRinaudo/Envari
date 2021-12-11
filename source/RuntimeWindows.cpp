@@ -71,9 +71,11 @@ i32 CALLBACK WinMain(
     stringAllocator = PushStruct(&permanentState->arena, StringAllocator);
     InitializeStringAllocator(stringAllocator);
 
-    InitEngine();
+    SetupEnviroment();
 
     DeserializeDataTable(&permanentState->arena, &initialConfig, DATA_WINDOWSCONFIG_ENVT);
+
+    InitEngine();
 
     if(!InitSDL()) {
         return -1;
@@ -121,8 +123,10 @@ i32 CALLBACK WinMain(
 
         CommonBegin2D();
 
+#ifdef LUA_ENABLED
         ScriptingUpdate();
-        GameUpdate();
+#endif
+        EngineUpdate();
 
         RenderPass();
 

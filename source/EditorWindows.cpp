@@ -87,9 +87,11 @@ i32 CALLBACK WinMain(
     stringAllocator = PushStruct(&permanentState->arena, StringAllocator);
     InitializeStringAllocator(stringAllocator);
 
-    InitEngine();
+    SetupEnviroment();
 
     DeserializeDataTable(&permanentState->arena, &initialConfig, DATA_EDITORWINDOWSCONFIG_ENVT);
+
+    InitEngine();
 
     if(!InitSDL()) {
         return -1;
@@ -145,7 +147,7 @@ i32 CALLBACK WinMain(
         TimeTick();
 
         ImGuiIO imguiIO = ImGui::GetIO();
-        mouseOverWindow = editorPreview.open && editorPreview.cursorInsideWindow;
+        mouseOverWindow = editorPreview.open && editorPreview.focused && editorPreview.cursorInsideWindow;
         mouseEnabled = !imguiIO.WantCaptureMouse && !editorPreview.open;
         keyboardEnabled = !imguiIO.WantCaptureKeyboard;
 
@@ -229,7 +231,7 @@ i32 CALLBACK WinMain(
 #endif
             QueryPerformanceCounter(&luaPerformanceEnd);
 
-            GameUpdate();
+            EngineUpdate();
 
             RenderPass();
 
@@ -274,8 +276,8 @@ i32 CALLBACK WinMain(
         LARGE_INTEGER performanceEnd;
         QueryPerformanceCounter(&performanceEnd);
         i64 updateCyclesEnd = __rdtsc();
-        editorPerformanceDebugger.updateTime = performanceEnd.QuadPart - performanceStart.QuadPart;
-        editorPerformanceDebugger.luaUpdateTime = luaPerformanceEnd.QuadPart - luaPerformanceStart.QuadPart;
+        editorPerformanceDebugger.updateTime = (performanceEnd.QuadPart - performanceStart.QuadPart) / 10000.0f;
+        editorPerformanceDebugger.luaUpdateTime = (luaPerformanceEnd.QuadPart - luaPerformanceStart.QuadPart) / 10000.0f;
         editorPerformanceDebugger.updateCycles = updateCyclesEnd - updateCyclesStart;
         editorPerformanceDebugger.luaUpdateCycles = luaUpdateCyclesEnd - luaUpdateCyclesStart;
 

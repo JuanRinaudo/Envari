@@ -83,6 +83,15 @@ enum RecordingFormat
     RecordingFormat_HDR,
 };
 
+enum AssetType
+{
+    AssetType_NONE,
+    AssetType_UNKNOWN,
+    AssetType_IMAGE,
+    AssetType_TEXT,
+    AssetType_SOUND,
+};
+
 enum TimeFormat
 {
     TimeFormat_FRAMES,
@@ -96,13 +105,26 @@ struct AssetsWindow
     filesystem::path currentPath;
 };
 
+struct AssetsViewer
+{
+    bool open;
+    AssetType lastAssetType;
+    AssetType assetType;
+    filesystem::path targetAssetPath;
+    void* targetAsset;
+};
+
 struct PerformanceDebuggerWindow
 {
     bool open;
 
-    u64 updateTime;
+    f32 updateTime;
+    f32 updateMinTime;
+    f32 updateMaxTime;
     u64 updateCycles;
-    u64 luaUpdateTime;
+    f32 luaUpdateTime;
+    f32 luaUpdateMinTime;
+    f32 luaUpdateMaxTime;
     u64 luaUpdateCycles;
 };
 

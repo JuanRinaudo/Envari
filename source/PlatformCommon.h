@@ -23,6 +23,9 @@ static void CheckInput() {
         else if(keyState == KEY_RELEASED) { gameState->input.keyState[key] = KEY_UP; }
     }
 
+    if(gameState->input.anyReasonableKeyState == KEY_PRESSED) { gameState->input.anyReasonableKeyState = KEY_DOWN; }
+    else if(gameState->input.anyReasonableKeyState == KEY_RELEASED) { gameState->input.anyReasonableKeyState = KEY_UP; }
+    
     if(gameState->input.anyKeyState == KEY_PRESSED) { gameState->input.anyKeyState = KEY_DOWN; }
     else if(gameState->input.anyKeyState == KEY_RELEASED) { gameState->input.anyKeyState = KEY_UP; }
 
@@ -64,8 +67,8 @@ static void TryCreateDataFolderStructure(std::string workingDirectoryPath)
     CreateDirectoryIfNotExists(videoPath.c_str());
 }
 
-static i32 InitEngine()
-{
+static i32 SetupEnviroment()
+{    
 #if GAME_RELEASE
     std::string workingDirectory = filesystem::current_path().string() + "/data";
     TryCreateDataFolderStructure(workingDirectory);
@@ -74,10 +77,15 @@ static i32 InitEngine()
     TryCreateDataFolderStructure(filesystem::current_path().string());
 #endif
 
-#ifndef PLATFORM_WASM
     CreateDirectoryIfNotExists("temp");
     CreateDirectoryIfNotExists("save");
-#endif
+
+    return 1;
+}
+
+static i32 InitEngine()
+{
+    gameState->sound.bindingsEnabled = TableGetBool(&initialConfig, "soundBindingsEnabled", true);
 
     return 1;
 }
@@ -271,6 +279,20 @@ static i32 TimeTick()
     return 1;
 }
 
+void EngineUpdate()
+{
+    if(gameState->sound.bindingsEnabled) {
+        if(gameState->input.keyState[SDL_SCANCODE_KP_MINUS] == KEY_PRESSED) {
+            masterVolumeModifier = Clamp(masterVolumeModifier - 0.1f, 0.0f, 1.0f);
+        }
+        if(gameState->input.keyState[SDL_SCANCODE_KP_PLUS] == KEY_PRESSED) {
+            masterVolumeModifier = Clamp(masterVolumeModifier + 0.1f, 0.0f, 1.0f);
+        }
+    }
+
+    GameUpdate();
+}
+
 void RuntimeQuit()
 {
     gameState->game.running = false;
@@ -352,6 +374,10 @@ static i32 ProcessEvent(const SDL_Event* event)
         case SDL_KEYDOWN: {
             if(keyboardEnabled && gameState->input.keyState[event->key.keysym.scancode] <= KEY_RELEASED) {
                 gameState->input.keyState[event->key.keysym.scancode] = KEY_PRESSED;
+                if((event->key.keysym.scancode >= SDL_SCANCODE_A && event->key.keysym.scancode <= SDL_SCANCODE_F12) ||
+                   (event->key.keysym.scancode >= SDL_SCANCODE_LCTRL && event->key.keysym.scancode <= SDL_SCANCODE_RGUI)) {
+                    gameState->input.anyReasonableKeyState = KEY_PRESSED;
+                }
                 gameState->input.anyKeyState = KEY_PRESSED;
             }
             break;
@@ -359,6 +385,10 @@ static i32 ProcessEvent(const SDL_Event* event)
         case SDL_KEYUP: {
             if(keyboardEnabled && gameState->input.keyState[event->key.keysym.scancode] >= KEY_PRESSED) {
                 gameState->input.keyState[event->key.keysym.scancode] = KEY_RELEASED;
+                if((event->key.keysym.scancode >= SDL_SCANCODE_A && event->key.keysym.scancode <= SDL_SCANCODE_SLASH) ||
+                   (event->key.keysym.scancode >= SDL_SCANCODE_LCTRL && event->key.keysym.scancode <= SDL_SCANCODE_RGUI)) {
+                    gameState->input.anyReasonableKeyState = KEY_RELEASED;
+                }
                 gameState->input.anyKeyState = KEY_RELEASED;
             }
             break;

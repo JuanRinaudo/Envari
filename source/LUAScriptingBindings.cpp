@@ -68,7 +68,7 @@ extern void SaveData();
 extern void LoadScriptFile(const char* filePath);
 extern void LoadLUALibrary(sol::lib library);
 
-extern void SetCustomCursor(GLTexture texture);
+extern void SetCustomCursor(TextureAsset texture);
 extern void DisableCustomCursor();
 
 extern v2 V2(f32 x, f32 y);
@@ -139,7 +139,7 @@ extern void LoadLUAScene(const char* luaFilepath);
 extern u32 defaultFontID;
 
 extern void BindTextureID(u32 textureID, f32 width, f32 height);
-extern GLTexture LoadTextureFile(const char *texturePath, bool permanentAsset);
+extern TextureAsset LoadTextureFile(const char *texturePath, bool permanentAsset);
 extern v2 TextureSize(const char* texturePath);
 extern v2 TextureSize(u32 textureID);
 extern u32 GenerateFont(const char *filepath, f32 fontSize, u32 width, u32 height);
@@ -147,7 +147,7 @@ extern u32 GenerateBitmapFontStrip(const char *filepath, const char* glyphs, u32
 extern u32 CompileProgram(const char *vertexShaderSource, const char *fragmentShaderSource);
 extern u32 CompileProgramPlatform(const char *vertexShaderPlatform, const char *fragmentShaderPlatform);
 
-extern SoundInstance* SoundPlay(const char* filepath, f32 volume, bool loop, bool unique);
+extern SoundInstance* PlaySound(const char* filepath, f32 volume, bool loop, bool unique);
 extern void SoundStop(SoundInstance* instance);
 extern void SetMasterVolume(float value);
 extern float dbToVolume(float db);
@@ -324,17 +324,17 @@ static std::tuple<f32, f32> TextureSizeBinding(const char* texturePath)
 //     return std::tuple<f32, f32>(size.x, size.y);
 // }
 
-static i32 GetTextureID(GLTexture texture)
+static i32 GetTextureID(TextureAsset texture)
 {
     return texture.textureID;
 }
 
-static GLTexture LoadSceneTextureFile(const char *texturePath)
+static TextureAsset LoadSceneTextureFile(const char *texturePath)
 {
     return LoadTextureFile(texturePath, false);
 }
 
-static GLTexture LoadPermanentTexture(const char *texturePath)
+static TextureAsset LoadPermanentTexture(const char *texturePath)
 {
     return LoadTextureFile(texturePath, true);
 }
@@ -399,7 +399,7 @@ LUAEditorSaveGetSet(V2, v2)
 
 // #NOTE(Juan): Sound
 static SoundInstance* SoundPlaySimple(const char* filepath, f32 volume, bool unique) {
-    return SoundPlay(filepath, volume, false, unique);
+    return PlaySound(filepath, volume, false, unique);
 }
 
 #ifdef PLATFORM_EDITOR
@@ -520,21 +520,37 @@ void ScriptingBindings()
     lua["camera"] = &gameState->camera;
 
     sol::usertype<Render> render_usertype = lua.new_usertype<Render>("render");
+    render_usertype["vsync"] = &Render::vsync;
+    render_usertype["framebufferEnabled"] = &Render::framebufferEnabled;
+    render_usertype["frameBuffer"] = &Render::frameBuffer;
+    render_usertype["renderBuffer"] = &Render::renderBuffer;
+    render_usertype["depthrenderbuffer"] = &Render::depthrenderbuffer;
     render_usertype["refreshRate"] = &Render::refreshRate;
     render_usertype["size"] = &Render::size;
     render_usertype["bufferSize"] = &Render::bufferSize;
+    render_usertype["renderScale"] = &Render::renderScale;
+    render_usertype["scaledBufferSize"] = &Render::scaledBufferSize;
+    render_usertype["windowPosition"] = &Render::windowPosition;
     render_usertype["windowSize"] = &Render::windowSize;
     render_usertype["defaultFontID"] = &Render::defaultFontID;
     render_usertype["fitStyle"] = &Render::framebufferAdjustStyle;
     lua["render"] = &gameState->render;
 
     sol::usertype<Time> time_usertype = lua.new_usertype<Time>("time");
+    time_usertype["realLastFrameGameTime"] = &Time::realLastFrameGameTime;
+    time_usertype["lastFrameGameTime"] = &Time::lastFrameGameTime;
     time_usertype["gameTime"] = &Time::gameTime;
     time_usertype["deltaTime"] = &Time::deltaTime;
-    time_usertype["lastFrameGameTime"] = &Time::lastFrameGameTime;
     time_usertype["gameFrames"] = &Time::gameFrames;
     time_usertype["frames"] = &Time::frames;
+    time_usertype["fpsLimit"] = &Time::fpsLimit;
+    time_usertype["fpsFixed"] = &Time::fpsFixed;
+    time_usertype["fpsDelta"] = &Time::fpsDelta;
     lua["time"] = &gameState->time;
+
+    sol::usertype<Sound> sound_usertype = lua.new_usertype<Sound>("sound");
+    sound_usertype["bindingsEnabled"] = &Sound::bindingsEnabled;
+    lua["sound"] = &gameState->sound;
         
     sol::usertype<Input> input_usertype = lua.new_usertype<Input>("input");
     input_usertype["mouseTextureID"] = &Input::mouseTextureID;
@@ -545,6 +561,7 @@ void ScriptingBindings()
     input_usertype["mouseWheel"] = &Input::mouseWheel;
     input_usertype["textInputBuffer"] = sol::property([](Input &input) { return input.textInputBuffer->value; }, [](Input &input, char* value) { return *input.textInputBuffer = value; });
     input_usertype["keyState"] = sol::property([](Input &input) { return &input.keyState; });
+    input_usertype["anyReasonableKeyState"] = &Input::anyReasonableKeyState;
     input_usertype["anyKeyState"] = &Input::anyKeyState;
     input_usertype["mouseState"] = sol::property([](Input &input) { return &input.mouseState; });
     input_usertype["anyMouseState"] = &Input::anyMouseState;
@@ -628,12 +645,11 @@ void ScriptingBindings()
     lua["DrawDisableOverrideVertices"] = DrawDisableOverrideVertices;
     lua["DrawOverrideIndices"] = DrawOverrideIndices;
     lua["DrawDisableOverrideIndices"] = DrawDisableOverrideIndices;
+    lua["ColorHexRGBA"] = ColorHexRGBA;
+    lua["ColorHexRGB"] = ColorHexRGB;
     
     lua["GetSceneFilepath"] = GetSceneFilepath;
     lua["LoadLUAScene"] = LoadLUAScene;
-
-    lua["ColorHexRGBA"] = ColorHexRGBA;
-    lua["ColorHexRGB"] = ColorHexRGB;
     
     lua["ImageRenderFlag_Fit"] = ImageRenderFlag_Fit;
     lua["ImageRenderFlag_KeepRatioX"] = ImageRenderFlag_KeepRatioX;
@@ -653,11 +669,11 @@ void ScriptingBindings()
     lua["Perlin2DOctaves"] = Perlin2DOctaves;
 
     // #NOTE (Juan): GLRender
-    sol::usertype<GLTexture> gltexture_usertype = lua.new_usertype<GLTexture>("gltexture");
-    gltexture_usertype["textureID"] = &GLTexture::textureID;
-    gltexture_usertype["width"] = &GLTexture::width;
-    gltexture_usertype["height"] = &GLTexture::height;
-    gltexture_usertype["channels"] = &GLTexture::channels;
+    sol::usertype<TextureAsset> gltexture_usertype = lua.new_usertype<TextureAsset>("gltexture");
+    gltexture_usertype["textureID"] = &TextureAsset::textureID;
+    gltexture_usertype["width"] = &TextureAsset::width;
+    gltexture_usertype["height"] = &TextureAsset::height;
+    gltexture_usertype["channels"] = &TextureAsset::channels;
 
     lua["LoadTextureID"] = BindTextureID;
     lua["LoadSceneTexture"] = LoadSceneTextureFile;
@@ -758,8 +774,8 @@ void ScriptingBindings()
 #endif
 
     // #NOTE (Juan): Sound
-    lua["SoundPlay"] = SoundPlaySimple;
-    lua["SoundPlayLoop"] = SoundPlay;
+    lua["PlaySound"] = SoundPlaySimple;
+    lua["SoundPlayLoop"] = PlaySound;
     lua["SoundStop"] = SoundStop;
     lua["SetMasterVolume"] = SetMasterVolume;
     lua["dbToVolume"] = dbToVolume;
@@ -881,6 +897,18 @@ void ScriptingMathBindings()
     v4_usertype["b"] = sol::property([](v4 &v) { return v.z; }, [](v4 &v, f32 f) { v.z = f; });
     v4_usertype["a"] = sol::property([](v4 &v) { return v.w; }, [](v4 &v, f32 f) { v.w = f; });
     v4_usertype["e"] = sol::property([](v4 &v) { return &v.e; });
+
+    sol::usertype<m33> m33_usertype = lua.new_usertype<m44>("m33");
+    m33_usertype["_00"] = sol::property([](m33 &m) { return m._00; }, [](m33 &m, f32 f) { m._00 = f; });
+    m33_usertype["_10"] = sol::property([](m33 &m) { return m._10; }, [](m33 &m, f32 f) { m._10 = f; });
+    m33_usertype["_20"] = sol::property([](m33 &m) { return m._20; }, [](m33 &m, f32 f) { m._20 = f; });
+    m33_usertype["_01"] = sol::property([](m33 &m) { return m._01; }, [](m33 &m, f32 f) { m._01 = f; });
+    m33_usertype["_11"] = sol::property([](m33 &m) { return m._11; }, [](m33 &m, f32 f) { m._11 = f; });
+    m33_usertype["_21"] = sol::property([](m33 &m) { return m._21; }, [](m33 &m, f32 f) { m._21 = f; });
+    m33_usertype["_02"] = sol::property([](m33 &m) { return m._02; }, [](m33 &m, f32 f) { m._02 = f; });
+    m33_usertype["_12"] = sol::property([](m33 &m) { return m._12; }, [](m33 &m, f32 f) { m._12 = f; });
+    m33_usertype["_22"] = sol::property([](m33 &m) { return m._22; }, [](m33 &m, f32 f) { m._22 = f; });
+    m33_usertype["e"] = sol::property([](m33 &m) { return &m.e; });
 
     sol::usertype<m44> m44_usertype = lua.new_usertype<m44>("m44");
     m44_usertype["_00"] = sol::property([](m44 &m) { return m._00; }, [](m44 &m, f32 f) { m._00 = f; });

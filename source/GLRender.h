@@ -49,7 +49,7 @@ u32 borderLocation;
 
 u32 timeLocation;
 
-static GLTextureCache* textureCache = NULL;
+static TextureAssetCache* textureCache = NULL;
 
 static GLTextureAtlasReference* atlasCache = NULL;
 
@@ -163,10 +163,10 @@ void BindTextureID(u32 textureID, f32 width, f32 height)
     glUniform2f(textureSizeLocation, width, height);
 }
 
-GLTexture LoadTextureFile(const char *texturePath, bool permanentAsset = false)
+TextureAsset LoadTextureFile(const char *texturePath, bool permanentAsset = false)
 {
     i32 index = (i32)shgeti(textureCache, texturePath);
-    GLTexture texture;
+    TextureAsset texture;
     if(index > -1) {
         texture = shget(textureCache, texturePath);
     } else {
@@ -194,7 +194,7 @@ v2 TextureSize(const char* texturePath)
 {
     i32 index = (i32)shgeti(textureCache, texturePath);
     if(index > -1) {
-        GLTexture texture = shget(textureCache, texturePath);
+        TextureAsset texture = shget(textureCache, texturePath);
         return V2((f32)texture.width, (f32)texture.height);
     }
     else {
@@ -219,7 +219,7 @@ v2 TextureSize(const char* texturePath)
 void UnloadTextureFile(const char *texturePath)
 {
     i32 index = (i32)shgeti(textureCache, texturePath);
-    GLTexture texture;
+    TextureAsset texture;
     if(index > -1) {
         texture = shget(textureCache, texturePath);
         glDeleteTextures(1, &texture.textureID);
@@ -427,8 +427,7 @@ void RecordFrame(const char *filepath, i32 textureID, u32 width, u32 height)
     u8* data = (u8*)malloc(width * height * 3);
     glBindTexture(GL_TEXTURE_2D, textureID);
     glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
-    char* savePath = (char*)malloc(strlen(filepath));
-    strcpy(savePath, filepath);
+    char* savePath = Strdup(filepath);
     std::thread saveImage(WriteFrame, savePath, editorRenderDebugger.recordingFormat, width, height, 3, editorRenderDebugger.jpgQuality, data);
     saveImage.detach();
 }
@@ -437,7 +436,7 @@ void RecordFrame(const char *filepath, i32 textureID, u32 width, u32 height)
 u32 GenerateBitmapFontStrip(const char *filepath, const char* glyphs, u32 glyphWidth, u32 glyphHeight)
 {
     size_t data_size = 0;
-    GLTexture texture = LoadTextureFile(filepath);
+    TextureAsset texture = LoadTextureFile(filepath);
 
     size_t glyphCount = strlen(glyphs);
 
@@ -1127,7 +1126,7 @@ static void RenderImage9Slice_(RenderImage9Slice* image9Slice)
 {
     UseProgram(textured9SliceProgram);
 
-    GLTexture texture = LoadTextureFile(image9Slice->filepath);
+    TextureAsset texture = LoadTextureFile(image9Slice->filepath);
     SetupTextureParameters(GL_TEXTURE_2D);
 
     v2 size = V2((f32)(image9Slice->endOrigin.x - image9Slice->origin.x), (f32)(image9Slice->endOrigin.y - image9Slice->origin.y));
@@ -1492,7 +1491,7 @@ static void RenderPass()
                 //     renderState->generateMipMaps = false;
                 // }
 
-                GLTexture texture = LoadTextureFile(image->filepath);
+                TextureAsset texture = LoadTextureFile(image->filepath);
                 SetupTextureParameters(GL_TEXTURE_2D);
 
                 renderState->generateMipMaps = generateMipMapsTemp;
@@ -1542,7 +1541,7 @@ static void RenderPass()
 
                 UseProgram(texturedProgram);
 
-                GLTexture texture = LoadTextureFile(imageUV->filepath);
+                TextureAsset texture = LoadTextureFile(imageUV->filepath);
                 SetupTextureParameters(GL_TEXTURE_2D);
 
                 v2 origin = V2(-imageUV->origin.x * texture.width, -imageUV->origin.y * texture.height);
@@ -1583,7 +1582,7 @@ static void RenderPass()
                 TextureAtlas textureAtlas = LoadAtlas(atlas->atlasName);
                 rectangle2 spriteRect = shget(textureAtlas.sprites, atlas->spriteKey);
 
-                GLTexture texture = LoadTextureFile(atlas->filepath);
+                TextureAsset texture = LoadTextureFile(atlas->filepath);
                 SetupTextureParameters(GL_TEXTURE_2D);
 
                 v2 origin = V2(-atlas->origin.x * texture.width, -atlas->origin.y * texture.height);

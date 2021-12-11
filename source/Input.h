@@ -1,7 +1,7 @@
 #ifndef INPUT_H
 #define INPUT_H
 
-void SetCustomCursor(GLTexture texture)
+void SetCustomCursor(TextureAsset texture)
 {
     gameState->input.mouseTextureID = texture.textureID;
     gameState->input.mouseTextureSize = V2((f32)texture.width, (f32)texture.height);
