@@ -148,7 +148,7 @@ extern u32 CompileProgram(const char *vertexShaderSource, const char *fragmentSh
 extern u32 CompileProgramPlatform(const char *vertexShaderPlatform, const char *fragmentShaderPlatform);
 
 extern SoundInstance* PlaySound(const char* filepath, f32 volume, bool loop, bool unique);
-extern void SoundStop(SoundInstance* instance);
+extern void StopSound(SoundInstance* instance);
 extern void SetMasterVolume(float value);
 extern float dbToVolume(float db);
 extern float volumeToDB(float volume);
@@ -175,6 +175,7 @@ extern m44 M44(
     f32 _10, f32 _11, f32 _12, f32 _13,
     f32 _20, f32 _21, f32 _22, f32 _23,
     f32 _30, f32 _31, f32 _32, f32 _33);
+extern m44 M44(m33 a);
 extern m44 IdM44();
 
 extern f32 Lerp(f32 a, f32 b, f32 t);
@@ -323,11 +324,6 @@ static std::tuple<f32, f32> TextureSizeBinding(const char* texturePath)
 //     v2 size = TextureSize(textureID);
 //     return std::tuple<f32, f32>(size.x, size.y);
 // }
-
-static i32 GetTextureID(TextureAsset texture)
-{
-    return texture.textureID;
-}
 
 static TextureAsset LoadSceneTextureFile(const char *texturePath)
 {
@@ -664,12 +660,13 @@ void ScriptingBindings()
 
     lua["PerspectiveProjection"] = PerspectiveProjection;
     lua["OrtographicProjection"] = sol::resolve<m44(f32, f32, f32, f32)>(OrtographicProjection);
+    
     lua["Perlin2D"] = sol::resolve<f32(f32, f32)>(Perlin2D);
     lua["Perlin2DInt"] = sol::resolve<f32(i32, i32)>(Perlin2D);
     lua["Perlin2DOctaves"] = Perlin2DOctaves;
 
     // #NOTE (Juan): GLRender
-    sol::usertype<TextureAsset> gltexture_usertype = lua.new_usertype<TextureAsset>("gltexture");
+    sol::usertype<TextureAsset> gltexture_usertype = lua.new_usertype<TextureAsset>("textureasset");
     gltexture_usertype["textureID"] = &TextureAsset::textureID;
     gltexture_usertype["width"] = &TextureAsset::width;
     gltexture_usertype["height"] = &TextureAsset::height;
@@ -680,7 +677,6 @@ void ScriptingBindings()
     lua["LoadPermanentTexture"] = LoadPermanentTexture;
     lua["TextureSize"] = sol::resolve<std::tuple<f32, f32>(const char*)>(TextureSizeBinding);
     // lua["TextureSizeID"] = sol::resolve<std::tuple<f32, f32>(u32)>(TextureSizeBinding);
-    lua["GetTextureID"] = GetTextureID;
     lua["GenerateFont"] = sol::resolve<u32(const char*, f32, u32, u32)>(GenerateFont);
     lua["DEFAULT_FONT_ATLAS_WIDTH"] = DEFAULT_FONT_ATLAS_WIDTH;
     lua["DEFAULT_FONT_ATLAS_HEIGHT"] = DEFAULT_FONT_ATLAS_HEIGHT;
@@ -775,8 +771,8 @@ void ScriptingBindings()
 
     // #NOTE (Juan): Sound
     lua["PlaySound"] = SoundPlaySimple;
-    lua["SoundPlayLoop"] = PlaySound;
-    lua["SoundStop"] = SoundStop;
+    lua["PlaySoundLoop"] = PlaySound;
+    lua["StopSound"] = StopSound;
     lua["SetMasterVolume"] = SetMasterVolume;
     lua["dbToVolume"] = dbToVolume;
     lua["volumeToDB"] = volumeToDB;
@@ -898,7 +894,7 @@ void ScriptingMathBindings()
     v4_usertype["a"] = sol::property([](v4 &v) { return v.w; }, [](v4 &v, f32 f) { v.w = f; });
     v4_usertype["e"] = sol::property([](v4 &v) { return &v.e; });
 
-    sol::usertype<m33> m33_usertype = lua.new_usertype<m44>("m33");
+    sol::usertype<m33> m33_usertype = lua.new_usertype<m33>("m33");
     m33_usertype["_00"] = sol::property([](m33 &m) { return m._00; }, [](m33 &m, f32 f) { m._00 = f; });
     m33_usertype["_10"] = sol::property([](m33 &m) { return m._10; }, [](m33 &m, f32 f) { m._10 = f; });
     m33_usertype["_20"] = sol::property([](m33 &m) { return m._20; }, [](m33 &m, f32 f) { m._20 = f; });
@@ -951,6 +947,7 @@ void ScriptingMathBindings()
     lua["IdM22"] = IdM22;
     lua["M33"] = M33;
     lua["IdM33"] = IdM33;
+    lua["M44fromM33"] = sol::resolve<m44(m33)>(M44);
     lua["M44"] = sol::resolve<m44(f32, f32, f32, f32, f32, f32, f32, f32, f32, f32, f32, f32, f32, f32, f32, f32)>(M44);
     lua["IdM44"] = IdM44;
 

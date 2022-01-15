@@ -35,7 +35,7 @@ void CleanSoundCache()
     shfree(soundDecoderCache);
 }
 
-void SoundStop(SoundInstance* sound)
+void StopSound(SoundInstance* sound)
 {    
     SoundInstance* instance = &soundMix[sound->index];
     if(instance->decoder != 0) {
@@ -166,7 +166,7 @@ static void data_callback(ma_device* pDevice, void* pOutput, const void* pInput,
                 ma_decoder_seek_to_pcm_frame(soundMix[i].decoder, 0);
             }
             else {
-                SoundStop(&soundMix[i]);
+                StopSound(&soundMix[i]);
             }
         }
     }
