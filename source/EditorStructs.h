@@ -210,6 +210,7 @@ struct LUADebuggerWindow
     bool debugging;
     char inputBuffer[CONSOLE_INPUT_BUFFER_COUNT];
     char currentFileName[LUA_FILENAME_MAX];
+    i32 currentFileIndex;
     char* currentFileBuffer;
     size_t currentFileBufferSize;
 

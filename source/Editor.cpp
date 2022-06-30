@@ -489,7 +489,7 @@ static void EditorDraw(ConsoleWindow* console)
 
     if (ImGui::BeginMenuBar())
     {
-        if (ImGui::BeginMenu("File"))
+        if (ImGui::BeginMenu("Main"))
         {
             if (!gameState->game.updateRunning && ImGui::MenuItem("Play")) { gameState->game.updateRunning = true; }
             if (gameState->game.updateRunning && ImGui::MenuItem("Pause")) { gameState->game.updateRunning = false; }
@@ -502,6 +502,12 @@ static void EditorDraw(ConsoleWindow* console)
                 gameState->time.gameFrames = 0;
 
                 GameInit();
+
+#if LUA_ENABLED
+                LoadScriptString(editorLUADebugger.currentFileBuffer);
+                // #TODO (Juan): This is not the best solution because we are running Load twice, but we can fix it later
+                RunLUAProtectedFunction(Load);
+#endif
             }
             if (ImGui::BeginMenu("Build")) {
                 for(i32 platformIndex = 0; platformIndex < ArraySize(platformNames); platformIndex++) {
@@ -1614,104 +1620,110 @@ static void EditorDraw(ShaderDebuggerWindow* debugger)
 
     WatchedProgram watched = watchedPrograms[debugger->programIndex];
     u32 programID = watched.shaderProgram;
-
-    if(debugger->programIDChanged) {
-        debugger->targetID = -1;
-        debugger->vertexShaderID = -1;
-        debugger->fragmentShaderID = -1;
-
-        i32 shaderCount = 0;
-        u32 shaders[2];
-        glGetAttachedShaders(programID, 2, &shaderCount, shaders);
-
-        ImGui::Text("Shaders:");
-        for(int i = 0; i < shaderCount; ++i) {
-            ImGui::Separator();
-
-            i32 shaderType = 0;
-            glGetShaderiv(shaders[i], GL_SHADER_TYPE, &shaderType);
-            
-            if(shaderType == GL_VERTEX_SHADER) {
-                debugger->vertexShaderID = shaders[i];
-                debugger->targetID = debugger->vertexShaderID;
-            }
-            else {
-                debugger->fragmentShaderID = shaders[i];
-                debugger->targetID = debugger->fragmentShaderID;
-            }
-        }
-        
-        LoadTargetIDShader();
-    }
     
     bool validProgram = GetProgramValid(programID);
 
-    if(validProgram && debugger->currentFileBuffer != 0) {
-        ImVec2 contentMin = ImGui::GetWindowContentRegionMin();
-        ImVec2 contentMax = ImGui::GetWindowContentRegionMax();
-        float contentHeight = contentMax.y - contentMin.y - 76;
+    if(validProgram) {
+        if(debugger->programIDChanged) {
+            debugger->targetID = -1;
+            debugger->vertexShaderID = -1;
+            debugger->fragmentShaderID = -1;
 
-        ImGui::Text("Shaders:");
-        if(debugger->vertexShaderID >= 0) {
-            ImGui::SameLine();
-            if(ImGui::SmallButton("Vertex")) {
-                debugger->targetID = debugger->vertexShaderID;
-                LoadTargetIDShader();
+            i32 shaderCount = 0;
+            u32 shaders[2];
+            glGetAttachedShaders(programID, 2, &shaderCount, shaders);
+
+            ImGui::Text("Shaders:");
+            for(int i = 0; i < shaderCount; ++i) {
+                ImGui::Separator();
+
+                i32 shaderType = 0;
+                glGetShaderiv(shaders[i], GL_SHADER_TYPE, &shaderType);
+                
+                if(shaderType == GL_VERTEX_SHADER) {
+                    debugger->vertexShaderID = shaders[i];
+                    debugger->targetID = debugger->vertexShaderID;
+                }
+                else {
+                    debugger->fragmentShaderID = shaders[i];
+                    debugger->targetID = debugger->fragmentShaderID;
+                }
             }
-        }
-        if(debugger->fragmentShaderID >= 0) {
-            ImGui::SameLine();
-            if(ImGui::SmallButton("Fragment")) {
-                debugger->targetID = debugger->fragmentShaderID;
-                LoadTargetIDShader();
-            }
-        }
-
-        if(debugger->targetID == debugger->vertexShaderID) {
-            ImGui::Text("File: %s", watched.vertexFilepath);
-        }
-        if(debugger->targetID == debugger->fragmentShaderID) {
-            ImGui::Text("File: %s", watched.fragmentFilepath);
-        }
-
-        ImGui::InputTextMultiline("##source", debugger->currentFileBuffer, debugger->currentFileBufferSize, ImVec2(-FLT_MIN, contentHeight), ImGuiInputTextFlags_AllowTabInput|ImGuiInputTextFlags_CallbackResize, &ShaderSourceEditCallback);    
-        
-        ImGuiIO imguiIO = ImGui::GetIO();
-        if(ImGui::Button("Load") || (focused && imguiIO.KeyCtrl && ImGui::IsKeyPressed(SDL_SCANCODE_S))) {
-            SOURCE_TYPE source = static_cast<SOURCE_TYPE>(debugger->currentFileBuffer);
-
-            i32 size = (i32)debugger->currentFileBufferSize;
-            glShaderSource(debugger->targetID, 1, &source, &size);
-            glCompileShader(debugger->targetID);
             
-            i32 success;
-            char infoLog[INFO_LOG_BUFFER_SIZE];
-            glGetShaderiv(debugger->targetID, GL_COMPILE_STATUS, &success);
+            LoadTargetIDShader();
+        }
 
-            if (!success)
-            {
-                glGetShaderInfoLog(debugger->targetID, INFO_LOG_BUFFER_SIZE, NULL, infoLog);
-                // if(shaderType == GL_VERTEX_SHADER) {
-                //     LogError("ERROR::VERTEX::COMPILATION_FAILED %s\n", filepath);
-                // }
-                // else if(shaderType == GL_FRAGMENT_SHADER) {
-                //     LogError("ERROR::FRAGMENT::COMPILATION_FAILED %s\n", filepath);
-                // }
-                LogError("ERROR::COMPILATION_FAILED");
-                LogError(infoLog);
+        if(debugger->currentFileBuffer != 0) {
+            ImVec2 contentMin = ImGui::GetWindowContentRegionMin();
+            ImVec2 contentMax = ImGui::GetWindowContentRegionMax();
+            float contentHeight = contentMax.y - contentMin.y - 76;
+
+            ImGui::Text("Shaders:");
+            if(debugger->vertexShaderID >= 0) {
+                ImGui::SameLine();
+                if(ImGui::SmallButton("Vertex")) {
+                    debugger->targetID = debugger->vertexShaderID;
+                    LoadTargetIDShader();
+                }
+            }
+            if(debugger->fragmentShaderID >= 0) {
+                ImGui::SameLine();
+                if(ImGui::SmallButton("Fragment")) {
+                    debugger->targetID = debugger->fragmentShaderID;
+                    LoadTargetIDShader();
+                }
             }
 
-            glLinkProgram(programID);
+            if(debugger->targetID == debugger->vertexShaderID) {
+                ImGui::Text("File: %s", watched.vertexFilepath);
+            }
+            if(debugger->targetID == debugger->fragmentShaderID) {
+                ImGui::Text("File: %s", watched.fragmentFilepath);
+            }
 
-            glGetProgramiv(programID, GL_LINK_STATUS, &success);
-            if (!success) {
-                glGetProgramInfoLog(programID, INFO_LOG_BUFFER_SIZE, NULL, infoLog);
-                LogError("ERROR::PROGRAM::LINK_FAILED");
-                LogError(infoLog);
+            ImGui::InputTextMultiline("##source", debugger->currentFileBuffer, debugger->currentFileBufferSize, ImVec2(-FLT_MIN, contentHeight), ImGuiInputTextFlags_AllowTabInput|ImGuiInputTextFlags_CallbackResize, &ShaderSourceEditCallback);    
+            
+            ImGuiIO imguiIO = ImGui::GetIO();
+            if(ImGui::Button("Reload") || (focused && imguiIO.KeyCtrl && ImGui::IsKeyPressed(SDL_SCANCODE_S))) {
+                SOURCE_TYPE source = static_cast<SOURCE_TYPE>(debugger->currentFileBuffer);
+
+                i32 size = (i32)debugger->currentFileBufferSize;
+                glShaderSource(debugger->targetID, 1, &source, &size);
+                glCompileShader(debugger->targetID);
+                
+                i32 success;
+                char infoLog[INFO_LOG_BUFFER_SIZE];
+                glGetShaderiv(debugger->targetID, GL_COMPILE_STATUS, &success);
+
+                if (!success)
+                {
+                    glGetShaderInfoLog(debugger->targetID, INFO_LOG_BUFFER_SIZE, NULL, infoLog);
+                    if(debugger->targetID == debugger->vertexShaderID) {
+                        LogError("ERROR::VERTEX::COMPILATION_FAILED %s\n", watched.vertexFilepath);
+                    }
+                    else if(debugger->targetID == debugger->fragmentShaderID) {
+                        LogError("ERROR::FRAGMENT::COMPILATION_FAILED %s\n", watched.fragmentFilepath);
+                    }
+                    LogError("ERROR::COMPILATION_FAILED");
+                    LogError(infoLog);
+                }
+
+                glLinkProgram(programID);
+
+                glGetProgramiv(programID, GL_LINK_STATUS, &success);
+                if (!success) {
+                    glGetProgramInfoLog(programID, INFO_LOG_BUFFER_SIZE, NULL, infoLog);
+                    LogError("ERROR::PROGRAM::LINK_FAILED");
+                    LogError(infoLog);
+                }
+
+#ifdef LUA_ENABLED
+                RunLUAProtectedFunction(EditorShaderReload);
+#endif
             }
         }
     } else {
-        ImGui::Text("Porgram ID is not valid");
+        ImGui::Text("Program ID is not valid");
     }
 
     debugger->programIDChanged = false;
@@ -1723,6 +1735,11 @@ static void EditorDraw(ShaderDebuggerWindow* debugger)
 static i32 LuaSourceEditCallback(ImGuiInputTextCallbackData* data)
 {
     switch (data->EventFlag) {
+        case ImGuiInputTextFlags_CallbackEdit: {
+            watchListEdited[editorLUADebugger.currentFileIndex] = true;
+
+            break;
+        }
         case ImGuiInputTextFlags_CallbackResize: {
             if(data->BufTextLen >= editorLUADebugger.currentFileBufferSize) {
                 u32 newBufferSize = data->BufTextLen * 2;
@@ -1895,24 +1912,33 @@ static void EditorDraw(LUADebuggerWindow* debugger)
             bool focused = ImGui::IsWindowFocused(ImGuiFocusedFlags_DockHierarchy);
 
             char selectedFilename[LUA_FILENAME_MAX];
+            i32 selectedFileIndex = debugger->currentFileIndex;
             if (ImGui::BeginTabBar("LoadedFiles", ImGuiTabBarFlags_Reorderable | ImGuiTabBarFlags_FittingPolicyScroll)) {
                 i32 nameIndex = 0;
                 i32 watchIndex = 0;
+                i32 fileIndex = 0;
                 char name[LUA_FILENAME_MAX];
                 while(watchIndex < watchListSize) {
                     if(watchList[watchIndex] == '@') {
+                        i32 nameSize = nameIndex;
+
                         name[nameIndex] = 0;
 
                         bool tabOpen = true;
+                        ImGui::PushID(fileIndex);
                         if (ImGui::BeginTabItem(name, &tabOpen, ImGuiTabItemFlags_NoCloseButton))
                         {
                             if(tabOpen) {
+                                selectedFileIndex = fileIndex;
                                 strcpy(selectedFilename, name);
+                                selectedFilename[nameSize] = 0;
                             }
                             ImGui::EndTabItem();
                         }
+                        ImGui::PopID();
 
                         nameIndex = -1;
+                        fileIndex++;
                     }
                     else {
                         name[nameIndex] = watchList[watchIndex];
@@ -1925,6 +1951,7 @@ static void EditorDraw(LUADebuggerWindow* debugger)
 
             if(strcmp(selectedFilename, debugger->currentFileName)) {
                 strcpy(debugger->currentFileName, selectedFilename);
+                debugger->currentFileIndex = selectedFileIndex;
                 
                 LoadCurrentLUAFile();
             }
@@ -1935,7 +1962,7 @@ static void EditorDraw(LUADebuggerWindow* debugger)
                 ImVec2 contentMax = ImGui::GetWindowContentRegionMax();
                 float contentHeight = contentMax.y - contentMin.y - 50;
                 
-                ImGui::InputTextMultiline("##source", debugger->currentFileBuffer, debugger->currentFileBufferSize, ImVec2(-FLT_MIN, contentHeight), ImGuiInputTextFlags_AllowTabInput|ImGuiInputTextFlags_CallbackResize, &LuaSourceEditCallback);
+                ImGui::InputTextMultiline("##source", debugger->currentFileBuffer, debugger->currentFileBufferSize, ImVec2(-FLT_MIN, contentHeight), ImGuiInputTextFlags_AllowTabInput|ImGuiInputTextFlags_CallbackResize|ImGuiInputTextFlags_CallbackEdit, &LuaSourceEditCallback);
                 
                 ImGuiIO imguiIO = ImGui::GetIO();
                 if(ImGui::Button("Reload source")) {
@@ -1946,6 +1973,11 @@ static void EditorDraw(LUADebuggerWindow* debugger)
                 ImGui::SameLine();
                 if(ImGui::Button("Load") || (focused && imguiIO.KeyCtrl && ImGui::IsKeyPressed(SDL_SCANCODE_S))) {
                     LoadScriptString(debugger->currentFileBuffer);
+                }
+
+                if(watchListEdited[debugger->currentFileIndex]) {
+                    ImGui::SameLine();
+                    ImGui::Text("Edited");
                 }
                 // ImVec2 size = ImGui::GetWindowSize();
                 // i32 line = 1;

@@ -17,7 +17,8 @@ else { \
 
 #ifdef PLATFORM_EDITOR
 char watchList[4096];
-std::filesystem::file_time_type watchListTimes[20];
+std::filesystem::file_time_type watchListTimes[32];
+bool watchListEdited[32];
 size_t watchListSize = 0;
 u32 watchFiles = 0;
 #endif
@@ -162,6 +163,7 @@ void ScriptingInit()
     lua["EditorUpdate"] = ScriptingDummy;
     lua["EditorEnd"] = ScriptingDummy;
     lua["EditorConsoleDebugBar"] = ScriptingDummy;
+    lua["EditorShaderReload"] = ScriptingDummy;
     lua["FocusChange"] = ScriptingDummy;
 }
 

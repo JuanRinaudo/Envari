@@ -52,10 +52,11 @@ static void data_callback(ma_device* pDevice, void* pOutput, const void* pInput,
         f32 buffer[4096];
         u32 bufferCapInFrames = ma_countof(buffer) / SOUND_CHANNELS;
         u64 totalFramesRead = 0;
+        u64 framesRead;
         bool fileEnded = false;
 
         while(totalFramesRead < frameCount) {
-            u64 framesRead = ma_decoder_read_pcm_frames(soundMix[i].decoder, buffer, frameCount);
+            ma_result result = ma_decoder_read_pcm_frames(soundMix[i].decoder, buffer, frameCount, &framesRead);
             
             if(framesRead == 0) {
                 fileEnded = true;

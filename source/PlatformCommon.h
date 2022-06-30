@@ -78,19 +78,18 @@ static i32 InitEngine()
 
 static i32 InitSDL()
 {
-    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) < 0) {
         return -1;
     }
     
-#ifdef PLATFORM_WASM
+    #if defined(PLATFORM_WASM) | defined(PLATFORM_ANDROID)
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
-    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
-    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-    #else
-    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
-    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     #endif
+
+    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+    SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
 
     SDL_GetCurrentDisplayMode(0, &displayMode);
     
@@ -164,6 +163,7 @@ static i32 SetupWindow()
     }
 
     glContext = SDL_GL_CreateContext(sdlWindow);
+    SDL_GL_MakeCurrent(sdlWindow, glContext);
     if (!glContext) {
         return -1;
     }

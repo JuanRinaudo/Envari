@@ -70,11 +70,6 @@ i32 main(i32 argc, char *argv[])
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         return -1;
     }
-    
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
-    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
-    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 
 //     // SDL_GetCurrentDisplayMode(0, &displayMode);
     v2 windowSize = V2(640, 640);

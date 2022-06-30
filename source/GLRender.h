@@ -540,7 +540,7 @@ static bool LoadShader(u32 shaderType, const char* filepath, u32* shaderID, size
 bool GetProgramValid(u32 programID) {
     #if PLATFORM_WASM
     return EM_ASM_INT({
-        return GL.programs[$0] != null;
+        return $0 <= GL.programs.length && GL.programs[$0] != null;
     }, programID);
     #else
     i32 success;
