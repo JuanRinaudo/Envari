@@ -37,7 +37,7 @@ if not exist build\html5\LUAScriptingBindings.%ScriptingDate::=.%.tmp (
 @echo Building
 em++ -IEnvari\LUA\include Envari\source\RuntimeWASM.cpp build\html5\LUAScriptingBindings.o Envari\LUA\include\liblua.a ^
     -gsource-map ^
-    -O2 ^
+    -O3 ^
     --pre-js buildassets/html5/prejs.js ^
     --source-map-base http://localhost:7777/ ^
     -DLUA_ENABLED=1 ^

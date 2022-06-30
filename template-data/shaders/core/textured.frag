@@ -1,7 +1,7 @@
 #version 330 core
 precision mediump float;
 
-uniform vec4 color = vec4(1, 1, 1, 1);
+uniform vec4 color;
 uniform sampler2D texture;
 
 in vec2 texCoord;

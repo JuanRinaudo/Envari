@@ -1,9 +1,6 @@
 #ifndef GLRENDER_H
 #define GLRENDER_H
 
-#define DEFAULT_FONT_ATLAS_WIDTH 1024
-#define DEFAULT_FONT_ATLAS_HEIGHT 1024
-
 #define INFO_LOG_BUFFER_SIZE 1024
 
 #ifdef GL_PROFILE_GLES3
@@ -52,7 +49,7 @@ u32 borderLocation;
 
 u32 timeLocation;
 
-static GLTextureCache* textureCache = NULL;
+static TextureAssetCache* textureCache = NULL;
 
 static GLTextureAtlasReference* atlasCache = NULL;
 
@@ -166,10 +163,10 @@ void BindTextureID(u32 textureID, f32 width, f32 height)
     glUniform2f(textureSizeLocation, width, height);
 }
 
-GLTexture LoadTextureFile(const char *texturePath, bool permanentAsset = false)
+TextureAsset LoadTextureFile(const char *texturePath, bool permanentAsset = false)
 {
     i32 index = (i32)shgeti(textureCache, texturePath);
-    GLTexture texture;
+    TextureAsset texture;
     if(index > -1) {
         texture = shget(textureCache, texturePath);
     } else {
@@ -197,7 +194,7 @@ v2 TextureSize(const char* texturePath)
 {
     i32 index = (i32)shgeti(textureCache, texturePath);
     if(index > -1) {
-        GLTexture texture = shget(textureCache, texturePath);
+        TextureAsset texture = shget(textureCache, texturePath);
         return V2((f32)texture.width, (f32)texture.height);
     }
     else {
@@ -222,7 +219,7 @@ v2 TextureSize(const char* texturePath)
 void UnloadTextureFile(const char *texturePath)
 {
     i32 index = (i32)shgeti(textureCache, texturePath);
-    GLTexture texture;
+    TextureAsset texture;
     if(index > -1) {
         texture = shget(textureCache, texturePath);
         glDeleteTextures(1, &texture.textureID);
@@ -424,16 +421,13 @@ void WriteFrame(char *filename, RecordingFormat format, i32 width, i32 height, i
     free(filename);
     free(data);
 }
-#endif
 
-#ifndef PLATFORM_WASM
 void RecordFrame(const char *filepath, i32 textureID, u32 width, u32 height)
 {
     u8* data = (u8*)malloc(width * height * 3);
     glBindTexture(GL_TEXTURE_2D, textureID);
     glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
-    char* savePath = (char*)malloc(strlen(filepath));
-    strcpy(savePath, filepath);
+    char* savePath = Strdup(filepath);
     std::thread saveImage(WriteFrame, savePath, editorRenderDebugger.recordingFormat, width, height, 3, editorRenderDebugger.jpgQuality, data);
     saveImage.detach();
 }
@@ -442,7 +436,7 @@ void RecordFrame(const char *filepath, i32 textureID, u32 width, u32 height)
 u32 GenerateBitmapFontStrip(const char *filepath, const char* glyphs, u32 glyphWidth, u32 glyphHeight)
 {
     size_t data_size = 0;
-    GLTexture texture = LoadTextureFile(filepath);
+    TextureAsset texture = LoadTextureFile(filepath);
 
     size_t glyphCount = strlen(glyphs);
 
@@ -642,6 +636,14 @@ u32 CompileProgramPlatform(const char *vertexShaderPlatform, const char *fragmen
     PushString(&temporalState->arena, fragmentShaderPlatform);
     
     return CompileProgram(vertexShaderPath, fragmentShaderPath);
+}
+
+u32 CompileTransformFeedbackProgramPlatform(const char *vertexShaderPlatform)
+{
+    char* vertexShaderPath = PushString(&temporalState->arena, SHADER_PREFIX, sizeof(SHADER_PREFIX) - 1);
+    PushString(&temporalState->arena, vertexShaderPlatform);
+    
+    return CompileTransformFeedbackProgram(vertexShaderPath);
 }
 
 static void WatchChanges()
@@ -933,7 +935,7 @@ static m33 SetupModelMatrix(v2 origin = V2(0, 0), v2 size = V2(1, 1), f32 angle 
     matrix *= ScaleM33(size);
     matrix *= RotateM33(angle);
     matrix *= TranslationM33(origin);
-    if(gameState->render.transformIndex > 0) {
+    if(gameState->render.transformIndex >= 0) {
         m33* parentTransform = gameState->render.transformStack + gameState->render.transformIndex;
         matrix *= *parentTransform;
     }
@@ -985,7 +987,7 @@ static void InitGL()
     texturedProgram = CompileProgramPlatform(TEXTURED_VERT, TEXTURED_FRAG);
     textured9SliceProgram = CompileProgramPlatform(TEXTURED_VERT, TEXTURED9SLICE_FRAG);
 
-    calcposmvpProgram = CompileTransformFeedbackProgram(SHADERS_CORE_CALCPOSMVP_VERT);
+    // calcposmvpProgram = CompileTransformFeedbackProgramPlatform(CALCPOSMVP_VERT);
     
     dimensionsLocation = glGetUniformLocation(textured9SliceProgram, "dimensions");
     borderLocation = glGetUniformLocation(textured9SliceProgram, "border");
@@ -1124,7 +1126,7 @@ static void RenderImage9Slice_(RenderImage9Slice* image9Slice)
 {
     UseProgram(textured9SliceProgram);
 
-    GLTexture texture = LoadTextureFile(image9Slice->filepath);
+    TextureAsset texture = LoadTextureFile(image9Slice->filepath);
     SetupTextureParameters(GL_TEXTURE_2D);
 
     v2 size = V2((f32)(image9Slice->endOrigin.x - image9Slice->origin.x), (f32)(image9Slice->endOrigin.y - image9Slice->origin.y));
@@ -1489,7 +1491,7 @@ static void RenderPass()
                 //     renderState->generateMipMaps = false;
                 // }
 
-                GLTexture texture = LoadTextureFile(image->filepath);
+                TextureAsset texture = LoadTextureFile(image->filepath);
                 SetupTextureParameters(GL_TEXTURE_2D);
 
                 renderState->generateMipMaps = generateMipMapsTemp;
@@ -1539,7 +1541,7 @@ static void RenderPass()
 
                 UseProgram(texturedProgram);
 
-                GLTexture texture = LoadTextureFile(imageUV->filepath);
+                TextureAsset texture = LoadTextureFile(imageUV->filepath);
                 SetupTextureParameters(GL_TEXTURE_2D);
 
                 v2 origin = V2(-imageUV->origin.x * texture.width, -imageUV->origin.y * texture.height);
@@ -1580,7 +1582,7 @@ static void RenderPass()
                 TextureAtlas textureAtlas = LoadAtlas(atlas->atlasName);
                 rectangle2 spriteRect = shget(textureAtlas.sprites, atlas->spriteKey);
 
-                GLTexture texture = LoadTextureFile(atlas->filepath);
+                TextureAsset texture = LoadTextureFile(atlas->filepath);
                 SetupTextureParameters(GL_TEXTURE_2D);
 
                 v2 origin = V2(-atlas->origin.x * texture.width, -atlas->origin.y * texture.height);

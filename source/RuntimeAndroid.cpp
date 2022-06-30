@@ -63,9 +63,11 @@ i32 main(i32 argc, char *argv[])
     // stringAllocator = PushStruct(&permanentState->arena, StringAllocator);
     // InitializeStringAllocator(stringAllocator);
 
-    // InitEngine();
+    SetupEnviroment();
 
 //     DeserializeDataTable(&permanentState->arena, &initialConfig, DATA_ANDROIDCONFIG_ENVT);
+
+    // InitEngine();
 
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         return -1;
@@ -229,8 +231,10 @@ i32 main(i32 argc, char *argv[])
 //             Begin2D(0, (u32)gameState->render.width, (u32)gameState->render.height);
 //         }
 
+#ifdef LUA_ENABLED
         ScriptingUpdate();
-        GameUpdate();
+#endif
+        EngineUpdate();
 //         Render();
 
 //         EditorDrawAllOpen();

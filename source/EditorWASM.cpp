@@ -90,9 +90,11 @@ i32 main(i32 argc, char** argv)
     stringAllocator = PushStruct(&permanentState->arena, StringAllocator);
     InitializeStringAllocator(stringAllocator);
 
-    InitEngine();
+    SetupEnviroment();
 
     DeserializeDataTable(&permanentState->arena, &initialConfig, DATA_EDITORWASMCONFIG_ENVT);
+
+    InitEngine();
 
     if(!InitSDL()) {
         return -1;
@@ -173,7 +175,7 @@ static void main_loop()
 #ifdef LUA_ENABLED
             ScriptingUpdate();
 #endif
-            GameUpdate();
+            EngineUpdate();
 
             RenderPass();
 

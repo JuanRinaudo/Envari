@@ -45,7 +45,8 @@ static void* LoadFileToMemory(const char* filepath, const char* mode, size_t* fi
 		*fileSize = size;
 		rewind(file);
 
-		fileBuffer = malloc(size);
+		fileBuffer = malloc(size + 1);
+		ZeroSize(size + 1, fileBuffer);
 		fread(fileBuffer, 1, size, file);
         fclose(file);
 	}
@@ -72,6 +73,13 @@ static void* LoadFileToMemory(const char* filepath, const char* mode, size_t buf
 	}
 
     return fileBuffer;
+}
+
+static TextAsset LoadFileToMemory(const char* filepath, const char* mode)
+{
+	TextAsset asset = {};
+	asset.data = (char*)LoadFileToMemory(filepath, mode, &asset.size);
+	return asset;
 }
 
 static void UnloadFileFromMemory(void* fileBuffer)

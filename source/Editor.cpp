@@ -5,6 +5,25 @@ LogFlag currentLogFlag = LogFlag_NONE;
 
 static i32 BuildPlatform(RuntimePlatform platform);
 
+AssetType GetAssetType(filesystem::path filepath)
+{
+    std::string string = filepath.extension().string();
+    const char* extension = string.c_str();
+    if(strcmp(extension, ".txt") == 0 || strcmp(extension, ".ini") == 0 || strcmp(extension, ".envt") == 0 || strcmp(extension, ".lua") == 0) {
+        return AssetType_TEXT;
+    }
+    else if(strcmp(extension, ".png") == 0 || strcmp(extension, ".jpg") == 0 || strcmp(extension, ".tga") == 0  || strcmp(extension, ".psd") == 0 || 
+        strcmp(extension, ".gif") == 0 || strcmp(extension, ".bmp") == 0 || strcmp(extension, ".hdr") == 0 || strcmp(extension, ".pic") == 0) {
+        return AssetType_IMAGE;
+    }
+    else if(strcmp(extension, ".wav") == 0 || strcmp(extension, ".ogg") == 0 || strcmp(extension, ".flac") == 0 || strcmp(extension, ".mp3") == 0) {
+        return AssetType_SOUND;
+    }
+    else {
+        return AssetType_UNKNOWN;
+    }
+}
+
 static void ClearLog(ConsoleWindow* console)
 {
     for (i32 i = 0; i < console->items.Size; i++) {
@@ -213,9 +232,19 @@ static void EditorInit(AssetsWindow* debugger)
     debugger->currentPath = filesystem::current_path();
 }
 
-static void EditorInit(PerformanceDebuggerWindow* debugger)
+static void EditorInit(AssetsViewer* debugger, filesystem::path filepath)
 {
-    
+    debugger->lastAssetType = AssetType_NONE;
+    debugger->assetType = GetAssetType(filepath);
+    debugger->targetAssetPath = filepath;
+}
+
+static void EditorInit(PerformanceDebuggerWindow* debugger)
+{    
+    debugger->updateMinTime = FLT_MAX;
+    debugger->updateMaxTime = FLT_MIN;
+    debugger->luaUpdateMinTime = FLT_MAX;
+    debugger->luaUpdateMaxTime = FLT_MIN;
 }
 
 static void EditorInit(RenderDebuggerWindow* debugger)
@@ -401,6 +430,7 @@ static void ExecCommand(ConsoleWindow* console, const char* command_line)
 
     LogString(console, command, ConsoleLogType_COMMAND, __LINE__);
 
+    // #PERFORMANCE(Juan): Optimize this 
     // Insert into history. First find match and delete it so it can be pushed to the back. This isn't trying to be smart or optimal.
     console->historyPos = -1;
     for (i32 i = console->history.Size-1; i >= 0; i--) {
@@ -410,6 +440,12 @@ static void ExecCommand(ConsoleWindow* console, const char* command_line)
             break;
         }
     }
+
+    if(CONSOLE_HISTORY_SIZE > 0 && console->history.Size >= CONSOLE_HISTORY_SIZE) {
+        free(console->history[0]);
+        console->history.erase(console->history.begin());
+    }
+
     size_t commandLineSize = 0;
     console->history.push_back(Strdup(command_line, &commandLineSize));
 
@@ -869,8 +905,86 @@ static void EditorDraw(AssetsWindow* debugger)
                 debugger->pathLevel++;
             }
             else {
-
+                assetsViewer.open = true;
+                EditorInit(&assetsViewer, entry.path());
             }
+        }
+    }
+
+    ImGui::End();
+}
+
+static void EditorDraw(AssetsViewer* debugger)
+{
+    if(!debugger->open) { return; }
+
+    ImGui::SetNextWindowSize(ImVec2(400,300), ImGuiCond_FirstUseEver);
+
+    if (!ImGui::Begin("Asset Viewer", &debugger->open)) {
+        ImGui::End();
+        return;
+    }
+
+    if(debugger->assetType != debugger->lastAssetType) {
+        if(debugger->targetAsset != 0) {
+            free(debugger->targetAsset);
+        }
+
+        debugger->lastAssetType = debugger->assetType;
+        debugger->targetAsset = 0;
+    }
+
+    ImGui::Text("Asset Type %s", assetTypeLabels[(i32)debugger->assetType]);
+
+    ImGui::Separator();
+
+    switch(debugger->assetType) {
+        case AssetType_NONE:
+        case AssetType_UNKNOWN: {
+            ImGui::Text("No asset viewer available");
+            break;
+        }
+        case AssetType_IMAGE: {
+            TextureAsset* texture;
+            if(debugger->targetAsset == 0) {
+                texture = (TextureAsset*)malloc(sizeof(TextureAsset));
+                *texture = LoadTextureFile(debugger->targetAssetPath.string().c_str());
+                debugger->targetAsset = (void*)texture;
+            }
+            else {
+                texture = (TextureAsset*)debugger->targetAsset;
+            }
+
+            ImGui::Image((ImTextureID)texture->textureID, ImVec2((f32)texture->width, (f32)texture->height));
+            break;
+        }
+        case AssetType_TEXT: {  
+            TextAsset* text;
+            if(debugger->targetAsset == 0) {
+                text = (TextAsset*)malloc(sizeof(TextAsset));
+                *text = LoadFileToMemory(debugger->targetAssetPath.string().c_str(), FILE_MODE_READ_BINARY);
+                debugger->targetAsset = (void*)text;
+            }
+            else {
+                text = (TextAsset*)debugger->targetAsset;
+            }
+
+            ImGui::Text("%s", text->data);
+            
+            break;
+        }
+        case AssetType_SOUND: {
+            ImGui::SliderFloat("Volume", &previewInstance.volumeModifier, 0.0f, 1.0f);
+            if(ImGui::Button("Play")) {
+                EditorPlayPreviewSound(debugger->targetAssetPath.string().c_str(), 1.0f);
+            }
+            ImGui::BeginDisabled(previewInstance.decoder == 0);
+            ImGui::SameLine();
+            if(ImGui::Button("Stop")) {
+                EditorStopPreviewSound();
+            }
+            ImGui::EndDisabled();
+            break;
         }
     }
 
@@ -887,8 +1001,15 @@ static void EditorDraw(PerformanceDebuggerWindow* debugger)
         return;
     }
     
-    ImGui::Text("Update: %f ms %" PRIu64 " cycles", debugger->updateTime / 10000.0f, debugger->updateCycles);
-    ImGui::Text("LUA Update: %f ms %" PRIu64 " cycles", debugger->luaUpdateTime / 10000.0f, debugger->luaUpdateCycles);
+    if(debugger->updateTime != 0) {
+        debugger->updateMinTime = MIN(debugger->updateTime, debugger->updateMinTime);
+        debugger->updateMaxTime = MAX(debugger->updateTime, debugger->updateMaxTime);
+        ImGui::Text("Update: %f (%f / %f) ms %" PRIu64 " cycles", debugger->updateTime, debugger->updateMinTime, debugger->updateMaxTime, debugger->updateCycles);
+
+        debugger->luaUpdateMinTime = MIN(debugger->luaUpdateTime, debugger->luaUpdateMinTime);
+        debugger->luaUpdateMaxTime = MAX(debugger->luaUpdateTime, debugger->luaUpdateMaxTime);
+        ImGui::Text("LUA Update: %f (%f / %f) ms %" PRIu64 " cycles", debugger->luaUpdateTime, debugger->luaUpdateMinTime, debugger->luaUpdateMaxTime, debugger->luaUpdateCycles);
+    }
     
     ImGui::End();
 }
@@ -943,7 +1064,7 @@ static void EditorDraw(RenderDebuggerWindow* debugger)
 
     ImGui::Checkbox("Record frames", &debugger->recording);
 
-    int formatIndex = (int)debugger->recordingFormat;
+    i32 formatIndex = (i32)debugger->recordingFormat;
     ImGui::Combo("Format", &formatIndex, recordingFormatExtensions, ArrayCount(recordingFormatExtensions));
     debugger->recordingFormat = (RecordingFormat)formatIndex;
     ImGui::SliderInt("JPG Quality", &debugger->jpgQuality, 1, 100);
@@ -1305,7 +1426,7 @@ static void EditorDraw(TextureDebuggerWindow* debugger)
         if(debugger->textureIndex < 0) { debugger->textureIndex = textureCacheSize - 1; }
         if(debugger->textureIndex >= textureCacheSize) { debugger->textureIndex = 0; }
 
-        GLTexture cachedTexture = textureCache[debugger->textureIndex].value;
+        TextureAsset cachedTexture = textureCache[debugger->textureIndex].value;
 
         ImGui::Text("Texture ID: %d", cachedTexture.textureID);
         
@@ -1457,6 +1578,7 @@ static void EditorDraw(InputDebuggerWindow* debugger)
     float elementSize = 50;
 
     ImGui::TextUnformatted("Mouse");
+    ImGui::Text("Any mouse state: %d", gameState->input.anyMouseState);
     ImGui::PushItemWidth(elementSize);
     for(i32 i = 0; i < MOUSE_COUNT; ++i) {
         if(i > 0 && i < MOUSE_COUNT && i % 10 != 0) {
@@ -1470,6 +1592,7 @@ static void EditorDraw(InputDebuggerWindow* debugger)
     }
 
     ImGui::TextUnformatted("Keyboard");
+    ImGui::Text("Any key state: %d", gameState->input.anyKeyState);
     for(i32 i = 0; i < KEY_COUNT; ++i) {
         if(i > 0 && i < KEY_COUNT &&  i % 10 != 0) {
             ImGui::SameLine();
@@ -1513,7 +1636,7 @@ static void EditorDraw(TimeDebuggerWindow* debugger)
     if(gameState->time.fpsFixed != -1) {
         ImGui::Checkbox("Time loop", &debugger->timeloop);
         
-        int formatIndex = (int)debugger->loopFormat;
+        i32 formatIndex = (i32)debugger->loopFormat;
         ImGui::Combo("Loop type", &formatIndex, timeFormatsLabels, ArrayCount(timeFormatsLabels));
         debugger->loopFormat = (TimeFormat)formatIndex;
 
@@ -1633,9 +1756,9 @@ static void EditorDraw(ShaderDebuggerWindow* debugger)
             u32 shaders[2];
             glGetAttachedShaders(programID, 2, &shaderCount, shaders);
 
-            ImGui::Text("Shaders:");
-            for(int i = 0; i < shaderCount; ++i) {
-                ImGui::Separator();
+        ImGui::Text("Shaders:");
+        for(i32 i = 0; i < shaderCount; ++i) {
+            ImGui::Separator();
 
                 i32 shaderType = 0;
                 glGetShaderiv(shaders[i], GL_SHADER_TYPE, &shaderType);
@@ -2213,6 +2336,18 @@ static void EditorInit()
     editorConsole.open = true;
     EditorInit(&editorConsole);
     editorConsole.logFlags = TableGetI32(&editorSave, "editorLogFlags");
+    
+    for(i32 i = 0; i < CONSOLE_HISTORY_SAVE_SIZE; ++i) {
+        sprintf(loadNameBuffer, "editorConsoleHistory%d", i);
+        char* history = TableGetString(&editorSave, loadNameBuffer, 0);
+        if(history != 0) {
+            size_t commandLineSize = 0;
+            editorConsole.history.push_back(Strdup(history, &commandLineSize));
+        }
+        else {
+            break;
+        }
+    }
 
     editorPreview.open = TableGetBool(&editorSave, "editorPreviewOpen");
     EditorInit(&editorPreview);
@@ -2288,6 +2423,7 @@ static void EditorDrawAll()
     EditorDraw(&editorConsole);
     EditorDraw(&editorPreview);
     EditorDraw(&assetsWindow);
+    EditorDraw(&assetsViewer);
     EditorDraw(&editorPerformanceDebugger);
     EditorDraw(&editorRenderDebugger);
     EditorDraw(&editorMemoryDebugger);
@@ -2338,6 +2474,10 @@ static void EditorEnd()
     TableSetBool(&temporalState->arena, &editorSave, "layoutInited", editorState->layoutInited);
 
     TableSetBool(&temporalState->arena, &editorSave, "editorConsoleOpen", editorConsole.open);
+    for(i32 i = 0; i < CONSOLE_HISTORY_SAVE_SIZE && i < editorConsole.history.Size; ++i) {
+        sprintf(saveKeyBuffer, "editorConsoleHistory%d", i);
+        TableSetString(&temporalState->arena, &editorSave, saveKeyBuffer, editorConsole.history[i]);
+    }
     TableSetI32(&temporalState->arena, &editorSave, "editorLogFlags", editorConsole.logFlags);
     TableSetBool(&temporalState->arena, &editorSave, "editorPreviewOpen", editorPreview.open);
     TableSetBool(&temporalState->arena, &editorSave, "assetsWindowOpen", assetsWindow.open);

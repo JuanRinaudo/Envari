@@ -23,11 +23,20 @@ static void CheckInput() {
         else if(keyState == KEY_RELEASED) { gameState->input.keyState[key] = KEY_UP; }
     }
 
+    if(gameState->input.anyReasonableKeyState == KEY_PRESSED) { gameState->input.anyReasonableKeyState = KEY_DOWN; }
+    else if(gameState->input.anyReasonableKeyState == KEY_RELEASED) { gameState->input.anyReasonableKeyState = KEY_UP; }
+    
+    if(gameState->input.anyKeyState == KEY_PRESSED) { gameState->input.anyKeyState = KEY_DOWN; }
+    else if(gameState->input.anyKeyState == KEY_RELEASED) { gameState->input.anyKeyState = KEY_UP; }
+
     for(i32 key = 0; key < MOUSE_COUNT; ++key) {
         u8 mouseState = gameState->input.mouseState[key];
         if(mouseState == KEY_PRESSED) { gameState->input.mouseState[key] = KEY_DOWN; }
         else if(mouseState == KEY_RELEASED) { gameState->input.mouseState[key] = KEY_UP; }
     }
+
+    if(gameState->input.anyMouseState == KEY_PRESSED) { gameState->input.anyMouseState = KEY_DOWN; }
+    else if(gameState->input.anyMouseState == KEY_RELEASED) { gameState->input.anyMouseState = KEY_UP; }
 
     gameState->input.mouseWheel = 0;
     gameState->input.mouseScreenDeltaPosition.x = 0;
@@ -58,8 +67,8 @@ static void TryCreateDataFolderStructure(std::string workingDirectoryPath)
     CreateDirectoryIfNotExists(videoPath.c_str());
 }
 
-static i32 InitEngine()
-{
+static i32 SetupEnviroment()
+{    
 #if GAME_RELEASE
     std::string workingDirectory = filesystem::current_path().string() + "/data";
     TryCreateDataFolderStructure(workingDirectory);
@@ -68,10 +77,15 @@ static i32 InitEngine()
     TryCreateDataFolderStructure(filesystem::current_path().string());
 #endif
 
-#ifndef PLATFORM_WASM
     CreateDirectoryIfNotExists("temp");
     CreateDirectoryIfNotExists("save");
-#endif
+
+    return 1;
+}
+
+static i32 InitEngine()
+{
+    gameState->sound.bindingsEnabled = TableGetBool(&initialConfig, "soundBindingsEnabled", true);
 
     return 1;
 }
@@ -216,7 +230,9 @@ static i32 TimeTick()
         startTime = SDL_GetTicks() / 1000.0f;
         gameState->time.deltaTime = startTime - gameState->time.realLastFrameGameTime;
         gameState->time.realLastFrameGameTime = startTime;
+#if UNITY_EDITOR
         gameState->time.deltaTime *= editorTimeDebugger.timeScale;
+#endif
         gameState->time.lastFrameGameTime = gameState->time.lastFrameGameTime + gameState->time.deltaTime;
     }
 
@@ -261,6 +277,20 @@ static i32 TimeTick()
 #endif
 
     return 1;
+}
+
+void EngineUpdate()
+{
+    if(gameState->sound.bindingsEnabled) {
+        if(gameState->input.keyState[SDL_SCANCODE_KP_MINUS] == KEY_PRESSED) {
+            masterVolumeModifier = Clamp(masterVolumeModifier - 0.1f, 0.0f, 1.0f);
+        }
+        if(gameState->input.keyState[SDL_SCANCODE_KP_PLUS] == KEY_PRESSED) {
+            masterVolumeModifier = Clamp(masterVolumeModifier + 0.1f, 0.0f, 1.0f);
+        }
+    }
+
+    GameUpdate();
 }
 
 void RuntimeQuit()
@@ -309,12 +339,14 @@ static i32 ProcessEvent(const SDL_Event* event)
         case SDL_MOUSEBUTTONDOWN: {
             if((mouseEnabled || mouseOverWindow) && gameState->input.mouseState[event->button.button] <= KEY_RELEASED) {
                 gameState->input.mouseState[event->button.button] = KEY_PRESSED;
+                gameState->input.anyMouseState = KEY_PRESSED;
             }
            break;
         }
         case SDL_MOUSEBUTTONUP: {
             if((mouseEnabled || mouseOverWindow) && gameState->input.mouseState[event->button.button] >= KEY_PRESSED) {
                 gameState->input.mouseState[event->button.button] = KEY_RELEASED;
+                gameState->input.anyMouseState = KEY_RELEASED;
             }
             break;
         }
@@ -342,12 +374,22 @@ static i32 ProcessEvent(const SDL_Event* event)
         case SDL_KEYDOWN: {
             if(keyboardEnabled && gameState->input.keyState[event->key.keysym.scancode] <= KEY_RELEASED) {
                 gameState->input.keyState[event->key.keysym.scancode] = KEY_PRESSED;
+                if((event->key.keysym.scancode >= SDL_SCANCODE_A && event->key.keysym.scancode <= SDL_SCANCODE_F12) ||
+                   (event->key.keysym.scancode >= SDL_SCANCODE_LCTRL && event->key.keysym.scancode <= SDL_SCANCODE_RGUI)) {
+                    gameState->input.anyReasonableKeyState = KEY_PRESSED;
+                }
+                gameState->input.anyKeyState = KEY_PRESSED;
             }
             break;
         }
         case SDL_KEYUP: {
             if(keyboardEnabled && gameState->input.keyState[event->key.keysym.scancode] >= KEY_PRESSED) {
                 gameState->input.keyState[event->key.keysym.scancode] = KEY_RELEASED;
+                if((event->key.keysym.scancode >= SDL_SCANCODE_A && event->key.keysym.scancode <= SDL_SCANCODE_SLASH) ||
+                   (event->key.keysym.scancode >= SDL_SCANCODE_LCTRL && event->key.keysym.scancode <= SDL_SCANCODE_RGUI)) {
+                    gameState->input.anyReasonableKeyState = KEY_RELEASED;
+                }
+                gameState->input.anyKeyState = KEY_RELEASED;
             }
             break;
         }
@@ -376,17 +418,17 @@ static rectangle2 GetTextureAdjustValues(TextureAdjustStyle style, v2 from, v2 t
         }
         case TextureAdjustStyle_FitRatio: {
             f32 toRatio = to.x / to.y;
-            if(toRatio > 1) {
-                return Rectangle2(-(toRatio - 1.0f) / 2.0f, -(toRatio - 1.0f) / 2.0f, toRatio, 1);
+            if(toRatio < 1) {
+                return Rectangle2(0, -(toRatio - 1.0f) / 2.0f, toRatio, toRatio);
             }
             else {
                 f32 fromRatio = from.x / from.y;
-                return Rectangle2(0, 0, fromRatio, 1);
+                return Rectangle2((toRatio - fromRatio) / 2.0f, 0, fromRatio, 1);
             }
         }
         case TextureAdjustStyle_KeepRatioX: {
             f32 toRatio = to.x / to.y;
-            return Rectangle2(-(toRatio - 1.0f) / 2.0f, -(toRatio - 1.0f) / 2.0f, toRatio, toRatio);
+            return Rectangle2(0, -(toRatio - 1.0f) / 2.0f, toRatio, toRatio);
         }
         case TextureAdjustStyle_KeepRatioY: {
             f32 fromRatio = from.x / from.y;
@@ -416,7 +458,7 @@ static i32 RenderFramebuffer()
     DrawOverrideVertices(0, 0);
     DrawClear(0, 0, 0, 1);
     DrawTextureParameters(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, FRAMEBUFFER_DEFAULT_FILTER, FRAMEBUFFER_DEFAULT_FILTER);
-    DrawTexture(0, adjustment.height, adjustment.width, -adjustment.height, gameState->render.renderBuffer);
+    DrawTexture(adjustment.x, adjustment.y + adjustment.height, adjustment.width, -adjustment.height, gameState->render.renderBuffer);
     RenderPass();
     End2D();
 

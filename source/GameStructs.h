@@ -25,15 +25,20 @@ struct GLRenderBuffer {
     u32 indexBuffer;
 };
 
-struct GLTexture {
+struct TextureAsset {
     u32 textureID;
     u32 width;
     u32 height;
     u32 channels;
 };
-struct GLTextureCache {
+struct TextureAssetCache {
     char* key;
-    GLTexture value;
+    TextureAsset value;
+};
+
+struct TextAsset {
+    char* data;
+    size_t size;
 };
 
 struct AtlasSprite {
@@ -510,8 +515,15 @@ struct Input
     i32 textInputIndex;
     i32 textInputSize;
     u8 mouseState[MOUSE_COUNT];
+    u8 anyMouseState;
     u8 keyState[KEY_COUNT];
+    u8 anyReasonableKeyState;
+    u8 anyKeyState;
     u8 textInputEvent[TEXT_INPUT_EVENT_SIZE];
+};
+
+struct Sound {
+    bool bindingsEnabled;
 };
 
 struct Data {
@@ -521,6 +533,7 @@ struct Data {
     Time time;
     Input input;
     Memory memory;
+    Sound sound;
 };
 
 struct PermanentData {

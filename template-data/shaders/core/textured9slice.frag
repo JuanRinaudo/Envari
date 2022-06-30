@@ -1,10 +1,10 @@
 #version 330 core
 precision mediump float;
 
-uniform vec4 color = vec4(1, 1, 1, 1);
-uniform vec2 dimensions = vec2(0, 0);
-uniform vec2 border = vec2(0, 0);
-uniform vec2 textureSize = vec2(0, 0);
+uniform vec4 color;
+uniform vec2 dimensions;
+uniform vec2 border;
+uniform vec2 textureSize;
 uniform sampler2D texture;
 
 in vec2 texCoord;
@@ -27,5 +27,6 @@ void main() {
         processAxis(texCoord.x, border.x, dimensions.x),
         processAxis(texCoord.y, border.y, dimensions.y)
     );
-    fragColor = texture2D(texture, newUV) * color;
+    fragColor = texture2D(texture, newUV);
+    // fragColor = texture2D(texture, texCoord.xy) * color;
 }

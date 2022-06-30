@@ -5,10 +5,7 @@
 APP_STL := c++_static
 
 APP_CPPFLAGS := -std=c++17
-NDK_TOOLCHAIN_VERSION := 4.8
-APP_ALLOW_MISSING_DEPS := true
-
-APP_ABI := armeabi-v7a arm64-v8a
+APP_ABI := armeabi-v7a arm64-v8a x86 x86_64
 
 # Min runtime API level
-APP_PLATFORM=android-19
+APP_PLATFORM=android-16
