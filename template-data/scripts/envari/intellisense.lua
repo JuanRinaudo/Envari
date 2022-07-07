@@ -806,7 +806,7 @@ function ChangeLogFlag(flag) end
 
 ---@class ShaderDebuggerWindow
 editorShaderDebugger = {
-    programIDChanged = false,
+    programIndexChanged = false,
     programIndex = 0,
 }
 

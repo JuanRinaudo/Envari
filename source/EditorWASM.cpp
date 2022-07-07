@@ -125,7 +125,6 @@ i32 main(i32 argc, char** argv)
 #endif
 
     EM_ASM(
-        FS.mkdir('/save');
         FS.mount(IDBFS, {}, '/save');
         FS.syncfs(true, function (err) {
             ccall('main_loaded', 'v');

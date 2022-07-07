@@ -121,7 +121,7 @@ static bool DeserializeDataTable(MemoryArena *arena, DataTable** table, const ch
 
         if(tokenizer.tokenLineCount == 0) {
             if(valueIndex > -1 && keyPointer == 0) {
-                PushChar(arena, '\0');
+                PushChar(arena, 0);
             }
             valueIndex = 0;
             if(keyPointer != 0) {
@@ -142,7 +142,7 @@ static bool DeserializeDataTable(MemoryArena *arena, DataTable** table, const ch
             valueIndex++;
         }
     }
-    PushChar(arena, '\0');
+    PushChar(arena, 0);
 
     EndTokenizer(&tokenizer);
 

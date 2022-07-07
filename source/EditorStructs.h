@@ -27,6 +27,11 @@ enum RuntimePlatform {
     RuntimePlatform_WASM
 };
 
+struct EditorCore
+{
+    f32 lastWatchSecond = 0;
+};
+
 struct ConsoleLog
 {
     char* log;
@@ -44,6 +49,7 @@ struct PreviewWindow
     bool focused;
 
     bool linearFiltering;
+    u32 filterMethod;
     bool cursorInsideWindow;
     v2 lastCursorPosition;
     v2 cursorPosition;
@@ -202,24 +208,42 @@ struct TimeDebuggerWindow
     f32 loopEndTime;
 };
 
+struct WatchedProgram {
+    u32 vertexShader;
+    u32 fragmentShader;
+    u32 shaderProgram;
+    char vertexFilepath[SHADER_FILENAME_MAX];
+    char fragmentFilepath[SHADER_FILENAME_MAX];
+    filesystem::file_time_type vertexTime;
+    filesystem::file_time_type fragmentTime;
+};
+
+#define WATCHED_PROGRAMS_MAX_COUNT 50
 struct ShaderDebuggerWindow
 {
     bool open;
 
     bool debugging;
-    char inputBuffer[CONSOLE_INPUT_BUFFER_COUNT];
-    char currentFileName[SHADER_FILENAME_MAX];
-    char* currentFileBuffer;
-    size_t currentFileBufferSize;
+    TextBuffer vertexShaderBuffer;
+    TextBuffer fragmentShaderBuffer;
 
-    bool programIDChanged;
+    bool programIndexChanged;
     i32 programIndex;
-    i32 targetID;
-    i32 vertexShaderID;
-    i32 fragmentShaderID;
+    u32 targetID;
+    u32 programID;
+
+    i32 watchedProgramsCount = 0;
+    WatchedProgram watchedPrograms[WATCHED_PROGRAMS_MAX_COUNT];
 };
 
 #ifdef LUA_ENABLED
+struct WatchedFileCache {
+    char* key;
+    char* value;
+};
+
+#define WATCHLIST_SIZE 4096
+#define WATCHLIST_ELEMENTS 32
 #define WATCH_BUFFER_SIZE 64
 #define WATCH_BUFFER_SIZE_EXT WATCH_BUFFER_SIZE + 1 
 #define WATCH_BUFFER_COUNT 16
@@ -232,9 +256,20 @@ struct LUADebuggerWindow
     bool debugging;
     char inputBuffer[CONSOLE_INPUT_BUFFER_COUNT];
     char currentFileName[LUA_FILENAME_MAX];
+    i32 lastFileIndex;
     i32 currentFileIndex;
+    i32 lastFileWatchIndex;
+    i32 currentFileWatchIndex;
     char* currentFileBuffer;
     size_t currentFileBufferSize;
+    
+    char watchList[WATCHLIST_SIZE];
+    std::filesystem::file_time_type watchListTimes[WATCHLIST_ELEMENTS];
+    bool watchListEdited[WATCHLIST_ELEMENTS];
+    size_t watchListSize = 0;
+    u32 watchFiles = 0;
+
+    WatchedFileCache* watchedFileCache;
 
     bool codeOpen;
     bool watchOpen;

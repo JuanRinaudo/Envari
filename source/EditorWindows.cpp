@@ -206,14 +206,13 @@ i32 CALLBACK WinMain(
 
         UpdateStringAllocator(stringAllocator);
 
+        if(gameState->time.gameTime > editorCore.lastWatchSecond + 1) {
 #ifdef LUA_ENABLED
-        if(gameState->time.gameTime > lastWatchSecond + 1) {
             ScriptingWatchChanges();
-            lastWatchSecond = gameState->time.gameTime;
-        }
 #endif
-
-        WatchChanges();
+            GLWatchChanges();
+            editorCore.lastWatchSecond = gameState->time.gameTime;
+        }
 
         LARGE_INTEGER luaPerformanceStart = {};
         LARGE_INTEGER luaPerformanceEnd = {};

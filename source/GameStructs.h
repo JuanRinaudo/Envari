@@ -70,18 +70,6 @@ struct GLFontReference {
     FontAtlas value;
 };
 
-#ifdef PLATFORM_EDITOR
-struct WatchedProgram {
-    u32 vertexShader;
-    u32 fragmentShader;
-    u32 shaderProgram;
-    char vertexFilepath[100];
-    char fragmentFilepath[100];
-    filesystem::file_time_type vertexTime;
-    filesystem::file_time_type fragmentTime;
-};
-#endif
-
 enum ConsoleLogType
 {
     ConsoleLogType_NORMAL,

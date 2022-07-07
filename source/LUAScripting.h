@@ -15,14 +15,6 @@ else { \
     LogWarning("Function '"#FUNCTION"', not valid"); \
 }
 
-#ifdef PLATFORM_EDITOR
-char watchList[4096];
-std::filesystem::file_time_type watchListTimes[32];
-bool watchListEdited[32];
-size_t watchListSize = 0;
-u32 watchFiles = 0;
-#endif
-
 extern "C" {
     #include "luasocket.h"
     #include "mime.h"
@@ -69,15 +61,15 @@ void LoadScriptFile(const char* filePath)
     }
 
     #ifdef PLATFORM_EDITOR
-    if(!strstr(watchList, filePath)) {
-        watchListTimes[watchFiles] = filesystem::last_write_time(filePath);
-        watchFiles++;
+    if(!Strstrn(editorLUADebugger.watchList, filePath, (i32)editorLUADebugger.watchListSize)) {
+        editorLUADebugger.watchListTimes[editorLUADebugger.watchFiles] = filesystem::last_write_time(filePath);
+        editorLUADebugger.watchFiles++;
 
-        strcat(watchList, filePath);
-        strcat(watchList, "@");
-        watchListSize += strlen(filePath) + 1;
+        strcpy(editorLUADebugger.watchList + editorLUADebugger.watchListSize, filePath);
+        editorLUADebugger.watchListSize += strlen(filePath) + 1;
+        editorLUADebugger.watchList[editorLUADebugger.watchListSize] = 0;
 
-        assert(watchListSize < ArrayCount(watchList));
+        assert(editorLUADebugger.watchListSize < ArrayCount(editorLUADebugger.watchList));
     }
     #endif
 }
@@ -156,7 +148,7 @@ void ScriptingInit()
 
     ScriptingBindings();
 
-    lua["Init"] = ScriptingDummy;
+    lua["Load"] = ScriptingDummy;
     lua["Update"] = ScriptingDummy;
     lua["Unload"] = ScriptingDummy;
     lua["EditorInit"] = ScriptingDummy;
@@ -165,6 +157,12 @@ void ScriptingInit()
     lua["EditorConsoleDebugBar"] = ScriptingDummy;
     lua["EditorShaderReload"] = ScriptingDummy;
     lua["FocusChange"] = ScriptingDummy;
+}
+
+void ScriptingReset()
+{
+    lua = {};
+    ScriptingInit();
 }
 
 static u32 ScriptingUpdate()
@@ -196,12 +194,12 @@ void ScriptingWatchChanges()
     i32 fileIndex = 0;
     i32 watchIndex = 0;
     char name[LUA_FILENAME_MAX];
-    while(watchIndex < watchListSize) {
-        if(watchList[watchIndex] == '@') {
+    while(watchIndex < editorLUADebugger.watchListSize) {
+        if(editorLUADebugger.watchList[watchIndex] == 0) {
             name[nameIndex] = 0;
 
             auto fileTime = filesystem::last_write_time(name);
-            if(fileTime != watchListTimes[fileIndex]) {
+            if(fileTime != editorLUADebugger.watchListTimes[fileIndex]) {
                 Log("Started to reload script %s", name);
 
                 sol::load_result loadResult = lua.load_file(name);
@@ -225,14 +223,14 @@ void ScriptingWatchChanges()
                     LogError(errorReport.c_str());
                 }
 
-                watchListTimes[fileIndex] = fileTime;
+                editorLUADebugger.watchListTimes[fileIndex] = fileTime;
             }
 
             fileIndex++;
             nameIndex = -1;
         }
         else {
-            name[nameIndex] = watchList[watchIndex];
+            name[nameIndex] = editorLUADebugger.watchList[watchIndex];
         }
         nameIndex++;
         watchIndex++;

@@ -83,13 +83,6 @@ static GLVendor currentVendor = GL_VENDOR_UNKOWN;
 // GLuint* uGPUIDs = new GLuint[uNoOfGPUs];
 // wglGetGPUIDsAMD( uNoOfGPUs, uGPUIDs );
 
-#ifdef PLATFORM_EDITOR
-#define WATCHED_PROGRAMS_MAX_COUNT 50
-static f32 lastWatchSecond = 0;
-static i32 watchedProgramsCount = 0;
-static WatchedProgram watchedPrograms[WATCHED_PROGRAMS_MAX_COUNT];
-#endif
-
 static MemoryArena* GetTargetArena(bool permanentAsset)
 {
     return permanentAsset ? &permanentState->arena : &sceneState->arena;
@@ -502,7 +495,7 @@ static bool LoadShader(u32 shaderType, const char* filepath, u32* shaderID, size
     *shaderID = glCreateShader(shaderType);
             
     *sourceSize = 0;
-    void* data = LoadFileToMemory(filepath, FILE_MODE_READ_BINARY, sourceSize);
+    void* data = LoadTextToMemory(filepath, FILE_MODE_READ_BINARY, sourceSize);
     SOURCE_TYPE source = static_cast<SOURCE_TYPE>(data);
 
     i32 size = (i32)*sourceSize;
@@ -529,18 +522,6 @@ static bool LoadShader(u32 shaderType, const char* filepath, u32* shaderID, size
     UnloadFileFromMemory(data);
 
     return success;
-}
-
-bool GetProgramValid(u32 programID) {
-    #if PLATFORM_WASM
-    return EM_ASM_INT({
-        return $0 <= GL.programs.length && GL.programs[$0] != null;
-    }, programID);
-    #else
-    i32 success;
-    glGetProgramiv(programID, GL_LINK_STATUS, &success);
-    return success == GL_TRUE;
-    #endif
 }
 
 u32 CompileProgram(const char *vertexShaderPath, const char *fragmentShaderPath)
@@ -575,11 +556,8 @@ u32 CompileProgram(const char *vertexShaderPath, const char *fragmentShaderPath)
     watched.vertexTime = filesystem::last_write_time(vertexShaderPath);
     watched.fragmentTime = filesystem::last_write_time(fragmentShaderPath);
 
-    watchedPrograms[watchedProgramsCount] = watched;
-    watchedProgramsCount++;
-    #else    
-    glDeleteShader(vertexShader);
-    glDeleteShader(fragmentShader);
+    editorShaderDebugger.watchedPrograms[editorShaderDebugger.watchedProgramsCount] = watched;
+    editorShaderDebugger.watchedProgramsCount++;
     #endif
 
     return shaderProgram;
@@ -618,10 +596,8 @@ u32 CompileTransformFeedbackProgram(const char *vertexShaderPath)
     strcpy(watched.vertexFilepath, vertexShaderPath);
     watched.vertexTime = filesystem::last_write_time(vertexShaderPath);
 
-    watchedPrograms[watchedProgramsCount] = watched;
-    watchedProgramsCount++;
-    #else
-    glDeleteShader(vertexShader);
+    editorShaderDebugger.watchedPrograms[editorShaderDebugger.watchedProgramsCount] = watched;
+    editorShaderDebugger.watchedProgramsCount++;
     #endif
 
     return shaderProgram;
@@ -646,11 +622,11 @@ u32 CompileTransformFeedbackProgramPlatform(const char *vertexShaderPlatform)
     return CompileTransformFeedbackProgram(vertexShaderPath);
 }
 
-static void WatchChanges()
+static void GLWatchChanges()
 {
     #ifdef PLATFORM_EDITOR
-    for(i32 i = 0; i < watchedProgramsCount; ++i) {
-        WatchedProgram watched = watchedPrograms[i];
+    for(i32 i = 0; i < editorShaderDebugger.watchedProgramsCount; ++i) {
+        WatchedProgram watched = editorShaderDebugger.watchedPrograms[i];
 
         bool programShaderChanged = false;
 
@@ -672,8 +648,6 @@ static void WatchChanges()
 
         if(programShaderChanged) {
             Log("Started to reload program %d, vertex %s (%d), fragment %s (%d)", watched.shaderProgram, watched.vertexFilepath, watched.vertexShader, watched.fragmentFilepath, watched.fragmentShader);
-            glDeleteShader(watched.vertexShader);
-            glDeleteShader(watched.fragmentShader);
             if(watched.vertexShader != 0) { glDetachShader(watched.shaderProgram, watched.vertexShader); }
             if(watched.fragmentShader != 0) {glDetachShader(watched.shaderProgram, watched.fragmentShader); }
             
@@ -872,7 +846,7 @@ static void UseProgram(u32 programID)
         programID = renderState->overrideProgram;
     }
 
-    if(programID != renderState->currentProgram) {
+    if(programID > 0 && programID != renderState->currentProgram) {
         #ifdef PLATFORM_EDITOR
         editorRenderDebugger.programChanges++;
         #endif
@@ -977,20 +951,21 @@ static void BindBuffer()
     }
 }
 
-m44* mvpData;
-u32 lastCount;
-static void InitGL()
-{
+static void CompileEngineShaders()
+{    
     coloredProgram = CompileProgramPlatform(COLORED_VERT, COLORED_FRAG);
     coloredInstancedProgram = CompileProgramPlatform(COLOREDINSTANCED_VERT, COLOREDINSTANCED_FRAG);
     fontProgram = CompileProgramPlatform(TEXTURED_VERT, FONT_FRAG);
     texturedProgram = CompileProgramPlatform(TEXTURED_VERT, TEXTURED_FRAG);
     textured9SliceProgram = CompileProgramPlatform(TEXTURED_VERT, TEXTURED9SLICE_FRAG);
-
-    // calcposmvpProgram = CompileTransformFeedbackProgramPlatform(CALCPOSMVP_VERT);
     
     dimensionsLocation = glGetUniformLocation(textured9SliceProgram, "dimensions");
-    borderLocation = glGetUniformLocation(textured9SliceProgram, "border");
+    borderLocation = glGetUniformLocation(textured9SliceProgram, "border");    
+}
+
+static void InitGL()
+{
+    CompileEngineShaders();
 
     glGenVertexArrays(1, &quadBuffer.vertexArray);
     glGenBuffers(1, &quadBuffer.vertexBuffer);
@@ -1023,6 +998,19 @@ static void InitGL()
     else if(CheckVendor(GL_STRING_VENDOR_ATI)) {
         currentVendor = GL_VENDOR_ATI;
     }
+}
+
+static void ResetShaders()
+{
+    for(i32 i = 0; i < editorShaderDebugger.watchedProgramsCount; ++i) {
+        if(editorShaderDebugger.watchedPrograms[i].vertexShader != 0) { glDeleteShader(editorShaderDebugger.watchedPrograms[i].vertexShader); }
+        if(editorShaderDebugger.watchedPrograms[i].fragmentShader != 0) {glDeleteShader(editorShaderDebugger.watchedPrograms[i].fragmentShader); }
+        glDeleteProgram(editorShaderDebugger.watchedPrograms[i].shaderProgram);
+        editorShaderDebugger.watchedPrograms[i] = {};
+    }
+
+    editorShaderDebugger.watchedProgramsCount = 0;
+    CompileEngineShaders();
 }
 
 static void DefaultAssets()

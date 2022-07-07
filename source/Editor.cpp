@@ -98,6 +98,14 @@ static void SetupTexture(u32 textureID, u32 textureFiltering)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, textureFiltering);
 }
 
+static void SetupBufferFiltering()
+{
+    if(editorPreview.linearFiltering) { editorPreview.filterMethod = GL_LINEAR; }
+    else { editorPreview.filterMethod = GL_NEAREST; }
+    SetupTexture(gameState->render.renderBuffer, editorPreview.filterMethod);
+    SetupTexture(gameState->render.frameBuffer, editorPreview.filterMethod);
+}
+
 static void CloseAllWindows() 
 {
     editorConsole.open = false;
@@ -140,9 +148,9 @@ static void EditorCodeLayout()
         ImGui::DockBuilderRemoveNode(previewID);
         ImGui::DockBuilderAddNode(previewID, ImGuiDockNodeFlags_None);
 
-        ImGuiID luaID = ImGui::GetID("LUA");
-        ImGui::DockBuilderRemoveNode(luaID);
-        ImGui::DockBuilderAddNode(luaID, ImGuiDockNodeFlags_None);
+        ImGuiID scriptingID = ImGui::GetID("Scripting");
+        ImGui::DockBuilderRemoveNode(scriptingID);
+        ImGui::DockBuilderAddNode(scriptingID, ImGuiDockNodeFlags_None);
 
         ImGuiID dockMain = editorState->dockspaceID;
         ImGuiID dockLeft = ImGui::DockBuilderSplitNode(dockMain, ImGuiDir_Left, 0.55f, NULL, &dockMain);
@@ -152,7 +160,7 @@ static void EditorCodeLayout()
         ImGui::DockBuilderDockWindow("Console", dockTop);
 
 #if LUA_ENABLED
-        ImGui::DockBuilderDockWindow("LUA Code", dockMain);
+        ImGui::DockBuilderDockWindow("Code", dockMain);
         editorLUADebugger.codeOpen = true;
 #endif
 
@@ -184,9 +192,9 @@ static void EditorShadersLayout()
         ImGui::DockBuilderRemoveNode(previewID);
         ImGui::DockBuilderAddNode(previewID, ImGuiDockNodeFlags_None);
 
-        ImGuiID luaID = ImGui::GetID("LUA");
-        ImGui::DockBuilderRemoveNode(luaID);
-        ImGui::DockBuilderAddNode(luaID, ImGuiDockNodeFlags_None);
+        ImGuiID scriptingID = ImGui::GetID("Scripting");
+        ImGui::DockBuilderRemoveNode(scriptingID);
+        ImGui::DockBuilderAddNode(scriptingID, ImGuiDockNodeFlags_None);
 
         ImGuiID dockMain = editorState->dockspaceID;
         ImGuiID dockLeft = ImGui::DockBuilderSplitNode(dockMain, ImGuiDir_Left, 0.55f, NULL, &dockMain);
@@ -199,7 +207,7 @@ static void EditorShadersLayout()
         ImGui::DockBuilderDockWindow("Console", dockTopLeft);
 
 #if LUA_ENABLED
-        ImGui::DockBuilderDockWindow("LUA Code", dockMain);
+        ImGui::DockBuilderDockWindow("Code", dockMain);
         editorLUADebugger.codeOpen = true;
 #endif
 
@@ -221,9 +229,8 @@ static void EditorDefaultLayout()
 static void EditorInit(PreviewWindow* preview)
 {
     preview->linearFiltering = true;
-
-    SetupTexture(gameState->render.renderBuffer, GL_LINEAR);
-    SetupTexture(gameState->render.frameBuffer, GL_LINEAR);
+    
+    SetupBufferFiltering();
 }
 
 static void EditorInit(AssetsWindow* debugger)
@@ -509,6 +516,25 @@ static void PopConsoleStyleColor(ConsoleLogType type)
     }
 }
 
+static void EditorReset(){
+    CleanCache();
+
+    ResetArena(&sceneState->arena);
+
+    gameState->time.gameTime = 0;
+    gameState->time.gameFrames = 0;
+
+    GameInit();
+
+    ResetShaders();
+
+#if LUA_ENABLED
+    ScriptingReset();
+    LoadScriptString(editorLUADebugger.currentFileBuffer);
+    RunLUAProtectedFunction(Load)
+#endif
+}
+
 static u32 GameInit();
 ConsoleLog *inspectedLog = 0;
 static void EditorDraw(ConsoleWindow* console)
@@ -530,26 +556,18 @@ static void EditorDraw(ConsoleWindow* console)
             if (!gameState->game.updateRunning && ImGui::MenuItem("Play")) { gameState->game.updateRunning = true; }
             if (gameState->game.updateRunning && ImGui::MenuItem("Pause")) { gameState->game.updateRunning = false; }
             if (ImGui::MenuItem("Reset", "CTRL+R")) {
-                CleanCache();
-                
-                ResetArena(&sceneState->arena);
-
-                gameState->time.gameTime = 0;
-                gameState->time.gameFrames = 0;
-
-                GameInit();
-
-#if LUA_ENABLED
-                LoadScriptString(editorLUADebugger.currentFileBuffer);
-                // #TODO (Juan): This is not the best solution because we are running Load twice, but we can fix it later
-                RunLUAProtectedFunction(Load);
-#endif
+                EditorReset();
             }
+#if PLATFORM_EDITOR && PLATFORM_WINDOWS
             if (ImGui::BeginMenu("Build")) {
                 for(i32 platformIndex = 0; platformIndex < ArraySize(platformNames); platformIndex++) {
                     if (ImGui::MenuItem(platformNames[platformIndex])) { BuildPlatform((RuntimePlatform)platformIndex); }
                 }
                 ImGui::EndMenu();
+            }
+#endif
+            if (ImGui::MenuItem("Save", "CTRL+S")) {
+                SaveData();
             }
             ImGui::EndMenu();
         }
@@ -570,7 +588,7 @@ static void EditorDraw(ConsoleWindow* console)
             if (ImGui::Checkbox("Sound", &editorSoundDebugger.open)) { EditorInit(&editorSoundDebugger); }
             if (ImGui::Checkbox("Shaders", &editorShaderDebugger.open)) { EditorInit(&editorShaderDebugger); }
 #ifdef LUA_ENABLED
-            if (ImGui::Checkbox("LUA", &editorLUADebugger.open)) { EditorInit(&editorLUADebugger); }
+            if (ImGui::Checkbox("Scripting", &editorLUADebugger.open)) { EditorInit(&editorLUADebugger); }
             RunLUAProtectedFunction(EditorConsoleDebugBar)
 #endif
             ImGui::EndMenu();
@@ -623,7 +641,7 @@ static void EditorDraw(ConsoleWindow* console)
         EditorLogMenuButton(console, "Sound", LogFlag_SOUND);
         EditorLogMenuButton(console, "Input", LogFlag_INPUT);
         EditorLogMenuButton(console, "Time", LogFlag_TIME);
-        EditorLogMenuButton(console, "LUA", LogFlag_LUA);
+        EditorLogMenuButton(console, "Scripting", LogFlag_LUA);
         
         EditorLogMenuButton(console, "System", LogFlag_SYSTEM);
         EditorLogMenuButton(console, "Game", LogFlag_GAME);
@@ -783,11 +801,7 @@ static void EditorDraw(PreviewWindow* preview)
     if (ImGui::BeginMenuBar()) {
         if (ImGui::BeginMenu("Menu")) {
             if(ImGui::Checkbox("Linear Filtering", &preview->linearFiltering)) {
-                u32 filterMethod = 0;
-                if(preview->linearFiltering) { filterMethod = GL_LINEAR; }
-                else { filterMethod = GL_NEAREST; }
-                SetupTexture(gameState->render.renderBuffer, filterMethod);
-                SetupTexture(gameState->render.frameBuffer, filterMethod);
+                SetupBufferFiltering();
             }
             if(ImGui::Checkbox("Preview Data", &preview->showData)){
                 ImGui::CloseCurrentPopup();
@@ -962,7 +976,7 @@ static void EditorDraw(AssetsViewer* debugger)
             TextAsset* text;
             if(debugger->targetAsset == 0) {
                 text = (TextAsset*)malloc(sizeof(TextAsset));
-                *text = LoadFileToMemory(debugger->targetAssetPath.string().c_str(), FILE_MODE_READ_BINARY);
+                *text = LoadTextToMemory(debugger->targetAssetPath.string().c_str(), FILE_MODE_READ_BINARY);
                 debugger->targetAsset = (void*)text;
             }
             else {
@@ -1014,6 +1028,34 @@ static void EditorDraw(PerformanceDebuggerWindow* debugger)
     ImGui::End();
 }
 
+bool GetProgramValid(u32 programID) {
+    #if PLATFORM_WASM
+    return EM_ASM_INT({
+        return $0 <= GL.programs.length && GL.programs[$0] != null;
+    }, programID);
+    #else
+    glGetError(); // #TODO(Juan): This is clearing the latest error flags, we seem to have some kind of error before this
+    i32 attachedShaders;
+    u32 shaders[2];
+    glGetAttachedShaders(programID, 2, &attachedShaders, shaders);
+    GLenum error = glGetError();
+    return error != GL_INVALID_VALUE && error != GL_INVALID_OPERATION;
+    #endif
+}
+
+void LogGLMessage(GLenum source,
+    GLenum type,
+    GLuint id,
+    GLenum severity,
+    GLsizei length,
+    const GLchar* message,
+    const void* userParam )
+{
+    Log("%s: source: %s, type = %s, severity = %s\nmessage = %s",
+        (type == GL_DEBUG_TYPE_ERROR ? "GL ERROR" : "GL CALLBACK"),
+        GetErrorSourceName(source), GetErrorTypeName(type), GetErrorSeverityName(severity), message);
+}
+
 static void EditorDraw(RenderDebuggerWindow* debugger)
 {
     if(!debugger->open) { return; }
@@ -1037,12 +1079,14 @@ static void EditorDraw(RenderDebuggerWindow* debugger)
         gameState->render.scaledBufferSize.x = gameState->render.bufferSize.x * gameState->render.renderScale;
         gameState->render.scaledBufferSize.y = gameState->render.bufferSize.y * gameState->render.renderScale;
         ResizeFramebufferGL((i32)gameState->render.scaledBufferSize.x, (i32)gameState->render.scaledBufferSize.y);
+        SetupBufferFiltering();
     }
 
     if(ImGui::SliderFloat("Render scale", &gameState->render.renderScale, 0.01f, 8.0f)) {
         gameState->render.scaledBufferSize.x = gameState->render.bufferSize.x * gameState->render.renderScale;
         gameState->render.scaledBufferSize.y = gameState->render.bufferSize.y * gameState->render.renderScale;
         ResizeFramebufferGL((i32)gameState->render.scaledBufferSize.x, (i32)gameState->render.scaledBufferSize.y);
+        SetupBufferFiltering();
     }
     
     ImGui::Separator();
@@ -1067,7 +1111,9 @@ static void EditorDraw(RenderDebuggerWindow* debugger)
     i32 formatIndex = (i32)debugger->recordingFormat;
     ImGui::Combo("Format", &formatIndex, recordingFormatExtensions, ArrayCount(recordingFormatExtensions));
     debugger->recordingFormat = (RecordingFormat)formatIndex;
-    ImGui::SliderInt("JPG Quality", &debugger->jpgQuality, 1, 100);
+    if(strcmp(recordingFormatExtensions[formatIndex], ".jpg") == 0) {
+        ImGui::SliderInt("JPG Quality", &debugger->jpgQuality, 1, 100);
+    }
 #endif
     ImGui::Separator();
 
@@ -1321,6 +1367,24 @@ static void EditorDraw(RenderDebuggerWindow* debugger)
 
         ImGui::TreePop();
     }
+    
+    ImGui::Separator();
+
+#if PLATFORM_WINDOWS
+    if(ImGui::TreeNode("OpenGL Debugging")) {
+        if(ImGui::Button("Enable")) {
+            glEnable(GL_DEBUG_OUTPUT);
+            glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+            glDebugMessageCallback(LogGLMessage, NULL);
+        }
+        if(ImGui::Button("Disable")) {
+            glDisable(GL_DEBUG_OUTPUT);
+            glDisable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+        }
+
+        ImGui::TreePop();
+    }
+#endif
 
     ImGui::End();
 }
@@ -1672,18 +1736,36 @@ static void EditorDraw(TimeDebuggerWindow* debugger)
     ImGui::End();
 }
 
+static TextBuffer* ShaderGetTargetBuffer()
+{
+    WatchedProgram watchedProgram = editorShaderDebugger.watchedPrograms[editorShaderDebugger.programIndex];
+
+    if(editorShaderDebugger.targetID == watchedProgram.vertexShader) {
+        return &editorShaderDebugger.vertexShaderBuffer;
+    }
+    else if(editorShaderDebugger.targetID == watchedProgram.fragmentShader) {
+        return &editorShaderDebugger.fragmentShaderBuffer;
+    }
+
+    return 0;
+}
+
 static i32 ShaderSourceEditCallback(ImGuiInputTextCallbackData* data)
 {
+    TextBuffer* currentShaderBuffer = ShaderGetTargetBuffer();
+
     switch (data->EventFlag) {
         case ImGuiInputTextFlags_CallbackResize: {
-            if(data->BufTextLen >= editorShaderDebugger.currentFileBufferSize) {
-                u32 newBufferSize = data->BufTextLen * 2;
-                void* oldMemory = (void*)editorShaderDebugger.currentFileBuffer;
-                size_t oldSize = editorShaderDebugger.currentFileBufferSize;
-                editorShaderDebugger.currentFileBufferSize = newBufferSize;
-                editorShaderDebugger.currentFileBuffer = (char*)malloc(editorShaderDebugger.currentFileBufferSize);
-                data->Buf = editorShaderDebugger.currentFileBuffer;
-                ZeroSize(editorShaderDebugger.currentFileBufferSize, editorShaderDebugger.currentFileBuffer);
+            if(data->BufTextLen >= currentShaderBuffer->size) {
+                void* oldMemory = currentShaderBuffer->value;
+
+                size_t newBufferSize = data->BufTextLen * 2;
+                currentShaderBuffer->size = newBufferSize;
+                *currentShaderBuffer = (char*)malloc(newBufferSize);
+                
+                data->Buf = *currentShaderBuffer;
+                currentShaderBuffer[data->BufTextLen] = 0;
+                
                 free(oldMemory);
             }
 
@@ -1693,21 +1775,49 @@ static i32 ShaderSourceEditCallback(ImGuiInputTextCallbackData* data)
     return 0;
 }
 
-static void LoadTargetIDShader() {
-    if(editorShaderDebugger.currentFileBuffer) {
-        free(editorShaderDebugger.currentFileBuffer);
+static void LoadTargetIDShader(bool forceReload = false) {
+    i32 shaderCount = 0;
+    u32 shaders[2];
+    i32 shaderSourceLength;
+    glGetAttachedShaders(editorShaderDebugger.programID, 2, &shaderCount, shaders);
+        
+    if(editorShaderDebugger.vertexShaderBuffer.value) {
+        free(editorShaderDebugger.vertexShaderBuffer.value);
+        editorShaderDebugger.vertexShaderBuffer.value = 0;
     }
-    editorShaderDebugger.currentFileBuffer = 0;
+    if(editorShaderDebugger.fragmentShaderBuffer.value) {
+        free(editorShaderDebugger.fragmentShaderBuffer.value);
+        editorShaderDebugger.fragmentShaderBuffer.value = 0;
+    }
 
-    if(editorShaderDebugger.targetID >= 0) {
-        i32 shaderLength = 0;
-        glGetShaderiv(editorShaderDebugger.targetID, GL_SHADER_SOURCE_LENGTH, &shaderLength);
-        editorShaderDebugger.currentFileBufferSize = shaderLength * 2;
-        editorShaderDebugger.currentFileBuffer = (char*)malloc(editorShaderDebugger.currentFileBufferSize);
+    WatchedProgram watchedProgram = editorShaderDebugger.watchedPrograms[editorShaderDebugger.programIndex];
 
-        i32 shaderSourceLength;
-        u32 bufferSize = (u32)editorShaderDebugger.currentFileBufferSize;
-        glGetShaderSource(editorShaderDebugger.targetID, bufferSize, &shaderSourceLength, editorShaderDebugger.currentFileBuffer);
+    if(forceReload) {
+        editorShaderDebugger.vertexShaderBuffer = (char*)LoadTextToMemory(watchedProgram.vertexFilepath, FILE_MODE_READ_BINARY, &editorShaderDebugger.vertexShaderBuffer.size);
+        editorShaderDebugger.fragmentShaderBuffer = (char*)LoadTextToMemory(watchedProgram.fragmentFilepath, FILE_MODE_READ_BINARY, &editorShaderDebugger.fragmentShaderBuffer.size);
+    }
+    else {
+        for(i32 i = 0; i < shaderCount; ++i) {
+            i32 shaderType = 0;
+            glGetShaderiv(shaders[i], GL_SHADER_TYPE, &shaderType);
+
+            if(shaderType == GL_VERTEX_SHADER) {
+                glGetShaderiv(watchedProgram.vertexShader, GL_SHADER_SOURCE_LENGTH, &shaderSourceLength);
+                editorShaderDebugger.vertexShaderBuffer.size = shaderSourceLength * 2;
+                editorShaderDebugger.vertexShaderBuffer = (char*)malloc(editorShaderDebugger.vertexShaderBuffer.size);
+                
+                glGetShaderSource(watchedProgram.vertexShader, (u32)editorShaderDebugger.vertexShaderBuffer.size, &shaderSourceLength, editorShaderDebugger.vertexShaderBuffer.value);
+                editorShaderDebugger.targetID = watchedProgram.vertexShader;
+            }
+            else {
+                glGetShaderiv(watchedProgram.fragmentShader, GL_SHADER_SOURCE_LENGTH, &shaderSourceLength);
+                editorShaderDebugger.fragmentShaderBuffer.size = shaderSourceLength * 2;
+                editorShaderDebugger.fragmentShaderBuffer = (char*)malloc(editorShaderDebugger.fragmentShaderBuffer.size);
+                
+                glGetShaderSource(watchedProgram.fragmentShader, (u32)editorShaderDebugger.fragmentShaderBuffer.size, &shaderSourceLength, editorShaderDebugger.fragmentShaderBuffer.value);
+                editorShaderDebugger.targetID = watchedProgram.fragmentShader;
+            }
+        }
     }
 }
 
@@ -1715,16 +1825,19 @@ static void EditorDraw(ShaderDebuggerWindow* debugger)
 {
     if(!debugger->open) { return; }
     ImGui::SetNextWindowSize(ImVec2(400,300), ImGuiCond_FirstUseEver);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
 
     if (!ImGui::Begin("Shaders", &debugger->open)) {
+        ImGui::PopStyleVar();
         ImGui::End();
         return;
     }
+    ImGui::PopStyleVar();
 
     bool focused = ImGui::IsWindowFocused(ImGuiFocusedFlags_DockHierarchy);
 
-    if(debugger->programIndex == -1) {
-        debugger->programIDChanged = true;
+    if(debugger->programIndex <= -1) {
+        debugger->programIndexChanged = true;
         debugger->programIndex = 0;
     }
 
@@ -1733,123 +1846,100 @@ static void EditorDraw(ShaderDebuggerWindow* debugger)
             debugger->programIndex = 0;
         }
 
-        if(debugger->currentFileBuffer) {
-            free(debugger->currentFileBuffer);
-        }
-        debugger->currentFileBuffer = 0;
-
-        debugger->programIDChanged = true;
+        debugger->programIndexChanged = true;
     }
 
-    WatchedProgram watched = watchedPrograms[debugger->programIndex];
-    u32 programID = watched.shaderProgram;
+    WatchedProgram watched = editorShaderDebugger.watchedPrograms[debugger->programIndex];
+    debugger->programID = watched.shaderProgram;
     
-    bool validProgram = GetProgramValid(programID);
+    bool validProgram = GetProgramValid(debugger->programID);
 
     if(validProgram) {
-        if(debugger->programIDChanged) {
-            debugger->targetID = -1;
-            debugger->vertexShaderID = -1;
-            debugger->fragmentShaderID = -1;
-
-            i32 shaderCount = 0;
-            u32 shaders[2];
-            glGetAttachedShaders(programID, 2, &shaderCount, shaders);
-
-        ImGui::Text("Shaders:");
-        for(i32 i = 0; i < shaderCount; ++i) {
-            ImGui::Separator();
-
-                i32 shaderType = 0;
-                glGetShaderiv(shaders[i], GL_SHADER_TYPE, &shaderType);
-                
-                if(shaderType == GL_VERTEX_SHADER) {
-                    debugger->vertexShaderID = shaders[i];
-                    debugger->targetID = debugger->vertexShaderID;
-                }
-                else {
-                    debugger->fragmentShaderID = shaders[i];
-                    debugger->targetID = debugger->fragmentShaderID;
-                }
-            }
+        if(debugger->programIndexChanged) {
+            debugger->targetID = 0;
             
             LoadTargetIDShader();
         }
 
-        if(debugger->currentFileBuffer != 0) {
-            ImVec2 contentMin = ImGui::GetWindowContentRegionMin();
-            ImVec2 contentMax = ImGui::GetWindowContentRegionMax();
-            float contentHeight = contentMax.y - contentMin.y - 76;
+        ImVec2 contentMin = ImGui::GetWindowContentRegionMin();
+        ImVec2 contentMax = ImGui::GetWindowContentRegionMax();
+        float contentHeight = contentMax.y - contentMin.y - 101;
 
-            ImGui::Text("Shaders:");
-            if(debugger->vertexShaderID >= 0) {
-                ImGui::SameLine();
-                if(ImGui::SmallButton("Vertex")) {
-                    debugger->targetID = debugger->vertexShaderID;
-                    LoadTargetIDShader();
-                }
+        ImGui::Text("Program ID: %d", debugger->programID);
+        ImGui::Text("Shaders:");
+        if(watched.vertexShader >= 0) {
+            ImGui::SameLine();
+            if(ImGui::SmallButton("Vertex")) {
+                debugger->targetID = watched.vertexShader;
             }
-            if(debugger->fragmentShaderID >= 0) {
-                ImGui::SameLine();
-                if(ImGui::SmallButton("Fragment")) {
-                    debugger->targetID = debugger->fragmentShaderID;
-                    LoadTargetIDShader();
-                }
+        }
+        if(watched.fragmentShader >= 0) {
+            ImGui::SameLine();
+            if(ImGui::SmallButton("Fragment")) {
+                debugger->targetID = watched.fragmentShader;
             }
+        }
+        ImGui::SameLine();
+        ImGui::Text("| Shader ID: %d", debugger->targetID);
 
-            if(debugger->targetID == debugger->vertexShaderID) {
-                ImGui::Text("File: %s", watched.vertexFilepath);
-            }
-            if(debugger->targetID == debugger->fragmentShaderID) {
-                ImGui::Text("File: %s", watched.fragmentFilepath);
-            }
+        if(debugger->targetID == watched.vertexShader) {
+            ImGui::Text("File: %s", watched.vertexFilepath);
+        }
+        else if(debugger->targetID == watched.fragmentShader) {
+            ImGui::Text("File: %s", watched.fragmentFilepath);
+        }
+    
+        TextBuffer* currentShaderBuffer = ShaderGetTargetBuffer();
+        ImGui::InputTextMultiline("##source", currentShaderBuffer->value, currentShaderBuffer->size, ImVec2(-FLT_MIN, contentHeight), 
+            ImGuiInputTextFlags_AllowTabInput|ImGuiInputTextFlags_CallbackResize, &ShaderSourceEditCallback);    
+        
+        ImGuiIO imguiIO = ImGui::GetIO();
+        if(ImGui::Button("Reload source")) {
+            LoadTargetIDShader(true);
+        }
+        ImGui::SameLine();
+        if(ImGui::Button("Inject") || (focused && imguiIO.KeyCtrl && ImGui::IsKeyPressed(SDL_SCANCODE_S))) {
+            SOURCE_TYPE source = static_cast<SOURCE_TYPE>(*currentShaderBuffer);
 
-            ImGui::InputTextMultiline("##source", debugger->currentFileBuffer, debugger->currentFileBufferSize, ImVec2(-FLT_MIN, contentHeight), ImGuiInputTextFlags_AllowTabInput|ImGuiInputTextFlags_CallbackResize, &ShaderSourceEditCallback);    
+            i32 size = (i32)(currentShaderBuffer->size);
+            glShaderSource(debugger->targetID, 1, &source, &size);
+            glCompileShader(debugger->targetID);
             
-            ImGuiIO imguiIO = ImGui::GetIO();
-            if(ImGui::Button("Reload") || (focused && imguiIO.KeyCtrl && ImGui::IsKeyPressed(SDL_SCANCODE_S))) {
-                SOURCE_TYPE source = static_cast<SOURCE_TYPE>(debugger->currentFileBuffer);
+            i32 success;
+            char infoLog[INFO_LOG_BUFFER_SIZE];
+            glGetShaderiv(debugger->targetID, GL_COMPILE_STATUS, &success);
 
-                i32 size = (i32)debugger->currentFileBufferSize;
-                glShaderSource(debugger->targetID, 1, &source, &size);
-                glCompileShader(debugger->targetID);
-                
-                i32 success;
-                char infoLog[INFO_LOG_BUFFER_SIZE];
-                glGetShaderiv(debugger->targetID, GL_COMPILE_STATUS, &success);
-
-                if (!success)
-                {
-                    glGetShaderInfoLog(debugger->targetID, INFO_LOG_BUFFER_SIZE, NULL, infoLog);
-                    if(debugger->targetID == debugger->vertexShaderID) {
-                        LogError("ERROR::VERTEX::COMPILATION_FAILED %s\n", watched.vertexFilepath);
-                    }
-                    else if(debugger->targetID == debugger->fragmentShaderID) {
-                        LogError("ERROR::FRAGMENT::COMPILATION_FAILED %s\n", watched.fragmentFilepath);
-                    }
-                    LogError("ERROR::COMPILATION_FAILED");
-                    LogError(infoLog);
+            if (!success)
+            {
+                glGetShaderInfoLog(debugger->targetID, INFO_LOG_BUFFER_SIZE, NULL, infoLog);
+                if(debugger->targetID == watched.vertexShader) {
+                    LogError("ERROR::VERTEX::COMPILATION_FAILED %s\n", watched.vertexFilepath);
                 }
-
-                glLinkProgram(programID);
-
-                glGetProgramiv(programID, GL_LINK_STATUS, &success);
-                if (!success) {
-                    glGetProgramInfoLog(programID, INFO_LOG_BUFFER_SIZE, NULL, infoLog);
-                    LogError("ERROR::PROGRAM::LINK_FAILED");
-                    LogError(infoLog);
+                else if(debugger->targetID == watched.fragmentShader) {
+                    LogError("ERROR::FRAGMENT::COMPILATION_FAILED %s\n", watched.fragmentFilepath);
                 }
+                LogError("ERROR::COMPILATION_FAILED");
+                LogError(infoLog);
+            }
+
+            glLinkProgram(debugger->programID);
+
+            glGetProgramiv(debugger->programID, GL_LINK_STATUS, &success);
+            if (!success) {
+                glGetProgramInfoLog(debugger->programID, INFO_LOG_BUFFER_SIZE, NULL, infoLog);
+                LogError("ERROR::PROGRAM::LINK_FAILED");
+                LogError(infoLog);
+            }
 
 #ifdef LUA_ENABLED
-                RunLUAProtectedFunction(EditorShaderReload);
+            RunLUAProtectedFunction(EditorShaderReload);
 #endif
-            }
         }
     } else {
         ImGui::Text("Program ID is not valid");
     }
 
-    debugger->programIDChanged = false;
+    debugger->programIndexChanged = false;
 
     ImGui::End();
 }
@@ -1859,8 +1949,7 @@ static i32 LuaSourceEditCallback(ImGuiInputTextCallbackData* data)
 {
     switch (data->EventFlag) {
         case ImGuiInputTextFlags_CallbackEdit: {
-            watchListEdited[editorLUADebugger.currentFileIndex] = true;
-
+            editorLUADebugger.watchListEdited[editorLUADebugger.currentFileIndex] = true;
             break;
         }
         case ImGuiInputTextFlags_CallbackResize: {
@@ -1882,9 +1971,37 @@ static i32 LuaSourceEditCallback(ImGuiInputTextCallbackData* data)
 }
 
 static void LoadCurrentLUAFile() {
-    editorLUADebugger.currentFileBufferSize = GetFileSize(editorLUADebugger.currentFileName) * 2;
-    if(editorLUADebugger.currentFileBuffer) { UnloadFileFromMemory(editorLUADebugger.currentFileBuffer); }
-    editorLUADebugger.currentFileBuffer = (char*)LoadFileToMemory(editorLUADebugger.currentFileName, FILE_MODE_READ_BINARY, editorLUADebugger.currentFileBufferSize);
+    i32 index;
+    char* name;
+    char* buffer;
+
+    name = editorLUADebugger.watchList + editorLUADebugger.lastFileWatchIndex;
+    index = (i32)shgeti(editorLUADebugger.watchedFileCache, name);
+    if(index != -1) {
+        buffer = shget(editorLUADebugger.watchedFileCache, name);
+        free(buffer);
+    }
+
+    if(editorLUADebugger.currentFileBuffer) {
+        if(editorLUADebugger.watchListEdited[editorLUADebugger.lastFileIndex]) {
+            char* buffered = Strdup(editorLUADebugger.currentFileBuffer);
+            shput(editorLUADebugger.watchedFileCache, name, buffered);
+        }
+        UnloadFileFromMemory(editorLUADebugger.currentFileBuffer);
+    }
+    
+    name = editorLUADebugger.watchList + editorLUADebugger.currentFileWatchIndex;
+    index = (i32)shgeti(editorLUADebugger.watchedFileCache, name);
+    if(index > -1) {
+        buffer = shget(editorLUADebugger.watchedFileCache, name);
+
+        editorLUADebugger.currentFileBufferSize = strlen(buffer) * 2;
+        editorLUADebugger.currentFileBuffer = (char*)malloc(editorLUADebugger.currentFileBufferSize);
+        strcpy(editorLUADebugger.currentFileBuffer, buffer + 1);
+    } else {
+        editorLUADebugger.currentFileBufferSize = GetFileSize(name) * 2;
+        editorLUADebugger.currentFileBuffer = (char*)LoadTextToMemory(name, FILE_MODE_READ_BINARY, editorLUADebugger.currentFileBufferSize);        
+    }
 }
 
 static void EditorDraw(LUADebuggerWindow* debugger)
@@ -1894,7 +2011,7 @@ static void EditorDraw(LUADebuggerWindow* debugger)
     if(debugger->open) {
         ImGui::SetNextWindowSize(ImVec2(400,300), ImGuiCond_FirstUseEver);
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-        if (ImGui::Begin("LUA", &debugger->open, ImGuiWindowFlags_MenuBar))
+        if (ImGui::Begin("Scripting", &debugger->open, ImGuiWindowFlags_MenuBar))
         {
             ImGui::PopStyleVar();
 
@@ -1979,7 +2096,7 @@ static void EditorDraw(LUADebuggerWindow* debugger)
                         strcpy(debugger->currentFileName, debugInfo.source + 1);
 
                         if(debugger->currentFileBuffer) { UnloadFileFromMemory(debugger->currentFileBuffer); }
-                        debugger->currentFileBuffer = (char*)LoadFileToMemory(debugInfo.source + 1, FILE_MODE_READ_BINARY, &debugger->currentFileBufferSize);
+                        debugger->currentFileBuffer = (char*)LoadTextToMemory(debugInfo.source + 1, FILE_MODE_READ_BINARY, &debugger->currentFileBufferSize);
                     }
                     else {
                         Log("Function not found %s", debugger->inputBuffer);
@@ -2026,7 +2143,7 @@ static void EditorDraw(LUADebuggerWindow* debugger)
         ImGui::End();
     }
 
-    const char* luaCodeWindowName = "LUA Code";
+    const char* luaCodeWindowName = "Code";
     if(debugger->codeOpen) {
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
         ImGui::SetNextWindowSize(ImVec2(400,300), ImGuiCond_FirstUseEver);
@@ -2036,16 +2153,16 @@ static void EditorDraw(LUADebuggerWindow* debugger)
 
             char selectedFilename[LUA_FILENAME_MAX];
             i32 selectedFileIndex = debugger->currentFileIndex;
+            i32 currentWatchIndex = debugger->currentFileIndex;
             if (ImGui::BeginTabBar("LoadedFiles", ImGuiTabBarFlags_Reorderable | ImGuiTabBarFlags_FittingPolicyScroll)) {
                 i32 nameIndex = 0;
                 i32 watchIndex = 0;
                 i32 fileIndex = 0;
-                char name[LUA_FILENAME_MAX];
-                while(watchIndex < watchListSize) {
-                    if(watchList[watchIndex] == '@') {
+                char* name;
+                while(watchIndex < debugger->watchListSize) {
+                    if(debugger->watchList[watchIndex] == 0) {
+                        name = debugger->watchList + nameIndex;
                         i32 nameSize = nameIndex;
-
-                        name[nameIndex] = 0;
 
                         bool tabOpen = true;
                         ImGui::PushID(fileIndex);
@@ -2053,28 +2170,27 @@ static void EditorDraw(LUADebuggerWindow* debugger)
                         {
                             if(tabOpen) {
                                 selectedFileIndex = fileIndex;
+                                currentWatchIndex = nameIndex;
                                 strcpy(selectedFilename, name);
-                                selectedFilename[nameSize] = 0;
                             }
                             ImGui::EndTabItem();
                         }
                         ImGui::PopID();
 
-                        nameIndex = -1;
+                        nameIndex = watchIndex + 1;
                         fileIndex++;
                     }
-                    else {
-                        name[nameIndex] = watchList[watchIndex];
-                    }
-                    nameIndex++;
                     watchIndex++;
                 }
                 ImGui::EndTabBar();
             }
 
-            if(strcmp(selectedFilename, debugger->currentFileName)) {
+            if(focused && strcmp(selectedFilename, debugger->currentFileName)) {
                 strcpy(debugger->currentFileName, selectedFilename);
+                debugger->lastFileIndex = debugger->currentFileIndex;
                 debugger->currentFileIndex = selectedFileIndex;
+                debugger->lastFileWatchIndex = debugger->currentFileWatchIndex;
+                debugger->currentFileWatchIndex = currentWatchIndex;
                 
                 LoadCurrentLUAFile();
             }
@@ -2085,20 +2201,28 @@ static void EditorDraw(LUADebuggerWindow* debugger)
                 ImVec2 contentMax = ImGui::GetWindowContentRegionMax();
                 float contentHeight = contentMax.y - contentMin.y - 50;
                 
-                ImGui::InputTextMultiline("##source", debugger->currentFileBuffer, debugger->currentFileBufferSize, ImVec2(-FLT_MIN, contentHeight), ImGuiInputTextFlags_AllowTabInput|ImGuiInputTextFlags_CallbackResize|ImGuiInputTextFlags_CallbackEdit, &LuaSourceEditCallback);
+                ImGui::InputTextMultiline("##source", debugger->currentFileBuffer, debugger->currentFileBufferSize, ImVec2(-FLT_MIN, contentHeight), 
+                    ImGuiInputTextFlags_AllowTabInput|ImGuiInputTextFlags_CallbackResize|ImGuiInputTextFlags_CallbackEdit, &LuaSourceEditCallback);
                 
                 ImGuiIO imguiIO = ImGui::GetIO();
                 if(ImGui::Button("Reload source")) {
+                    debugger->watchListEdited[debugger->currentFileIndex] = false;
+                    
                     LoadCurrentLUAFile();
                     LoadScriptString(debugger->currentFileBuffer);
                     ImGui::SetItemDefaultFocus();
                 }
                 ImGui::SameLine();
-                if(ImGui::Button("Load") || (focused && imguiIO.KeyCtrl && ImGui::IsKeyPressed(SDL_SCANCODE_S))) {
+                if(ImGui::Button("Inject") || (focused && imguiIO.KeyCtrl && ImGui::IsKeyPressed(SDL_SCANCODE_S))) {
                     LoadScriptString(debugger->currentFileBuffer);
                 }
+                ImGui::SameLine();
+                if(ImGui::Button("Inject And Reset") || (focused && imguiIO.KeyCtrl && ImGui::IsKeyPressed(SDL_SCANCODE_R))) {
+                    LoadScriptString(debugger->currentFileBuffer);
+                    EditorReset();
+                }
 
-                if(watchListEdited[debugger->currentFileIndex]) {
+                if(debugger->watchListEdited[debugger->currentFileIndex]) {
                     ImGui::SameLine();
                     ImGui::Text("Edited");
                 }
@@ -2153,7 +2277,7 @@ static void EditorDraw(LUADebuggerWindow* debugger)
         if(ImGui::Begin(watchWindowName, &debugger->watchOpen)) {
             char valueBuffer[64];
             for(i32 i = 0; i < WATCH_BUFFER_COUNT; ++i) {
-                valueBuffer[0] = '\0';
+                valueBuffer[0] = 0;
 
                 ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(2, 2));
 

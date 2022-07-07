@@ -46,8 +46,8 @@ static void* LoadFileToMemory(const char* filepath, const char* mode, size_t* fi
 		rewind(file);
 
 		fileBuffer = malloc(size + 1);
-		ZeroSize(size + 1, fileBuffer);
 		fread(fileBuffer, 1, size, file);
+		((char*)fileBuffer)[size] = 0;
         fclose(file);
 	}
 
@@ -75,11 +75,46 @@ static void* LoadFileToMemory(const char* filepath, const char* mode, size_t buf
     return fileBuffer;
 }
 
-static TextAsset LoadFileToMemory(const char* filepath, const char* mode)
+static void* LoadFileToMemory(const char* filepath, const char* mode, size_t bufferSize, size_t* fileSize)
+{
+	AssertMessage(filepath != 0, "Filepath is null");
+	
+    FILE* file = fopen(filepath, mode);
+
+	void* fileBuffer = 0;
+	if (file) {
+		fseek(file, 0, SEEK_END);
+        size_t size = ftell(file);
+		*fileSize = size;
+		rewind(file);
+
+		fileBuffer = malloc(bufferSize);
+		ZeroSize(bufferSize, fileBuffer);
+		fread(fileBuffer, 1, size, file);
+        fclose(file);
+	}
+
+    return fileBuffer;
+}
+
+static TextAsset LoadTextToMemory(const char* filepath, const char* mode)
 {
 	TextAsset asset = {};
 	asset.data = (char*)LoadFileToMemory(filepath, mode, &asset.size);
 	return asset;
+}
+
+static char* LoadTextToMemory(const char* filepath, const char* mode, size_t* fileSize)
+{
+	char* text = (char*)LoadFileToMemory(filepath, mode, fileSize);
+	return text;
+}
+
+static char* LoadTextToMemory(const char* filepath, const char* mode, size_t bufferSize)
+{
+	size_t fileSize;
+	char* text = (char*)LoadFileToMemory(filepath, mode, bufferSize, &fileSize);
+	return text;
 }
 
 static void UnloadFileFromMemory(void* fileBuffer)

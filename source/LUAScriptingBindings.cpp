@@ -815,7 +815,7 @@ void ScriptingBindings()
     lua["ChangeLogFlag"] = ChangeLogFlag_;
 
     sol::usertype<ShaderDebuggerWindow> editorShaderDebugger_usertype = lua.new_usertype<ShaderDebuggerWindow>("editorShaderDebugger");
-    editorShaderDebugger_usertype["programIDChanged"] = &ShaderDebuggerWindow::programIDChanged;
+    editorShaderDebugger_usertype["programIndexChanged"] = &ShaderDebuggerWindow::programIndexChanged;
     editorShaderDebugger_usertype["programIndex"] = &ShaderDebuggerWindow::programIndex;
     lua["editorShaderDebugger"] = &editorShaderDebugger;
 

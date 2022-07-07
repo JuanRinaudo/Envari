@@ -34,7 +34,20 @@ struct DynamicString
     size_t size;
     char* value;
 
+    inline char operator[](i32 i) const { Assert(value != NULL); return value[i]; }
     DynamicString& operator=(char* input);
+};
+
+struct TextBuffer
+{
+    size_t size;
+    char* value;
+
+    inline char operator[](i32 i) const { Assert(value != NULL); return value[i]; }
+    TextBuffer& operator=(char* input) { value = input; return *this; }
+    operator const char*() { return value; }
+    operator char*() { return value; }
+    operator void*() { return value; }
 };
 
 #endif

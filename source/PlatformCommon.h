@@ -99,6 +99,9 @@ static i32 InitSDL()
     #if defined(PLATFORM_WASM) | defined(PLATFORM_ANDROID)
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
+    #else
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
     #endif
 
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);

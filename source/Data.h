@@ -22,7 +22,7 @@ struct DataTokenizer {
 static bool TokenIsInt(const char* string)
 {
     i32 i = 0;
-    while(string[i] != '\0') {
+    while(string[i] != 0) {
         i32 normalizedChar = (i32)string[i] - 48;
         if(normalizedChar < 0 || normalizedChar > 9) {
             return false;
@@ -36,7 +36,7 @@ static bool TokenIsFloat(const char* string)
 {
     i32 i = 0;
     bool hasDot = false;
-    while(string[i] != '\0') {
+    while(string[i] != 0) {
         i32 normalizedChar = (i32)string[i] - 48;
         if(string[i] == '.') {
             if(hasDot) {
@@ -55,7 +55,7 @@ static bool TokenIsFloat(const char* string)
 
 static void StartTokenizer(DataTokenizer* tokenizer, const char* filepath)
 {
-    tokenizer->memory = LoadFileToMemory(filepath, FILE_MODE_READ_BINARY, &tokenizer->memorySize);
+    tokenizer->memory = LoadTextToMemory(filepath, FILE_MODE_READ_BINARY, &tokenizer->memorySize);
     tokenizer->active = tokenizer->memory != 0;
     if(tokenizer->active) {
         tokenizer->dataString = (char*)tokenizer->memory;
@@ -121,10 +121,10 @@ static char* NextToken(DataTokenizer* tokenizer)
                         char nextChar = tokenizer->dataString[tokenizer->dataIndex + 1];
                         if(nextChar == ';' || nextChar == ' ' || (tokenizer->tokenLineCount == -1 && nextChar == ':')) {
                             if(tokenizer->tokenBuffer[tokenizer->tokenBufferIndex - 1] == '"') {
-                                tokenizer->tokenBuffer[tokenizer->tokenBufferIndex - 1] = '\0';
+                                tokenizer->tokenBuffer[tokenizer->tokenBufferIndex - 1] = 0;
                             }
                             else {
-                                tokenizer->tokenBuffer[tokenizer->tokenBufferIndex] = '\0';
+                                tokenizer->tokenBuffer[tokenizer->tokenBufferIndex] = 0;
                                 tokenizer->tokenBufferIndex++;
                             }
                             ++tokenizer->dataIndex;
@@ -136,7 +136,7 @@ static char* NextToken(DataTokenizer* tokenizer)
                 }
             }
 
-            if(tokenizer->currentChar == '\n' || tokenizer->currentChar == '\0') {
+            if(tokenizer->currentChar == '\n' || tokenizer->currentChar == 0) {
                 tokenizer->currentLine++;
                 tokenizer->tokenLineCount = -1;
 
@@ -163,7 +163,7 @@ static void EndTokenizer(DataTokenizer* tokenizer)
     tokenizer->memory = 0;
     tokenizer->memorySize = 0;
     tokenizer->dataString = 0;
-    tokenizer->tokenBuffer[0] = '\0';
+    tokenizer->tokenBuffer[0] = 0;
     tokenizer->tokenBufferIndex = 0;
     tokenizer->tokenLineCount = 0;
     UnloadFileFromMemory(tokenizer->memory);
