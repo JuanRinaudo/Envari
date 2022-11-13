@@ -4,11 +4,15 @@
 #define INFO_LOG_BUFFER_SIZE 1024
 
 #ifdef GL_PROFILE_GLES3
-#include <GLES3/gl3.h>
-const char* shaderPath = "shaders/gles";
+    #include <GLES3/gl3.h>
+    const char* shaderPath = "shaders/gles";
 #else
-#include <gl/gl.h>
-const char* shaderPath = "shaders/glcore";
+    #ifdef PLATFORM_LINUX
+    #include <GL/gl.h>
+    #else
+    #include <gl/gl.h>
+    #endif
+    const char* shaderPath = "shaders/glcore";
 #endif
 
 #ifndef NO_DEFAULT_FONT
@@ -1002,6 +1006,7 @@ static void InitGL()
 
 static void ResetShaders()
 {
+#if PLATFORM_EDITOR 
     for(i32 i = 0; i < editorShaderDebugger.watchedProgramsCount; ++i) {
         if(editorShaderDebugger.watchedPrograms[i].vertexShader != 0) { glDeleteShader(editorShaderDebugger.watchedPrograms[i].vertexShader); }
         if(editorShaderDebugger.watchedPrograms[i].fragmentShader != 0) {glDeleteShader(editorShaderDebugger.watchedPrograms[i].fragmentShader); }
@@ -1010,6 +1015,8 @@ static void ResetShaders()
     }
 
     editorShaderDebugger.watchedProgramsCount = 0;
+#endif
+
     CompileEngineShaders();
 }
 
@@ -1138,7 +1145,7 @@ static void RenderImage9Slice_(RenderImage9Slice* image9Slice)
 
 static void RenderPass()
 {
-	OPTICK_EVENT();
+	// OPTICK_EVENT();
 
     RenderHeader *renderHeader = (RenderHeader *)renderTemporaryMemory.arena->base;
 

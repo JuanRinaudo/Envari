@@ -84,7 +84,7 @@ SoundInstance* PlaySound(const char* filepath, f32 volume, bool loop = false, bo
     SoundInstance* instance = &soundMix[soundMixIndex];
     instance->index = soundMixIndex;
     instance->decoder = decoder;
-    instance->filepath = Strdup(filepath);
+    instance->filepath = strdup(filepath);
     instance->volumeModifier = volume;
     instance->loop = loop;
     instance->playing = true;
@@ -134,7 +134,7 @@ static void data_callback(ma_device* pDevice, void* pOutput, const void* pInput,
     f32 buffer[8192];
     u32 bufferCapInFrames = ma_countof(buffer) / SOUND_CHANNELS;
     u64 totalFramesRead = 0;
-    u64 framesRead;
+    ma_uint64 framesRead;
     bool fileEnded = false;
 
     for(i32 i = 0; i <= soundMixIndex; ++i) {

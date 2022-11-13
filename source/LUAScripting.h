@@ -15,10 +15,10 @@ else { \
     LogWarning("Function '"#FUNCTION"', not valid"); \
 }
 
-extern "C" {
-    #include "luasocket.h"
-    #include "mime.h"
-}
+// extern "C" {
+//     #include "luasocket.h"
+//     #include "mime.h"
+// }
 
 extern void ScriptingBindings();
 extern void ScriptingMathBindings();
