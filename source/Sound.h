@@ -31,7 +31,6 @@ SoundInstance previewInstance;
 
 void CleanSoundCache()
 {
-    
     shfree(soundDecoderCache);
 }
 
@@ -173,7 +172,8 @@ static void data_callback(ma_device* pDevice, void* pOutput, const void* pInput,
         }
     }
 
-#if PLATFORM_EDITOR
+    // #TODO (Juan): Fix this for linux
+#if PLATFORM_EDITOR && !PLATFORM_LINUX
     if(previewInstance.decoder != 0) {
         framesRead = 0;
         totalFramesRead = 0;

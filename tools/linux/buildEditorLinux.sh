@@ -23,34 +23,26 @@ fi
 pushd build
 pushd editor
 
-# if not exist lua54.dll copy ..\..\Envari\LUA\lib\x64\linux\lua54.so lua54.so >NUL
-# if not exist SDL2.dll copy ..\..\Envari\SDL2\lib\x64\SDL2.dll SDL2.dll >NUL
-# if not exist OptickCore.dll copy ..\..\Envari\Optick\lib\x64\release\OptickCore.dll OptickCore.dll >NUL
+if [ ! -d data ]
+then
+ln -s ../../data data
+fi
 if [ ! -f lualib54.so ]
 then
 cp ../../Envari/LUA/linux/liblua54.so liblua54.so
 fi
+if [ ! -f runEditor.sh ]
+then
+cp ../../buildassets/linux/runEditor.sh runEditor.sh
+fi
 
-# del /F *.pdb >NUL 2>NUL
-
-# REM -d2cgsummary
-# REM -Bt REM Build Time
-# REM -MP multiprocesor build
-# REM %random% to get random number
-# @echo Start time %time%
-# if not exist LUAScriptingBindings.%ScriptingDate::=.%.tmp (
-#     @echo Rebuilding LUA Bindings
-#     cl -c ..\..\Envari\source\LUAScriptingBindings.cpp -FmLUAScriptingBindings.map %CommonCompilerFlags% -Bt -I ..\..\Envari\SDL2\include -I ..\..\Envari\Optick\include -I ..\..\Envari\LUA\include
-#     del /F *.tmp >NUL 2>NUL
-#     echo timestamp > LUAScriptingBindings.%ScriptingDate::=.%.tmp
-# )
-
-# -llua54
-    # -DPLATFORM_EDITOR=0
-
-start=$(date +"%m-%d-%y")
-echo "Start time ${start}"
-g++ ../../Envari/source/EditorLinux.cpp -o EditorLinux\
+savedLuaFileDate=`cat LUAScriptingBindings.tmp`
+luaFileDate=$(date -r ../../Envari/source/LUAScriptingBindings.cpp "+%s")
+if [ "$savedLuaFileDate" != "$luaFileDate" ]
+then
+start=$(date +%s)
+echo "Start LUA time ${start}"
+g++ ../../Envari/source/LUAScriptingBindings.cpp -c -o LUAScriptingBindings.o\
     -std=c++17\
     -I../../Envari/SDL2/include\
     -I../../Envari/LUA/include\
@@ -58,10 +50,29 @@ g++ ../../Envari/source/EditorLinux.cpp -o EditorLinux\
     -L../../Envari/LUA/linux\
     -lSDL2 -lSDL2main -ldl -lpthread -llua54\
     -DPLATFORM_LINUX\
+    -DPLATFORM_EDITOR\
     -DLUA_ENABLED\
     -DGAME_RELEASE
-end=$(date +"%m-%d-%y")
-echo "Start time ${end}"
+end=$(date +%s)
+echo "End LUA time ${end}"
+echo "$luaFileDate" > LUAScriptingBindings.tmp
+fi
+
+start=$(date +%s)
+echo "Start time ${start}"
+g++ ../../Envari/source/EditorLinux.cpp LUAScriptingBindings.o -o EditorLinux\
+    -std=c++17\
+    -I../../Envari/SDL2/include\
+    -I../../Envari/LUA/include\
+    -L../../Envari/SDL2/linux\
+    -L../../Envari/LUA/linux\
+    -lSDL2 -lSDL2main -ldl -lpthread -llua54\
+    -DPLATFORM_LINUX\
+    -DPLATFORM_EDITOR\
+    -DLUA_ENABLED\
+    -DGAME_RELEASE
+end=$(date +%s)
+echo "End time ${end}"
 
 popd
 popd

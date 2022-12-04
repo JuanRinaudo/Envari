@@ -4,4 +4,4 @@ ln -s ../../data build/editor/data
 fi
 
 cwd="$PWD"
-(cd ./build/editor/data && ${cwd}/build/editor/EditorLinux)
+(cd ./build/editor && ${cwd}/build/editor/runEditor.sh)

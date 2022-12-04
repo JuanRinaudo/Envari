@@ -861,10 +861,10 @@ static void EditorDraw(PreviewWindow* preview)
         ImGui::EndPopup();
     }
 
-#if PLATFORM_WINDOWS
-    ImGui::Image((ImTextureID)gameState->render.frameBuffer, ImVec2(gameState->render.size.x, gameState->render.size.y), ImVec2(0, 1), ImVec2(1, 0));
-#else
+#if PLATFORM_WASM
     ImGui::Image((ImTextureID)(gameState->render.frameBuffer - 1), ImVec2(gameState->render.size.x, gameState->render.size.y), ImVec2(0, 1), ImVec2(1, 0));
+#else
+    ImGui::Image((ImTextureID)gameState->render.frameBuffer, ImVec2(gameState->render.size.x, gameState->render.size.y), ImVec2(0, 1), ImVec2(1, 0));
 #endif
 
     if(preview->showData) {
@@ -874,10 +874,12 @@ static void EditorDraw(PreviewWindow* preview)
         draw_list->AddRectFilled(previewMin, previewMin + ImVec2(200, 70), IM_COL32(0, 0, 0, 200), 0.0f, 1);
 
         ImGui::SetCursorPos(ImVec2(5, height + 3));
-        ImGui::Text("Render Size: %d, %d", (i32)gameState->render.size.x, (i32)gameState->render.size.y);
+        ImGui::Text("Framebuffer ID: %d", (i32)gameState->render.renderBuffer);
         ImGui::SetCursorPos(ImVec2(5, height + 23));
-        ImGui::Text("Buffer Size: %d, %d", (i32)gameState->render.bufferSize.x, (i32)gameState->render.bufferSize.y);
+        ImGui::Text("Render Size: %d, %d", (i32)gameState->render.size.x, (i32)gameState->render.size.y);
         ImGui::SetCursorPos(ImVec2(5, height + 43));
+        ImGui::Text("Buffer Size: %d, %d", (i32)gameState->render.bufferSize.x, (i32)gameState->render.bufferSize.y);
+        ImGui::SetCursorPos(ImVec2(5, height + 63));
         ImGui::Text("Scaled Buffer Size: %d, %d", (i32)gameState->render.scaledBufferSize.x, (i32)gameState->render.scaledBufferSize.y);
     }
 

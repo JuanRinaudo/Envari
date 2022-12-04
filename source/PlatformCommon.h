@@ -87,6 +87,13 @@ static i32 InitEngine()
 {
     gameState->sound.bindingsEnabled = TableGetBool(&initialConfig, "soundBindingsEnabled", true);
 
+    for(int i = 0; i < MOUSE_COUNT; ++i) {
+        gameState->input.mouseState[i] = KEY_UP;
+    }
+    for(int i = 0; i < KEY_COUNT; ++i) {
+        gameState->input.keyState[i] = KEY_UP;
+    }
+
     return 1;
 }
 

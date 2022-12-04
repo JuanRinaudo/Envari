@@ -396,7 +396,7 @@ static void ResizeFramebufferGL(i32 bufferWidth, i32 bufferHeight)
 #if PLATFORM_EDITOR
 void WriteFrame(char *filename, RecordingFormat format, i32 width, i32 height, i32 comp, i32 quality, void *data)
 {
-	OPTICK_THREAD("WriteFrame");
+	// OPTICK_THREAD("WriteFrame");
     
     switch(format) {
         case RecordingFormat_PNG:
@@ -478,7 +478,8 @@ i32 GenerateFont(void* data, size_t data_size, const char *filepath, f32 fontSiz
 
     glGenTextures(1, &result.fontTextureID);
     glBindTexture(GL_TEXTURE_2D, result.fontTextureID);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, width, height, 0, GL_ALPHA, GL_UNSIGNED_BYTE, tempBitmap);
+    // glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, width, height, 0, GL_ALPHA, GL_UNSIGNED_BYTE, tempBitmap);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_ALPHA, GL_UNSIGNED_BYTE, tempBitmap);
     glGenerateMipmap(GL_TEXTURE_2D);
 
     hmput(fontCache, result.fontTextureID, result);

@@ -31,7 +31,7 @@ extern ConsoleWindow editorConsole;
 #endif
 
 extern sol::state lua;
-
+ 
 #ifdef PLATFORM_EDITOR
 extern void Log_(ConsoleWindow* console, ConsoleLogType type, const char* file, u32 line, const char* fmt, ...);
 #define Log(fmt, ...) Log_(&editorConsole, ConsoleLogType_NORMAL, __FILE__, __LINE__, fmt, ##__VA_ARGS__)

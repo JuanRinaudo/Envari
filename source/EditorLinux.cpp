@@ -34,30 +34,28 @@
 #define DEFAULT_MAG_FILTER GL_LINEAR_MIPMAP_LINEAR
 #define FRAMEBUFFER_DEFAULT_FILTER GL_LINEAR
 
-// #include "IMGUI/imgui.cpp"
+#undef SDL_VIDEO_DRIVER_WINDOWS
+#define SDL_VIDEO_DRIVER_WAYLAND 1
+#include "IMGUI/imgui.cpp"
 
-#define STB_TRUETYPE_IMPLEMENTATION
 #include "STB/stb_truetype.h"
 
 #include "Game.h"
-// #include "Editor.cpp"
+#include "Editor.cpp"
 #include "PlatformCommon.h"
 
-#undef STB_TRUETYPE_IMPLEMENTATION
-#include "LUAScriptingBindings.cpp"
+#include "IMGUI/imgui_demo.cpp"
+#include "IMGUI/imgui_draw.cpp"
+#include "IMGUI/imgui_widgets.cpp"
+#include "IMGUI/imgui_customs.cpp"
+#include "IMGUI/imgui_tables.cpp"
 
-// #include "IMGUI/imgui_demo.cpp"
-// #include "IMGUI/imgui_draw.cpp"
-// #include "IMGUI/imgui_widgets.cpp"
-// #include "IMGUI/imgui_customs.cpp"
-// #include "IMGUI/imgui_tables.cpp"
+#include "IMGUI/imgui_impl_sdl.h"
+#include "IMGUI/imgui_impl_opengl3.h"
+#include "IMGUI/imgui_impl_sdl.cpp"
+#include "IMGUI/imgui_impl_opengl3.cpp"
 
-// #include "IMGUI/imgui_impl_sdl.h"
-// #include "IMGUI/imgui_impl_opengl3.h"
-// #include "IMGUI/imgui_impl_sdl.cpp"
-// #include "IMGUI/imgui_impl_opengl3.cpp"
-
-// #include "EditorCommon.h"
+#include "EditorCommon.h"
 
 i32 main(i32 argc, char** argv)
 {
@@ -73,19 +71,19 @@ i32 main(i32 argc, char** argv)
     gameState->memory.sceneStorage = malloc(gameState->memory.sceneStorageSize);
     gameState->memory.temporalStorageSize = Megabytes(64);
     gameState->memory.temporalStorage = malloc(gameState->memory.temporalStorageSize);
-    // gameState->memory.editorStorageSize = Megabytes(64);
-    // gameState->memory.editorStorage = malloc(gameState->memory.editorStorageSize);
+    gameState->memory.editorStorageSize = Megabytes(64);
+    gameState->memory.editorStorage = malloc(gameState->memory.editorStorageSize);
 
     gameState->memory.permanentStorage = permanentStorage;
     sceneState = (SceneData *)gameState->memory.sceneStorage;
     temporalState = (TemporalData *)gameState->memory.temporalStorage;
-    // editorState = (EditorData *)gameState->memory.editorStorage;
-    // editorState->editorFrameRunning = true;
+    editorState = (EditorData *)gameState->memory.editorStorage;
+    editorState->editorFrameRunning = true;
 
     InitializeArena(&permanentState->arena, gameState->memory.permanentStorageSize, (u8 *)gameState->memory.permanentStorage, sizeof(PermanentData) + sizeof(Data));
     InitializeArena(&sceneState->arena, gameState->memory.sceneStorageSize, (u8 *)gameState->memory.sceneStorage, sizeof(SceneData));
     InitializeArena(&temporalState->arena, gameState->memory.temporalStorageSize, (u8 *)gameState->memory.temporalStorage, sizeof(TemporalData));
-    // InitializeArena(&editorState->arena, gameState->memory.editorStorageSize, (u8 *)gameState->memory.editorStorage, sizeof(EditorData));
+    InitializeArena(&editorState->arena, gameState->memory.editorStorageSize, (u8 *)gameState->memory.editorStorage, sizeof(EditorData));
 
     stringAllocator = PushStruct(&permanentState->arena, StringAllocator);
     InitializeStringAllocator(stringAllocator);
@@ -112,7 +110,7 @@ i32 main(i32 argc, char** argv)
         return -1;
     }
 
-//     InitImGui();
+    InitImGui();
 
     InitGL();
 
@@ -123,7 +121,7 @@ i32 main(i32 argc, char** argv)
     DeserializeTable(&permanentState->arena, &editorSave, EDITOR_SAVE_PATH);
     DeserializeTable(&permanentState->arena, &saveData, GetSavePath());
     
-    // EditorInit();
+    EditorInit();
 
 #ifdef LUA_ENABLED
     ScriptingInit();
@@ -149,81 +147,81 @@ i32 main(i32 argc, char** argv)
 
         TimeTick();
 
-//         ImGuiIO imguiIO = ImGui::GetIO();
-//         mouseOverWindow = editorPreview.open && editorPreview.focused && editorPreview.cursorInsideWindow;
-//         mouseEnabled = !imguiIO.WantCaptureMouse && !editorPreview.open;
-//         keyboardEnabled = !imguiIO.WantCaptureKeyboard;
+        ImGuiIO imguiIO = ImGui::GetIO();
+        mouseOverWindow = editorPreview.open && editorPreview.focused && editorPreview.cursorInsideWindow;
+        mouseEnabled = !imguiIO.WantCaptureMouse && !editorPreview.open;
+        keyboardEnabled = !imguiIO.WantCaptureKeyboard;
 
-//         editorTimeDebugger.frameTimeBuffer[editorTimeDebugger.debuggerOffset] = 1000.0f / imguiIO.Framerate;
-//         if(gameState->time.gameTime > 2 && editorTimeDebugger.frameTimeBuffer[editorTimeDebugger.debuggerOffset] > editorTimeDebugger.frameTimeMax) {
-//             editorTimeDebugger.frameTimeMax = editorTimeDebugger.frameTimeBuffer[editorTimeDebugger.debuggerOffset] * 2;
-//         }
-//         editorTimeDebugger.fpsBuffer[editorTimeDebugger.debuggerOffset] = imguiIO.Framerate;
-//         if(gameState->time.gameTime > 2 && editorTimeDebugger.fpsBuffer[editorTimeDebugger.debuggerOffset] > editorTimeDebugger.fpsMax) {
-//             editorTimeDebugger.fpsMax = editorTimeDebugger.fpsBuffer[editorTimeDebugger.debuggerOffset] * 2;
-//         }
-//         editorTimeDebugger.debuggerOffset = (editorTimeDebugger.debuggerOffset + 1) % TIME_BUFFER_SIZE;
+        editorTimeDebugger.frameTimeBuffer[editorTimeDebugger.debuggerOffset] = 1000.0f / imguiIO.Framerate;
+        if(gameState->time.gameTime > 2 && editorTimeDebugger.frameTimeBuffer[editorTimeDebugger.debuggerOffset] > editorTimeDebugger.frameTimeMax) {
+            editorTimeDebugger.frameTimeMax = editorTimeDebugger.frameTimeBuffer[editorTimeDebugger.debuggerOffset] * 2;
+        }
+        editorTimeDebugger.fpsBuffer[editorTimeDebugger.debuggerOffset] = imguiIO.Framerate;
+        if(gameState->time.gameTime > 2 && editorTimeDebugger.fpsBuffer[editorTimeDebugger.debuggerOffset] > editorTimeDebugger.fpsMax) {
+            editorTimeDebugger.fpsMax = editorTimeDebugger.fpsBuffer[editorTimeDebugger.debuggerOffset] * 2;
+        }
+        editorTimeDebugger.debuggerOffset = (editorTimeDebugger.debuggerOffset + 1) % TIME_BUFFER_SIZE;
 
         SDL_Event event;
         while(SDL_PollEvent(&event)) {
-            // ImGui_ImplSDL2_ProcessEvent(&event);
+            ImGui_ImplSDL2_ProcessEvent(&event);
             ProcessEvent(&event);
         }
     
-//         if(editorRenderDebugger.recording) {
-//             char frameNameBuffer[256];
-//             sprintf(frameNameBuffer, "dump/frame_%05d%s", gameState->time.gameFrames, recordingFormatExtensions[(int)editorRenderDebugger.recordingFormat]);
-//             if(gameState->render.framebufferEnabled != 0) {
-//                 RecordFrame(frameNameBuffer, gameState->render.frameBuffer, (u32)gameState->render.scaledBufferSize.x, (u32)gameState->render.scaledBufferSize.y);
-//             }
-//             else {
-//                 Log("No framebuffer found, texture cannot be dumped (for now)");
-//             }
-//         }
+        if(editorRenderDebugger.recording) {
+            char frameNameBuffer[256];
+            sprintf(frameNameBuffer, "dump/frame_%05d%s", gameState->time.gameFrames, recordingFormatExtensions[(int)editorRenderDebugger.recordingFormat]);
+            if(gameState->render.framebufferEnabled != 0) {
+                RecordFrame(frameNameBuffer, gameState->render.frameBuffer, (u32)gameState->render.scaledBufferSize.x, (u32)gameState->render.scaledBufferSize.y);
+            }
+            else {
+                Log("No framebuffer found, texture cannot be dumped (for now)");
+            }
+        }
 
-//         if(editorPreview.open && editorPreview.focused) {
-//             SDL_ShowCursor(editorPreview.cursorInsideWindow);
-//             if(editorPreview.cursorInsideWindow) {
-//                 v2 lastMousePosition = ViewportToBuffer(editorPreview.lastCursorPosition.x, editorPreview.lastCursorPosition.y);
-//                 gameState->input.mousePosition = ViewportToBuffer(editorPreview.cursorPosition.x, editorPreview.cursorPosition.y);
-//                 gameState->input.mouseDeltaPosition.x = gameState->input.mousePosition.x - lastMousePosition.x;
-//                 gameState->input.mouseDeltaPosition.y = gameState->input.mousePosition.y - lastMousePosition.y;
+        if(editorPreview.open && editorPreview.focused) {
+            SDL_ShowCursor(editorPreview.cursorInsideWindow);
+            if(editorPreview.cursorInsideWindow) {
+                v2 lastMousePosition = ViewportToBuffer(editorPreview.lastCursorPosition.x, editorPreview.lastCursorPosition.y);
+                gameState->input.mousePosition = ViewportToBuffer(editorPreview.cursorPosition.x, editorPreview.cursorPosition.y);
+                gameState->input.mouseDeltaPosition.x = gameState->input.mousePosition.x - lastMousePosition.x;
+                gameState->input.mouseDeltaPosition.y = gameState->input.mousePosition.y - lastMousePosition.y;
 
-//                 if(gameState->input.mouseTextureID != 0) {
-//                     ImGui::SetMouseCursor(ImGuiMouseCursor_None);
-//                     imguiIO.MouseDrawCursor = false;
-//                 }
-//             }
-//         }
-//         else {
-//             SDL_ShowCursor(mouseEnabled);
-//             if(mouseEnabled) {
-//                 ImGui::SetMouseCursor(ImGuiMouseCursor_None);
-//                 imguiIO.MouseDrawCursor = false;
-//             }
-//         }
+                if(gameState->input.mouseTextureID != 0) {
+                    ImGui::SetMouseCursor(ImGuiMouseCursor_None);
+                    imguiIO.MouseDrawCursor = false;
+                }
+            }
+        }
+        else {
+            SDL_ShowCursor(mouseEnabled);
+            if(mouseEnabled) {
+                ImGui::SetMouseCursor(ImGuiMouseCursor_None);
+                imguiIO.MouseDrawCursor = false;
+            }
+        }
 
-//         ImGui_ImplOpenGL3_NewFrame();
-//         ImGui_ImplSDL2_NewFrame(sdlWindow);
-//         ImGui::NewFrame();
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplSDL2_NewFrame(sdlWindow);
+        ImGui::NewFrame();
 
         UpdateStringAllocator(stringAllocator);
 
-//         if(gameState->time.gameTime > editorCore.lastWatchSecond + 1) {
-// #ifdef LUA_ENABLED
-//             ScriptingWatchChanges();
-// #endif
-//             GLWatchChanges();
-//             editorCore.lastWatchSecond = gameState->time.gameTime;
-//         }
+        if(gameState->time.gameTime > editorCore.lastWatchSecond + 1) {
+#ifdef LUA_ENABLED
+            ScriptingWatchChanges();
+#endif
+            GLWatchChanges();
+            editorCore.lastWatchSecond = gameState->time.gameTime;
+        }
 
-//         LARGE_INTEGER luaPerformanceStart = {};
-//         LARGE_INTEGER luaPerformanceEnd = {};
-//         i64 luaUpdateCyclesStart = __rdtsc();
-//         i64 luaUpdateCyclesEnd = __rdtsc();
+        // LARGE_INTEGER luaPerformanceStart = {};
+        // LARGE_INTEGER luaPerformanceEnd = {};
+        // i64 luaUpdateCyclesStart = __rdtsc();
+        // i64 luaUpdateCyclesEnd = __rdtsc();
 
-//         if(editorState->editorFrameRunning || editorState->playNextFrame) {
-//             RenderDebugStart();
+        if(editorState->editorFrameRunning || editorState->playNextFrame) {
+            RenderDebugStart();
 
             CommonBegin2D();
 
@@ -237,39 +235,39 @@ i32 main(i32 argc, char** argv)
     
             RenderPass();
 
-//             RenderDebugEnd();
+            RenderDebugEnd();
             End2D();
-//         }
-//         else {
-//             RenderDebugStart();
-//             RenderPass();
-//             RenderDebugEnd();
-//         }
+        }
+        else {
+            RenderDebugStart();
+            RenderPass();
+            RenderDebugEnd();
+        }
 
         if(gameState->render.framebufferEnabled) {
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
         }
 
-//         EditorDrawAll();
+        EditorDrawAll();
 
-// #ifdef LUA_ENABLED
-//         RunLUAProtectedFunction(EditorUpdate)
-// #endif
+#ifdef LUA_ENABLED
+        RunLUAProtectedFunction(EditorUpdate)
+#endif
 
-//         if(gameState->render.framebufferEnabled) {
-//             if(!editorPreview.open) {
-//                 // #NOTE (Juan): Render framebuffer to actual screen buffer, save data and then restore it
-//                 bool tempWireframeMode = editorRenderDebugger.wireframeMode;
-//                 editorRenderDebugger.wireframeMode = false;
+        if(gameState->render.framebufferEnabled) {
+            if(!editorPreview.open) {
+                // #NOTE (Juan): Render framebuffer to actual screen buffer, save data and then restore it
+                bool tempWireframeMode = editorRenderDebugger.wireframeMode;
+                editorRenderDebugger.wireframeMode = false;
 
                 RenderFramebuffer();
                 
-//                 editorRenderDebugger.wireframeMode = tempWireframeMode;
-//             }
-//         }
+                editorRenderDebugger.wireframeMode = tempWireframeMode;
+            }
+        }
 
-//         ImGui::Render();
-//         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
         CheckInput();
         
@@ -283,24 +281,24 @@ i32 main(i32 argc, char** argv)
 //         editorPerformanceDebugger.updateCycles = updateCyclesEnd - updateCyclesStart;
 //         editorPerformanceDebugger.luaUpdateCycles = luaUpdateCyclesEnd - luaUpdateCyclesStart;
 
-        // ++frameCount;
-        // if(frameCount >= editorTimeDebugger.framesMultiplier) {
-        //     WaitFPSLimit();
-        //     frameCount = 0;
-        // }
+        ++frameCount;
+        if(frameCount >= editorTimeDebugger.framesMultiplier) {
+            WaitFPSLimit();
+            frameCount = 0;
+        }
     }
     
-// #ifdef LUA_ENABLED
-//     RunLUAProtectedFunction(EditorEnd);
-// #endif
-//     EditorEnd();
+#ifdef LUA_ENABLED
+    RunLUAProtectedFunction(EditorEnd);
+#endif
+    EditorEnd();
     GameEnd();
 
     SaveConfig();
     
-//     ImGui_ImplOpenGL3_Shutdown();
-//     ImGui_ImplSDL2_Shutdown();
-//     ImGui::DestroyContext();
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplSDL2_Shutdown();
+    ImGui::DestroyContext();
 
     return 0;
 }
