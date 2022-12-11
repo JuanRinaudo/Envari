@@ -1,3 +1,5 @@
+#!/bin/sh
+
 if [ ! -d build/editor/data ]
 then
 ln -s ../../data build/editor/data

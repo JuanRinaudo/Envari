@@ -1,9 +1,6 @@
-#include <windows.h>
-#include <psapi.h>
 #include <thread>
 #include <iostream>
 #include <fstream>
-#include <direct.h>
 #include <queue>
 #include <filesystem>
 
@@ -14,7 +11,6 @@
 #define STB_DS_IMPLEMENTATION
 #include "../STB/stb_ds.h"
 
-#include "../IMGUI/imgui.h"
 #include "../STB/stb_truetype.h"
 
 #include "../Defines.h"
@@ -24,7 +20,6 @@
 #include "../MathStructs.h"
 #include "../GameMath.h"
 #include "../GameStructs.h"
-#include "../EditorStructs.h"
 
 #include "../File.h"
 #include "../Data.h"
@@ -57,7 +52,7 @@ static void StringToKey(char* string)
     while(*string)
     {
         char singleChar = *string;
-        if(singleChar == '.' || singleChar == ' ' || singleChar == '-' || singleChar == '\\' || singleChar == '(' || singleChar == ')' || singleChar == '#') {
+        if(singleChar == '.' || singleChar == ' ' || singleChar == '-' || singleChar == '\\'  || singleChar == '/' || singleChar == '(' || singleChar == ')' || singleChar == '#') {
             singleChar = '_';
         }
         else {
@@ -87,7 +82,7 @@ static i32 PathNameOffset(char* string)
     i32 lastIndex = 0;
     while(*string)
     {
-        if(*string == '\\' && *(string + 1)) {
+        if(*string == filesystem::path::preferred_separator && *(string + 1)) {
             lastIndex = index + 1;
         }
         string++;
@@ -191,30 +186,17 @@ i32 main()
     InitializeArena(&stringArena, stringMemorySize, (u8*)stringMemory, 0);
     InitializeArena(&dataArena, dataMemorySize, (u8*)dataMemory, 0);
 
-    char workingDirectory[512];
-    _getcwd(workingDirectory, 512);
+    char workingDirectory[1024];
+    filesystem::path workingDirectoryPath = filesystem::current_path();
+    strcpy(workingDirectory, workingDirectoryPath.c_str());
 
     size_t workingDirectorySize = strlen(workingDirectory);
 
-    char filePath[512];
-    strcpy(filePath, __FILE__);
-    // #NOTE (Juan): Get file end string cpp and cut it by setting a zero end in the start of it.
-    char* endString = strstr(filePath, "CodeGen.cpp");
-    if(!endString) {
-        endString = strstr(filePath, "codegen.cpp");
-    }
-    if(!endString) {
-        cout << "No codegen file found" << "\n";
-        return -1;
-    }
-    endString[0] = 0;
-    const char* folderName = "../CodeGen/";
-    strncat(filePath, folderName, strlen(folderName));
-    const char* folderPath = filePath;
+    const char* folderPath = "../Envari/source/CodeGen/";
     size_t folderPathSize = strlen(folderPath);
     cout << "Codegen folder path: " << folderPath << '\n';
 
-    char scriptingPath[512];
+    char scriptingPath[1024];
     strcpy(scriptingPath, workingDirectory);
     strcat(scriptingPath, "/scripts/codegen/");
 
@@ -288,7 +270,7 @@ i32 main()
         DataEntry *definition = rootDefinitions + i;
         // #NOTE (Juan): Debug log data
         // cout << "Found: " << definition->fullPath <<
-        //     " | filepath: " << definition->name <<
+        //     " | Name: " << definition->name <<
         //     " | Path: " << definition->path <<
         //     " | Key: " << definition->mapKey <<
         //     " | Entry type: " << definition->type << '\n';

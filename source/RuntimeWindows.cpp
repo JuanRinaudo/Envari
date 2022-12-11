@@ -20,15 +20,10 @@
 #define SOURCE_TYPE const char* const
 
 #include "GL3W/gl3w.c"
-#define IMGUI_IMPL_OPENGL_LOADER_GL3W
 
 #define INITLUASCRIPT WINDOWSCONFIG_INITLUASCRIPT
 
 #include <SDL.h>
-
-#define DEFAULT_MIN_FILTER GL_LINEAR_MIPMAP_LINEAR
-#define DEFAULT_MAG_FILTER GL_LINEAR_MIPMAP_LINEAR
-#define FRAMEBUFFER_DEFAULT_FILTER GL_LINEAR
 
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "STB/stb_truetype.h"
@@ -98,12 +93,12 @@ i32 CALLBACK WinMain(
     CreateFramebuffer();
     
     DefaultAssets();
+    
+    DeserializeTable(&permanentState->arena, &saveData, GetSavePath());
 
 #ifdef LUA_ENABLED
     ScriptingInit();
 #endif
-    
-    DeserializeTable(&permanentState->arena, &saveData, GetSavePath());
     
     GameInit();
 

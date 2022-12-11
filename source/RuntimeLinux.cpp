@@ -1,55 +1,53 @@
-#include <emscripten.h>
-
+#include <assert.h>
 #include <chrono>
 #include <thread>
 #include <string>
+#include <stdio.h>
+#include <string.h>
+#include <vector>
 
 #include "OptickDummy.h"
 
+#if GAME_RELEASE
+#define Assert(Expression) 
+#define AssertMessage(Expression, Message) 
+#endif
+
 #include "CodeGen/FileMap.h"
 #include "CodeGen/ShaderMap.h"
-#include "CodeGen/WasmConfigMap.h"
+#include "CodeGen/LinuxConfigMap.h"
 
-#define SHADER_PREFIX "shaders/es/"
+#define SHADER_PREFIX "shaders/core/"
 #define SOURCE_TYPE const char* const
 
-#define INITLUASCRIPT WASMCONFIG_INITLUASCRIPT
-
 #include <SDL.h>
+
+#include "GL3W/gl3w.c"
+
+#define INITLUASCRIPT LINUXCONFIG_INITLUASCRIPT
 
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "STB/stb_truetype.h"
 
-#include <GLES3/gl3.h>
-
-#define GL_PROFILE_GLES3
 #include "Game.h"
-
-static void main_loop();
-
-extern "C" {
-    i32 main(i32 argc, char** argv);
-    void main_loaded();
-    void main_save();
-    void main_end();
-}
-
 #include "PlatformCommon.h"
 
 i32 main(i32 argc, char** argv)
 {
-    size_t permanentStorageSize = Megabytes(32);
+    size_t permanentStorageSize = Megabytes(64);
     void* permanentStorage = malloc(permanentStorageSize);
 
-    gameState = (Data *)permanentStorage;
+    permanentState = (PermanentData *)permanentStorage;
+
+    gameState = (Data *)(permanentState + 1);
     gameState->memory.permanentStorageSize = permanentStorageSize;
     gameState->memory.permanentStorage = permanentStorage;
-    gameState->memory.sceneStorageSize = Megabytes(32);
+    gameState->memory.sceneStorageSize = Megabytes(64);
     gameState->memory.sceneStorage = malloc(gameState->memory.sceneStorageSize);
-    gameState->memory.temporalStorageSize = Megabytes(32);
+    gameState->memory.temporalStorageSize = Megabytes(64);
     gameState->memory.temporalStorage = malloc(gameState->memory.temporalStorageSize);
 
-    permanentState = (PermanentData *)gameState->memory.permanentStorage + sizeof(Data);
+    gameState->memory.permanentStorage = permanentStorage;
     sceneState = (SceneData *)gameState->memory.sceneStorage;
     temporalState = (TemporalData *)gameState->memory.temporalStorage;
 
@@ -62,7 +60,7 @@ i32 main(i32 argc, char** argv)
 
     SetupEnviroment();
 
-    DeserializeDataTable(&permanentState->arena, &initialConfig, DATA_WASMCONFIG_ENVT);
+    DeserializeDataTable(&permanentState->arena, &initialConfig, DATA_EDITORWINDOWSCONFIG_ENVT);
 
     InitEngine();
 
@@ -74,7 +72,9 @@ i32 main(i32 argc, char** argv)
         return -1;
     }
 
-    emscripten_set_main_loop(main_loop, 0, false);
+	if (gl3wInit()) {
+		return -1;
+	}
 
     if(!SetupTime()) {
         return -1;
@@ -86,46 +86,28 @@ i32 main(i32 argc, char** argv)
     
     DefaultAssets();
 
+    DeserializeTable(&permanentState->arena, &saveData, GetSavePath());
+
 #ifdef LUA_ENABLED
     ScriptingInit();
 #endif
-
-#ifdef !__linux__ 
-    // #TODO(Juan): Fix this on emscripten Linux WASM compilation, not working for some reason
-    EM_ASM(
-        FS.mkdir('/save');
-        FS.mount(IDBFS, {}, '/save');
-        FS.syncfs(true, function (err) {
-            ccall('main_loaded', 'v');
-        });
-    );
-#endif
-
+    
     GameInit();
 
     SoundInit();
 
-    SDL_ShowCursor(gameState->input.mouseTextureID == 0);
-
+    int frameCount = 0;
     gameState->game.running = true;
-
-    return 0;
-}
-
-void main_loaded()
-{
-    DeserializeTable(&permanentState->arena, &saveData, GetSavePath());
-}
-
-static void main_loop()
-{
-    if(gameState->game.running) {
+    while (gameState->game.running)
+    {
         TimeTick();
-        
+
         SDL_Event event;
         while(SDL_PollEvent(&event)) {
             ProcessEvent(&event);
         }
+    
+        CommonShowCursor();
 
         CommonBegin2D();
 
@@ -148,16 +130,10 @@ static void main_loop()
 
         WaitFPSLimit();
     }
-}
-
-void main_save()
-{
-    EM_ASM(
-        FS.syncfs(function (err) { });
-    );
-}
-
-void main_end()
-{
+    
     GameEnd();
+
+    SaveConfig();
+
+    return 0;
 }

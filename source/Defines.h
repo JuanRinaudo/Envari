@@ -99,13 +99,14 @@ typedef double f64;
 #define SOUND_SAMPLE_RATE    48000
 #endif
 
-#ifdef PLATFORM_WASM
 #ifndef DEFAULT_WRAP_S
 #define DEFAULT_WRAP_S GL_CLAMP_TO_EDGE
 #endif
 #ifndef DEFAULT_WRAP_T
 #define DEFAULT_WRAP_T GL_CLAMP_TO_EDGE
 #endif
+
+#ifdef PLATFORM_WASM
 #ifndef DEFAULT_MIN_FILTER
 #define DEFAULT_MIN_FILTER GL_LINEAR
 #endif
@@ -113,21 +114,16 @@ typedef double f64;
 #define DEFAULT_MAG_FILTER GL_LINEAR
 #endif
 #else
-#ifndef DEFAULT_WRAP_S
-#define DEFAULT_WRAP_S GL_CLAMP_TO_EDGE
-#endif
-#ifndef DEFAULT_WRAP_T
-#define DEFAULT_WRAP_T GL_CLAMP_TO_EDGE
-#endif
 #ifndef DEFAULT_MIN_FILTER
 #define DEFAULT_MIN_FILTER GL_LINEAR_MIPMAP_LINEAR
 #endif
 #ifndef DEFAULT_MAG_FILTER
 #define DEFAULT_MAG_FILTER GL_LINEAR_MIPMAP_LINEAR
 #endif
+#endif
+
 #ifndef FRAMEBUFFER_DEFAULT_FILTER
 #define FRAMEBUFFER_DEFAULT_FILTER GL_LINEAR
-#endif
 #endif
 
 #define DEFAULT_FONT_ATLAS_WIDTH 1024
@@ -166,6 +162,28 @@ typedef double f64;
     #else
         #define Assert(Expression)
         #define AssertMessage(Expression, Message)
+    #endif
+#endif
+
+#ifdef PLATFORM_EDITOR
+    #if defined(PLATFORM_LINUX)
+        #define ENVARI_PLATFORM_NAME "EditorLinux"
+    #elif defined(PLATFORM_WASM)
+        #define ENVARI_PLATFORM_NAME "EditorWASM"
+    #elif defined(PLATFORM_WINDOWS)
+        #define ENVARI_PLATFORM_NAME "EditorWindows"
+    #elif defined(PLATFORM_ANDROID)
+        #define ENVARI_PLATFORM_NAME "EditorAndroid"
+    #endif
+#else
+    #if defined(PLATFORM_LINUX)
+        #define ENVARI_PLATFORM_NAME "RuntimeLinux"
+    #elif defined(PLATFORM_WASM)
+        #define ENVARI_PLATFORM_NAME "RuntimeWASM"
+    #elif defined(PLATFORM_WINDOWS)
+        #define ENVARI_PLATFORM_NAME "RuntimeWindows"
+    #elif defined(PLATFORM_ANDROID)
+        #define ENVARI_PLATFORM_NAME "RuntimeAndroid"
     #endif
 #endif
 

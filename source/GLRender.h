@@ -478,8 +478,11 @@ i32 GenerateFont(void* data, size_t data_size, const char *filepath, f32 fontSiz
 
     glGenTextures(1, &result.fontTextureID);
     glBindTexture(GL_TEXTURE_2D, result.fontTextureID);
-    // glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, width, height, 0, GL_ALPHA, GL_UNSIGNED_BYTE, tempBitmap);
+#if PLATFORM_LINUX
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_ALPHA, GL_UNSIGNED_BYTE, tempBitmap);
+#else
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, width, height, 0, GL_ALPHA, GL_UNSIGNED_BYTE, tempBitmap);
+#endif
     glGenerateMipmap(GL_TEXTURE_2D);
 
     hmput(fontCache, result.fontTextureID, result);

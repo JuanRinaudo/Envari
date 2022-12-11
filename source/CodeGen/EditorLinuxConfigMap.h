@@ -1,0 +1,13 @@
+#ifndef EDITORLINUXCONFIGMAP_H
+#define EDITORLINUXCONFIGMAP_H
+
+const char* EDITORLINUXCONFIG_INITLUASCRIPT = "initLuaScript";
+const char* EDITORLINUXCONFIG_WINDOWSIZE = "windowSize";
+const char* EDITORLINUXCONFIG_BUFFERSIZE = "bufferSize";
+const char* EDITORLINUXCONFIG_RENDERSCALE = "renderScale";
+const char* EDITORLINUXCONFIG_WINDOWTITLE = "windowTitle";
+const char* EDITORLINUXCONFIG_VSYNC = "vsync";
+const char* EDITORLINUXCONFIG_FPSLIMIT = "fpsLimit";
+const char* EDITORLINUXCONFIG_FPSFIXED = "fpsFixed";
+
+#endif

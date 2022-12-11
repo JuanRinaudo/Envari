@@ -9,30 +9,20 @@
 // #define USE_OPTICK 0
 // #include "optick.h"
 
-#define Assert(Expression) assert(Expression)
-#define AssertMessage(Expression, Message) assert(Expression && Message)
-
 #include "CodeGen/FileMap.h"
 #include "CodeGen/ShaderMap.h"
-#include "CodeGen/EditorWindowsConfigMap.h"
+#include "CodeGen/EditorLinuxConfigMap.h"
 
 #define SHADER_PREFIX "shaders/core/"
 #define SOURCE_TYPE const char* const
 
 #include <SDL.h>
-#include <SDL_video.h>
 
 #include "GL3W/gl3w.c"
 #define IMGUI_IMPL_OPENGL_LOADER_CUSTOM
 #define IMGUI_IMPL_OPENGL_LOADER_GL3W
 
-#define ENVARI_PLATFORM_NAME "EditorLinux"
-
-#define INITLUASCRIPT EDITORWINDOWSCONFIG_INITLUASCRIPT
-
-#define DEFAULT_MIN_FILTER GL_LINEAR_MIPMAP_LINEAR
-#define DEFAULT_MAG_FILTER GL_LINEAR_MIPMAP_LINEAR
-#define FRAMEBUFFER_DEFAULT_FILTER GL_LINEAR
+#define INITLUASCRIPT EDITORLINUXCONFIG_INITLUASCRIPT
 
 #undef SDL_VIDEO_DRIVER_WINDOWS
 #define SDL_VIDEO_DRIVER_WAYLAND 1
