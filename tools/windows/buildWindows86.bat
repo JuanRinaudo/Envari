@@ -31,16 +31,37 @@ del /F *.pdb >NUL 2>NUL
 @echo Start time %time%
 if not exist LUAScriptingBindings.%ScriptingDate::=.%.tmp (
     @echo Rebuilding LUA Bindings
-    cl -c ..\..\Envari\source\LUAScriptingBindings.cpp -FmLUAScriptingBindings.map %CommonCompilerFlags% -Bt -I ..\..\Envari\SDL2\include -I ..\..\Envari\LUA\include
+    cl -c ..\..\Envari\source\Scripting\LUAScriptingBindings.cpp ^
+    -FmLUAScriptingBindings.map ^
+    %CommonCompilerFlags% ^ 
+    -Bt ^
+    -I ..\..\Envari\LUA\include ^
+    -I ..\..\Envari\source\Defines ^
+    -I ..\..\Envari\source\Engine ^
+    -I ..\..\Envari\STB ^
+    -I ..\..\Envari\Miniaudio ^
+    -I ..\..\Envari\Engine ^
+    -LIBPATH:"..\..\Envari\LUA\windows\lib\x64" ^
     del /F *.tmp >NUL 2>NUL
     echo timestamp > LUAScriptingBindings.%ScriptingDate::=.%.tmp
 )
 
-cl ..\..\Envari\source\RuntimeWindows.cpp LUAScriptingBindings.obj ^
+cl ..\..\Envari\source\Runtimes\RuntimeWindows.cpp LUAScriptingBindings.obj ^
     -FmRuntimeWindows.map %CommonCompilerFlags% -Bt ^
-    -I ..\..\Envari\SDL2\include -I ..\..\Envari\LUA\include ^
+    -I ..\..\Envari\SDL2\include ^
+    -I ..\..\Envari\LUA\include ^
+    -I ..\..\Envari\source\Engine ^
+    -I ..\..\Envari\source\Defines ^
+    -I ..\..\Envari\source\Tools ^
+    -I ..\..\Envari\source\Default ^
+    -I ..\..\Envari\STB ^
+    -I ..\..\Envari\GL3W ^
+    -I ..\..\Envari\IMGUI ^
+    -I ..\..\Envari\Miniaudio ^
+    -I ..\..\Envari\ZSTD ^
     -link %CommonLinkerFlags% ^
-    -LIBPATH:"..\..\Envari\SDL2\lib\x86" -LIBPATH:"..\..\Envari\LUA\lib\x86" ^
+    -LIBPATH:"..\..\Envari\SDL2\lib\x86" ^
+    -LIBPATH:"..\..\Envari\LUA\lib\x86" ^
     -PDB:RuntimeWindows.pdb
 @echo End time %time%
 

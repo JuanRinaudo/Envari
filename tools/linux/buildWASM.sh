@@ -26,12 +26,18 @@ cp ../../buildassets/html5/debugIndex.html debugIndex.html
 fi
 
 savedLuaFileDate=`cat LUAScriptingBindings.tmp`
-luaFileDate=$(date -r ../../Envari/source/LUAScriptingBindings.cpp "+%s")
+luaFileDate=$(date -r ../../Envari/source/Scripting/LUAScriptingBindings.cpp "+%s")
 if [ "$savedLuaFileDate" != "$luaFileDate" ]
 then
 start=$(date +%s)
 echo "Start LUA time ${start}"
-em++ -I../../Envari/LUA/include ../../Envari/source/LUAScriptingBindings.cpp\
+em++ ../../Envari/source/Scripting/LUAScriptingBindings.cpp\
+    -I../../Envari/LUA/include\
+    -I../../Envari/source/Defines\
+    -I../../Envari/source/Engine\
+    -I../../Envari/STB\
+    -I../../Envari/Miniaudio\
+    -I../../Envari/Engine\
     -O2\
     -DLUA_ENABLED=1\
     -DPLATFORM_WASM=1\
@@ -47,7 +53,17 @@ fi
 
 start=$(date +%s)
 echo "Start time ${start}"
-em++ -I../../Envari/LUA/include ../../Envari/source/RuntimeWASM.cpp LUAScriptingBindings.o ../../Envari/LUA/wasmlinux/liblua.a\
+em++ ../../Envari/source/Runtimes/RuntimeWASM.cpp LUAScriptingBindings.o ../../Envari/LUA/wasmlinux/liblua.a\
+    -I../../Envari/LUA/include\
+    -I../../Envari/source/Engine\
+    -I../../Envari/source/Defines\
+    -I../../Envari/source/Tools\
+    -I../../Envari/source/Default\
+    -I../../Envari/STB\
+    -I../../Envari/GL3W\
+    -I../../Envari/IMGUI\
+    -I../../Envari/Miniaudio\
+    -I../../Envari/ZSTD\
     -gsource-map\
     -O3\
     --pre-js ../../buildassets/html5/prejs.js\

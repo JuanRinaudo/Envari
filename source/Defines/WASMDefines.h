@@ -1,0 +1,11 @@
+#ifndef WASM_DEFINES_H
+#define WASM_DEFINES_H
+
+#ifndef DEFAULT_MIN_FILTER
+#define DEFAULT_MIN_FILTER GL_LINEAR
+#endif
+#ifndef DEFAULT_MAG_FILTER
+#define DEFAULT_MAG_FILTER GL_LINEAR
+#endif
+
+#endif

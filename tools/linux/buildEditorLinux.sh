@@ -31,16 +31,19 @@ cp ../../buildassets/linux/runEditor.sh runEditor.sh
 fi
 
 savedLuaFileDate=`cat LUAScriptingBindings.tmp`
-luaFileDate=$(date -r ../../Envari/source/LUAScriptingBindings.cpp "+%s")
+luaFileDate=$(date -r ../../Envari/source/Scripting/LUAScriptingBindings.cpp "+%s")
 if [ "$savedLuaFileDate" != "$luaFileDate" ]
 then
 start=$(date +%s)
 echo "Start LUA time ${start}"
-g++ ../../Envari/source/LUAScriptingBindings.cpp -c -o LUAScriptingBindings.o\
+g++ ../../Envari/source/Scripting/LUAScriptingBindings.cpp -c -o LUAScriptingBindings.o\
     -std=c++17\
-    -I../../Envari/SDL2/include\
     -I../../Envari/LUA/include\
-    -L../../Envari/SDL2/linux\
+    -I../../Envari/source/Defines\
+    -I../../Envari/source/Engine\
+    -I../../Envari/STB\
+    -I../../Envari/Miniaudio\
+    -I../../Envari/Engine\
     -L../../Envari/LUA/linux\
     -lSDL2 -lSDL2main -ldl -lpthread -llua54\
     -DPLATFORM_LINUX\
@@ -54,10 +57,19 @@ fi
 
 start=$(date +%s)
 echo "Start time ${start}"
-g++ ../../Envari/source/EditorLinux.cpp LUAScriptingBindings.o -o EditorLinux\
+g++ ../../Envari/source/Runtimes/EditorLinux.cpp LUAScriptingBindings.o -o EditorLinux\
     -std=c++17\
     -I../../Envari/SDL2/include\
     -I../../Envari/LUA/include\
+    -I../../Envari/source/Engine\
+    -I../../Envari/source/Defines\
+    -I../../Envari/source/Tools\
+    -I../../Envari/source/Default\
+    -I../../Envari/STB\
+    -I../../Envari/GL3W\
+    -I../../Envari/IMGUI\
+    -I../../Envari/Miniaudio\
+    -I../../Envari/ZSTD\
     -L../../Envari/SDL2/linux\
     -L../../Envari/LUA/linux\
     -lSDL2 -lSDL2main -ldl -lpthread -llua54\

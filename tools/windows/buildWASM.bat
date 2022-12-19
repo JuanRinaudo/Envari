@@ -35,7 +35,17 @@ if not exist build\html5\LUAScriptingBindings.%ScriptingDate::=.%.tmp (
 
 @REM -ftime-report ^
 @echo Building
-em++ -IEnvari\LUA\include Envari\source\RuntimeWASM.cpp build\html5\LUAScriptingBindings.o Envari\LUA\include\wasm\liblua.a ^
+em++ Envari\source\Runtimes\RuntimeWASM.cpp build\html5\LUAScriptingBindings.o Envari\LUA\include\wasm\liblua.a ^
+    -I ..\..\Envari\LUA\include ^
+    -I ..\..\Envari\source\Engine ^
+    -I ..\..\Envari\source\Defines ^
+    -I ..\..\Envari\source\Tools ^
+    -I ..\..\Envari\source\Default ^
+    -I ..\..\Envari\STB ^
+    -I ..\..\Envari\GL3W ^
+    -I ..\..\Envari\IMGUI ^
+    -I ..\..\Envari\Miniaudio ^
+    -I ..\..\Envari\ZSTD ^
     -gsource-map ^
     -O3 ^
     --pre-js buildassets/html5/prejs.js ^
@@ -58,13 +68,3 @@ em++ -IEnvari\LUA\include Envari\source\RuntimeWASM.cpp build\html5\LUAScripting
     -o build\html5\index.js ^ 
     --no-heap-copy & Envari\tools\printEndTime.bat
 @REM @echo End time %time%
-
-@REM --preload-file data/fonts@fonts ^
-@REM --preload-file data/images@images ^
-@REM --preload-file data/scripts@scripts ^
-@REM --preload-file data/shaders@shaders ^
-@REM --preload-file data/data@data ^
-@REM --preload-file data/atlas@atlas ^
-@REM --preload-file data/sound@sound ^
-
-REM em++ Source\wasm_game.cpp -s ALLOW_MEMORY_GROWTH=1 -s USE_WEBGL2=1 -s FULL_ES3=1 -s WASM=1 -s NO_EXIT_RUNTIME=1 -lopenal -std=c++1z -s ASSERTIONS=2 --embed-file Assets\HTML5 -o build\html5\index.js

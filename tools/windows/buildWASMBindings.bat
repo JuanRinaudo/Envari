@@ -1,4 +1,10 @@
-em++ -IEnvari\LUA\include Envari\source\LUAScriptingBindings.cpp ^
+em++ Envari\source\Scripting\LUAScriptingBindings.cpp ^
+    -I ..\..\Envari\LUA\include ^
+    -I ..\..\Envari\source\Defines ^
+    -I ..\..\Envari\source\Engine ^
+    -I ..\..\Envari\STB ^
+    -I ..\..\Envari\Miniaudio ^
+    -I ..\..\Envari\Engine ^
     -O2 ^
     -DLUA_ENABLED=1 ^
     -DPLATFORM_WASM=1 ^

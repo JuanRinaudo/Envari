@@ -192,7 +192,7 @@ i32 main()
 
     size_t workingDirectorySize = strlen(workingDirectory);
 
-    const char* folderPath = "../Envari/source/CodeGen/";
+    const char* folderPath = "../CodeGen/";
     size_t folderPathSize = strlen(folderPath);
     cout << "Codegen folder path: " << folderPath << '\n';
 
