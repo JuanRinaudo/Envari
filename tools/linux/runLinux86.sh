@@ -6,4 +6,4 @@
 # fi
 
 # cwd="$PWD"
-# (cd ./build/linux86 && ${cwd}/build/linux86/runLinux86.sh)
+# (cd ./build/linux86 && ${cwd}/build/linux64/runLinux.sh RuntimeLinux)

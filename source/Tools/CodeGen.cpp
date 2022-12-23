@@ -3,26 +3,16 @@
 #include <fstream>
 #include <queue>
 #include <filesystem>
+#include <string.h>
 
 #define Log printf
 
-#include "../Miniaudio/miniaudio.h"
+#include <Defines.h>
+#include <MemoryStructs.h>
+#include <Memory.h>
 
-#define STB_DS_IMPLEMENTATION
-#include "../STB/stb_ds.h"
-
-#include "../STB/stb_truetype.h"
-
-#include "../Defines.h"
-#include "../Templates.h"
-#include "../MemoryStructs.h"
-#include "../Memory.h"
-#include "../MathStructs.h"
-#include "../GameMath.h"
-#include "../GameStructs.h"
-
-#include "../File.h"
-#include "../Data.h"
+#include <File.h>
+#include <Data.h>
 
 using namespace std;
 

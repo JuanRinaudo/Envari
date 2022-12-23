@@ -56,7 +56,7 @@ i32 main(i32 argc, char** argv)
 
     SetupEnviroment();
 
-    DeserializeDataTable(&permanentState->arena, &initialConfig, DATA_WASMCONFIG_ENVT);
+    DeserializeDataTable(&permanentState->arena, &initialConfig, CONFIG_WASMCONFIG_ENVT);
 
     InitEngine();
 

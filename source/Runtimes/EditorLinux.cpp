@@ -21,6 +21,7 @@
 #define SDL_VIDEO_DRIVER_WAYLAND 1
 #include <imgui.cpp>
 
+#include <EditorDefines.h>
 #include <Game.h>
 #include <Editor.cpp>
 
@@ -71,7 +72,7 @@ i32 main(i32 argc, char** argv)
 
     SetupEnviroment();
 
-    DeserializeDataTable(&permanentState->arena, &initialConfig, DATA_EDITORLINUXCONFIG_ENVT);
+    DeserializeDataTable(&permanentState->arena, &initialConfig, CONFIG_EDITORLINUXCONFIG_ENVT);
 
     InitEngine();
 

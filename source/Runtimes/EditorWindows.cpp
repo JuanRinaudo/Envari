@@ -24,6 +24,7 @@
 
 #include <imgui.cpp>
 
+#include <EditorDefines.h>
 #include <Game.h>
 #include <Editor.cpp>
 
@@ -78,7 +79,7 @@ i32 CALLBACK WinMain(
 
     SetupEnviroment();
 
-    DeserializeDataTable(&permanentState->arena, &initialConfig, DATA_EDITORWINDOWSCONFIG_ENVT);
+    DeserializeDataTable(&permanentState->arena, &initialConfig, CONFIG_EDITORWINDOWSCONFIG_ENVT);
 
     InitEngine();
 

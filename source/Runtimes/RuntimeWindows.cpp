@@ -61,7 +61,7 @@ i32 CALLBACK WinMain(
 
     SetupEnviroment();
 
-    DeserializeDataTable(&permanentState->arena, &initialConfig, DATA_WINDOWSCONFIG_ENVT);
+    DeserializeDataTable(&permanentState->arena, &initialConfig, CONFIG_WINDOWSCONFIG_ENVT);
 
     InitEngine();
 

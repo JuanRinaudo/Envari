@@ -1,53 +1,34 @@
 #!/bin/sh
 
-if [ ! -d build ]
-then
-mkdir build
-fi
-pushd build
-
-if [ ! -d html5 ]
-then
-mkdir html5
-fi
-pushd html5
-
-if [ ! -f prejs.js ]
-then
-cp ../../buildassets/html5/prejs.js prejs.js
-fi
-if [ ! -f index.html ]
-then
-cp ../../buildassets/html5/index.html index.html
-fi
-if [ ! -f debugIndex.html ]
-then
-cp ../../buildassets/html5/debugIndex.html debugIndex.html
-fi
+PLATFORM="PLATFORM_WASM"
+DIR=$(dirname $0)
+source $DIR/setupBuildEnvironment.sh $1 html5
 
 savedLuaFileDate=`cat LUAScriptingBindings.tmp`
 luaFileDate=$(date -r ../../Envari/source/Scripting/LUAScriptingBindings.cpp "+%s")
 if [ "$savedLuaFileDate" != "$luaFileDate" ]
 then
 start=$(date +%s)
-echo "Start LUA time ${start}"
+echo "Start LUA Bindings time ${start}"
 em++ ../../Envari/source/Scripting/LUAScriptingBindings.cpp\
     -I../../Envari/LUA/include\
+    -I../../Envari/SDL2/include\
     -I../../Envari/source/Defines\
     -I../../Envari/source/Engine\
     -I../../Envari/STB\
+    -I../../Envari/GL3W\
     -I../../Envari/Miniaudio\
     -I../../Envari/Engine\
-    -O2\
     -DLUA_ENABLED=1\
     -DPLATFORM_WASM=1\
     -s USE_SDL=2\
     -std=c++17\
     -c\
     -o LUAScriptingBindings.o\
-    --no-heap-copy
+    --no-heap-copy\
+    -O2
 end=$(date +%s)
-echo "End LUA time ${end}"
+echo "End LUA Bindings time ${end}"
 echo "$luaFileDate" > LUAScriptingBindings.tmp
 fi
 
@@ -65,7 +46,6 @@ em++ ../../Envari/source/Runtimes/RuntimeWASM.cpp LUAScriptingBindings.o ../../E
     -I../../Envari/Miniaudio\
     -I../../Envari/ZSTD\
     -gsource-map\
-    -O3\
     --pre-js ../../buildassets/html5/prejs.js\
     --source-map-base http://localhost:7777/\
     -DLUA_ENABLED=1\
@@ -84,7 +64,8 @@ em++ ../../Envari/source/Runtimes/RuntimeWASM.cpp LUAScriptingBindings.o ../../E
     -lidbfs.js\
     -std=c++17\
     -o index.js\
-    --no-heap-copy
+    --no-heap-copy\
+    -O2
 end=$(date +%s)
 echo "End time ${end}"
 

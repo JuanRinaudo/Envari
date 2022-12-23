@@ -97,13 +97,6 @@ static void* LoadFileToMemory(const char* filepath, const char* mode, size_t buf
     return fileBuffer;
 }
 
-static TextAsset LoadTextToMemory(const char* filepath, const char* mode)
-{
-	TextAsset asset = {};
-	asset.data = (char*)LoadFileToMemory(filepath, mode, &asset.size);
-	return asset;
-}
-
 static char* LoadTextToMemory(const char* filepath, const char* mode, size_t* fileSize)
 {
 	char* text = (char*)LoadFileToMemory(filepath, mode, fileSize);

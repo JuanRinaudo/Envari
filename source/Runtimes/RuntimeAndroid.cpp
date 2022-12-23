@@ -62,7 +62,7 @@ i32 main(i32 argc, char *argv[])
 
     SetupEnviroment();
 
-//     DeserializeDataTable(&permanentState->arena, &initialConfig, DATA_ANDROIDCONFIG_ENVT);
+//     DeserializeDataTable(&permanentState->arena, &initialConfig, CONFIG_ANDROIDCONFIG_ENVT);
 
     // InitEngine();
 

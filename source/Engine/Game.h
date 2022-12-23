@@ -57,6 +57,7 @@ sol::state lua;
 
 #include <GameMath.h>
 #include <File.h>
+#include <Assets.h>
 #ifdef PLATFORM_EDITOR
 #include <EditorStructs.h>
 #include <Editor.h>

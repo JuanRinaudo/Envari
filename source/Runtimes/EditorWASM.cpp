@@ -20,6 +20,7 @@
 
 #define GL_PROFILE_GLES3
 #include <WASMDefines.h>
+#include <EditorDefines.h>
 #include <Game.h>
 
 static void main_loop();
@@ -81,7 +82,7 @@ i32 main(i32 argc, char** argv)
 
     SetupEnviroment();
 
-    DeserializeDataTable(&permanentState->arena, &initialConfig, DATA_EDITORWASMCONFIG_ENVT);
+    DeserializeDataTable(&permanentState->arena, &initialConfig, CONFIG_EDITORWASMCONFIG_ENVT);
 
     InitEngine();
 

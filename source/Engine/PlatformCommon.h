@@ -52,7 +52,7 @@ static void CheckInput() {
 
 static void TryCreateDataFolderStructure(std::string workingDirectoryPath)
 {
-    std::string dataPath = workingDirectoryPath + "/data";
+    std::string configPath = workingDirectoryPath + "/config";
     std::string fontsPath = workingDirectoryPath + "/fonts";
     std::string imagesPath = workingDirectoryPath + "/images";
     std::string atlasPath = workingDirectoryPath + "/atlas";
@@ -62,7 +62,7 @@ static void TryCreateDataFolderStructure(std::string workingDirectoryPath)
     std::string videoPath = workingDirectoryPath + "/video";
 
     CreateDirectoryIfNotExists(workingDirectoryPath.c_str());
-    CreateDirectoryIfNotExists(dataPath.c_str());
+    CreateDirectoryIfNotExists(configPath.c_str());
     CreateDirectoryIfNotExists(fontsPath.c_str());
     CreateDirectoryIfNotExists(imagesPath.c_str());
     CreateDirectoryIfNotExists(atlasPath.c_str());
@@ -73,14 +73,13 @@ static void TryCreateDataFolderStructure(std::string workingDirectoryPath)
 }
 
 static i32 SetupEnviroment()
-{    
-#if GAME_RELEASE
-    std::string workingDirectory = filesystem::current_path().string() + "/data";
-    TryCreateDataFolderStructure(workingDirectory);
-    filesystem::current_path(workingDirectory);
-#else
-    TryCreateDataFolderStructure(filesystem::current_path().string());
-#endif
+{
+    filesystem::path dataPath = filesystem::path(filesystem::current_path().string() + "/data");
+	if(!filesystem::exists(dataPath)) {
+		filesystem::create_directories(dataPath);
+    }
+    filesystem::current_path(dataPath);
+    TryCreateDataFolderStructure(dataPath);
 
     CreateDirectoryIfNotExists("temp");
     CreateDirectoryIfNotExists("save");

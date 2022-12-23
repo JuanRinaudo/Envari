@@ -1,0 +1,19 @@
+#ifndef INPUT_DEFINES_H
+#define INPUT_DEFINES_H
+
+#define KEY_COUNT 512
+#define MOUSE_COUNT 8
+
+#define DATA_MAX_TOKEN_COUNT 256
+
+#define CONSOLE_INPUT_BUFFER_COUNT 256
+
+#define TEXT_INPUT_EVENT_SIZE 32
+#define TEXT_INPUT_BUFFER_COUNT 256
+
+#define KEY_UP 0
+#define KEY_RELEASED 1
+#define KEY_PRESSED 2
+#define KEY_DOWN 3
+
+#endif
