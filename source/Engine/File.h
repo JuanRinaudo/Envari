@@ -128,6 +128,34 @@ static void CreateDirectoryIfNotExists(const char* path)
 	}
 }
 
+inline char NormalizeSingleChar(char singleChar)
+{
+    if(singleChar == '.' || singleChar == ' ' || singleChar == '-' || singleChar == '\\'  || singleChar == '/' || singleChar == '(' || singleChar == ')' || singleChar == '#') {
+        return '_';
+    }
+	return singleChar;
+}
+
+static void NormalizeFilename(char* string)
+{
+    while(*string)
+    {
+        char singleChar = *string;
+        *string = NormalizeSingleChar(singleChar);
+        string++;
+    }
+}
+
+static void FilenameToKey(char* string)
+{
+    while(*string)
+    {
+        char singleChar = toupper(NormalizeSingleChar(*string));
+        *string = singleChar;
+        string++;
+    }
+}
+
 // #TODO (Juan): Compression ZSTD
 // size_t fSize = sizeof(defaultFont);
 // Log("Uncompressed size = %d", fSize);

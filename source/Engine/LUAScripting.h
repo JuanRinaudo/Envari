@@ -140,9 +140,6 @@ void ScriptingDummy() {
 
 void ScriptingInit()
 {
-    lua.script("function Error(message) return \"ERROR: \" .. message end");
-    sol::protected_function::set_default_handler(lua["Error"]);
-
     lua.set_panic(sol::c_call<decltype(&ScriptingPanic), &ScriptingPanic>);
 	lua.set_exception_handler(&ScriptingExceptionHandler);
 

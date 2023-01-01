@@ -37,22 +37,6 @@ static MemoryArena dataArena;
 
 static i32 dataCount = 0;
 
-static void StringToKey(char* string)
-{
-    while(*string)
-    {
-        char singleChar = *string;
-        if(singleChar == '.' || singleChar == ' ' || singleChar == '-' || singleChar == '\\'  || singleChar == '/' || singleChar == '(' || singleChar == ')' || singleChar == '#') {
-            singleChar = '_';
-        }
-        else {
-            singleChar = (char)toupper(*string);
-        }
-        *string = singleChar;
-        string++;
-    }
-}
-
 static void FixFilePath(char* string)
 {
     while(*string)
@@ -240,7 +224,7 @@ i32 main()
         definition->path = PushString(&stringArena, path + workingDirectorySize + 1);
         FixFilePath(definition->path);
         definition->mapKey = PushString(&stringArena, path + workingDirectorySize + 1);
-        StringToKey(definition->mapKey);
+        FilenameToKey(definition->mapKey);
         i32 nameOffset = PathNameOffset(definition->fullPath);
         definition->name = PushString(&stringArena, path + nameOffset);
         definition->type = GetEntryType(&entry, definition);
@@ -279,7 +263,7 @@ i32 main()
             if(relativePathStart != 0 && esPathStart == 0) {
                 char* relativePath = relativePathStart + 6;
                 char* relativeKey = PushString(&stringArena, relativePath);
-                StringToKey(relativeKey);
+                FilenameToKey(relativeKey);
                 WriteConstant(&shaderCodegen, relativeKey, relativePath);
                 WriteScriptingConstant(&luaShaderCodegen, relativeKey, relativePath);
             }
@@ -292,7 +276,7 @@ i32 main()
             *name = (char)toupper(*name);
             PushString(&stringArena, "Map.h", 6);
             char* define = PushString(&stringArena, name, strlen(name) + 1);
-            StringToKey(define);
+            FilenameToKey(define);
             StartMapFile(&tableCodegen, folderPath, name, define);
 
             *(define + nameSize) = 0;
@@ -305,7 +289,7 @@ i32 main()
                     char* key = PushString(&stringArena, define, strlen(define));
                     PushChar(&stringArena, '_');
                     PushString(&stringArena, token);
-                    StringToKey(key);
+                    FilenameToKey(key);
 
                     WriteConstant(&tableCodegen, key, token);
                 }

@@ -1029,7 +1029,16 @@ static void ResetShaders()
 static void DefaultAssets()
 {
 #ifndef NO_DEFAULT_FONT
-    gameState->render.defaultFontID = GenerateFont(defaultFont, sizeof(defaultFont), "defaultFont", 64, DEFAULT_FONT_ATLAS_WIDTH, DEFAULT_FONT_ATLAS_HEIGHT);
+    size_t defaultFontCompressedSize = sizeof(defaultFont);
+    u8* defaultFontCompressedData = (u8*)malloc(defaultFontCompressedSize);
+    ASCII85Decode((char*)defaultFont, defaultFontCompressedData);
+
+    size_t defaultFontSize = ZSTD_getFrameContentSize(defaultFontCompressedData, defaultFontCompressedSize);
+    u8* defaultFontData = (u8*)malloc(defaultFontSize);
+    ZSTD_decompress(defaultFontData, defaultFontSize, defaultFontCompressedData, defaultFontCompressedSize);
+
+    gameState->render.defaultFontID = GenerateFont(defaultFontData, defaultFontSize, "defaultFont", 64, DEFAULT_FONT_ATLAS_WIDTH, DEFAULT_FONT_ATLAS_HEIGHT);
+    free(defaultFontData);
 #endif
 }
 

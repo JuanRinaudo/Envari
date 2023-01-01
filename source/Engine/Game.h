@@ -43,6 +43,7 @@ SerializableTable* editorSave = 0;
 
 #ifdef LUA_ENABLED
 #define SOL_ALL_SAFETIES_ON 1
+#define SOL_PRINT_ERRORS 1
 
 #include <sol.hpp>
 sol::state lua;
@@ -53,10 +54,11 @@ sol::state lua;
 #define STB_DS_IMPLEMENTATION
 #include <stb_ds.h>
 
-#include <imgui.h>
+#include <zstd.c>
 
 #include <GameMath.h>
 #include <File.h>
+#include <ASCII85.h>
 #include <Assets.h>
 #ifdef PLATFORM_EDITOR
 #include <EditorStructs.h>

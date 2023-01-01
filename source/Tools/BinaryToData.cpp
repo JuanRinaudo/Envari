@@ -1,15 +1,21 @@
-#include <direct.h>
 #include <fstream>
-#include "iostream"
+#include <iostream>
 #include <queue>
 #include <filesystem>
+#include <string.h>
+#include <stdlib.h>
 
 #define Log printf
 
-#include "../Defines.h"
-#include "Templates.h"
-#include "../MemoryStructs.h"
-#include "../Memory.h"
+#include <Defines.h>
+#include <Templates.h>
+#include <MemoryStructs.h>
+#include <Memory.h>
+#include <ASCII85.h>
+
+#include <File.h>
+
+#include <zstd.c>
 
 using namespace std;
 
@@ -50,14 +56,13 @@ i32 main()
     InitializeArena(&dataArena, dataMemorySize, (u8*)dataMemory, 0);
 
     char workingDirectory[512];
-    _getcwd(workingDirectory, 512);
+    string workingDirectoryString = filesystem::current_path().string();
+    strcpy(workingDirectory, workingDirectoryString.c_str());
 
     i32 workingDirectorySize = strlen(workingDirectory);
     const char* folderName = "/tobinary/";
     strcat(workingDirectory, folderName);
     workingDirectorySize += strlen(folderName);
-
-    // filesystem::exists(workingDirectory);
 
     queue<filesystem::directory_entry> entryQueue;
 
@@ -69,11 +74,20 @@ i32 main()
     while(!entryQueue.empty()) {
         auto entry = entryQueue.front();
         
+        auto entryPath = entry.path();
         auto entryPathString = entry.path().string();
         const char* path = entryPathString.c_str();
 
         if(!strstr(path, ".txt")) {
             FILE* readFile = fopen(path, "rb");
+
+            string filenameString = entryPath.filename().string();
+            const char* filename = filenameString.c_str();
+            char entryFilename[512];
+            strcpy(entryFilename, filename);
+            NormalizeFilename(entryFilename);
+
+            Log("%s\n", entryFilename);
 
             char* newPath = PushString(&stringArena, path);
             char* extensionChar = strrchr(newPath, '.');
@@ -81,23 +95,39 @@ i32 main()
 
             FILE* writeFile = fopen(newPath, "w");
 
-            char start[512];
-            sprintf(start, "u8 %s[] = {", "testFile");
-            fputs(start, writeFile);
-
             fseek(readFile, 0, SEEK_END);
             size_t size = ftell(readFile);
             rewind(readFile);
+            char* data = (char*)malloc(size);
+            ZeroSize(size, data);
 
-            char stringBuffer[512];
-            for(size_t i = 0; i < size; ++i) {
-                i32 value = fgetc(readFile);
-                itoa(value, stringBuffer, 10);
-                fputs(stringBuffer, writeFile);
-                if(i < size - 1) { fputc(',', writeFile); }
+            fread(data, 1, size, readFile);
+
+            size_t cBufferSize = ZSTD_compressBound(size);
+            u8* cBuffer = (u8*)malloc(cBufferSize);
+            size_t cSize = ZSTD_compress(cBuffer, cBufferSize, (void*)data, size, 0);
+
+            size_t encodedSize = GetEncoded85Size(cSize);
+
+            char start[512];
+            sprintf(start, "static const char %s[%d + 1] = \"", entryFilename, encodedSize);
+            fputs(start, writeFile);
+
+            u32 k = 0;
+
+            char prev_c = 0;
+            for(size_t i = 0; i < cSize; i += 4) { 
+                u32 d = *((u32*)(cBuffer + i));
+                for (u32 n5 = 0; n5 < 5; n5++, d /= 85)
+                {
+                    char c = Encode85Byte(d);
+                    fprintf(writeFile, (c == '?' && prev_c == '?') ? "\\%c" : "%c", c);
+                    k++;
+                    prev_c = c;
+                }
             }
 
-            char* end = "};";
+            const char* end = "\";";
             fputs(end, writeFile);
 
             fclose(readFile);

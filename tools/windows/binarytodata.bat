@@ -19,7 +19,7 @@ pushd binarytodata
 
 del /F *.pdb >NUL 2>NUL
 
-cl -MD %CommonCompilerFlags% ..\..\..\Envari\source\Tools\BinaryToData.cpp -FmCodeGen.map -EHsc -Bt -std:c++17 -link %CommonLinkerFlags% -PDB:CodeGen_%random%.pdb
+cl -MD %CommonCompilerFlags% ..\..\..\Envari\source\Tools\BinaryToData.cpp -FmBinaryToData.map -EHsc -Bt -std:c++17 -link %CommonLinkerFlags% -PDB:CodeGen_%random%.pdb
 
 popd
 popd

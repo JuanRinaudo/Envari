@@ -792,6 +792,8 @@ static void EditorDraw(PreviewWindow* preview)
     f32 height = ImGui::GetFrameHeight();
 
     ImVec2 contentStart = ImGui::GetWindowContentRegionMin();
+    ImVec2 contentEnd = ImGui::GetWindowContentRegionMax();
+    ImVec2 contentSize = contentEnd - contentStart;
     size.y -= contentStart.y;
 
     gameState->render.size.y = size.y;
@@ -861,11 +863,11 @@ static void EditorDraw(PreviewWindow* preview)
         ImGui::EndPopup();
     }
 
+    i32 framebufferID = gameState->render.frameBuffer;
 #if PLATFORM_WASM
-    ImGui::Image((ImTextureID)(gameState->render.frameBuffer - 1), ImVec2(gameState->render.size.x, gameState->render.size.y), ImVec2(0, 1), ImVec2(1, 0));
-#else
-    ImGui::Image((ImTextureID)gameState->render.frameBuffer, ImVec2(gameState->render.size.x, gameState->render.size.y), ImVec2(0, 1), ImVec2(1, 0));
+    framebufferID = framebufferID - 1;
 #endif
+    ImGui::Image((ImTextureID)framebufferID, ImVec2(gameState->render.size.x, gameState->render.size.y), ImVec2(0, 1), ImVec2(1, 0));
 
     if(preview->showData) {
         previewMin = ImGui::GetWindowPos();

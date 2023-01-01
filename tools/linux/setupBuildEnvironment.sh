@@ -30,6 +30,7 @@ commonCompilerFlags="
     -I../../Envari/source/Engine 
     -I../../Envari/source/Defines 
     -I../../Envari/LUA/include 
+    -I../../Envari/ZSTD 
     -L../../Envari/LUA/linux 
     -DLUA_ENABLED 
     -Wno-int-to-pointer-cast 
@@ -71,6 +72,5 @@ bindingsCompilerFlags=$commonCompilerFlags
 engineCompilerFlags="$commonCompilerFlags 
     -I../../Envari/source/Tools 
     -I../../Envari/source/Default 
-    -I../../Envari/ZSTD 
     -L../../Envari/SDL2/linux 
     -lSDL2 -lSDL2main"
