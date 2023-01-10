@@ -12,7 +12,7 @@
 #define AssertMessage(Expression, Message) 
 #endif
 
-#define SHADER_PREFIX "shaders/core/"
+#define SHADER_PREFIX "data/shaders/core/"
 #define SOURCE_TYPE const char* const
 
 #include <gl3w.c>
@@ -90,7 +90,7 @@ i32 CALLBACK WinMain(
     DeserializeTable(&permanentState->arena, &saveData, GetSavePath());
 
 #ifdef LUA_ENABLED
-    ScriptingInit();
+    LUAScriptingInit();
 #endif
     
     GameInit();
@@ -112,7 +112,7 @@ i32 CALLBACK WinMain(
         CommonBegin2D();
 
 #ifdef LUA_ENABLED
-        ScriptingUpdate();
+        LUAScriptingUpdate();
 #endif
         EngineUpdate();
 

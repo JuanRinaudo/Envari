@@ -165,6 +165,7 @@ i32 main()
     strcpy(workingDirectory, workingDirectoryPath.c_str());
 
     size_t workingDirectorySize = strlen(workingDirectory);
+    size_t dataSize = strlen("data/");
 
     const char* folderPath = "../CodeGen/";
     size_t folderPathSize = strlen(folderPath);
@@ -221,7 +222,7 @@ i32 main()
         const char* path = entryPathString.c_str();
 
         definition->fullPath = PushString(&stringArena, path);
-        definition->path = PushString(&stringArena, path + workingDirectorySize + 1);
+        definition->path = PushString(&stringArena, path + workingDirectorySize + 1 - dataSize);
         FixFilePath(definition->path);
         definition->mapKey = PushString(&stringArena, path + workingDirectorySize + 1);
         FilenameToKey(definition->mapKey);

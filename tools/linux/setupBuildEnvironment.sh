@@ -27,13 +27,17 @@ fi
 
 commonCompilerFlags="
     -std=c++17 
+    -fpermissive 
     -I../../Envari/source/Engine 
     -I../../Envari/source/Defines 
+    -I../../Envari/source/Scripting  
     -I../../Envari/LUA/include 
     -I../../Envari/ZSTD 
     -L../../Envari/LUA/linux 
     -DLUA_ENABLED 
+    -DCSCRIPTING_ENABLED 
     -Wno-int-to-pointer-cast 
+    -Wl,--export-dynamic 
     -ldl -lpthread -llua54 
     -D$PLATFORM "
 

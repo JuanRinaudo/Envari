@@ -3,13 +3,11 @@
 #include <thread>
 #include <string>
 #include <stdio.h>
-#include <string.h>
-#include <vector>
 
 // #define USE_OPTICK 0
 // #include "optick.h"
 
-#define SHADER_PREFIX "shaders/core/"
+#define SHADER_PREFIX "data/shaders/core/"
 
 #include <SDL.h>
 
@@ -106,7 +104,10 @@ i32 main(i32 argc, char** argv)
     EditorInit();
 
 #ifdef LUA_ENABLED
-    ScriptingInit();
+    LUAScriptingInit();
+#endif
+#ifdef CSCRIPTING_ENABLED
+    CScriptingInit();
 #endif
     
     GameInit();
@@ -119,6 +120,7 @@ i32 main(i32 argc, char** argv)
     gameState->game.running = true;
     while (gameState->game.running)
     {
+
         // OPTICK_FRAME("MainThread");
         
 //         GetProcessMemoryInfo(processHandle, &editorMemoryDebugger.memoryCounters, sizeof(PROCESS_MEMORY_COUNTERS));
@@ -191,7 +193,7 @@ i32 main(i32 argc, char** argv)
 
         if(gameState->time.gameTime > editorCore.lastWatchSecond + 1) {
 #ifdef LUA_ENABLED
-            ScriptingWatchChanges();
+            LUAScriptingWatchChanges();
 #endif
             GLWatchChanges();
             editorCore.lastWatchSecond = gameState->time.gameTime;
@@ -209,7 +211,10 @@ i32 main(i32 argc, char** argv)
 
 //             QueryPerformanceCounter(&luaPerformanceStart);
 #ifdef LUA_ENABLED
-            ScriptingUpdate();
+            LUAScriptingUpdate();
+#endif
+#ifdef CSCRIPTING_ENABLED
+            CUpdate();
 #endif
 //             QueryPerformanceCounter(&luaPerformanceEnd);
 

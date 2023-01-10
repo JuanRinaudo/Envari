@@ -2,7 +2,7 @@
 #define LUA_SCRIPTING_H
 
 #define RunLUAProtectedFunction(FUNCTION) sol::protected_function Func ## FUNCTION (lua[#FUNCTION]); \
-ChangeLogFlag(LogFlag_SCRIPTING_FUNCTIONS); \
+ChangeLogFlag(LogFlag_LUA_SCRIPTING_FUNCTIONS); \
 if(Func ## FUNCTION .valid()) { \
     sol::protected_function_result result = Func ## FUNCTION (); \
     if (!result.valid()) { \
@@ -20,10 +20,10 @@ else { \
 //     #include "mime.h"
 // }
 
-extern void ScriptingBindings();
-extern void ScriptingMathBindings();
+extern void LUAScriptingBindings();
+extern void LUAScriptingMathBindings();
 
-void LoadScriptString(const char* string)
+void LoadLUAScriptString(const char* string)
 {
     sol::load_result loadResult = lua.load(string);
 
@@ -42,7 +42,7 @@ void LoadScriptString(const char* string)
     }
 }
 
-void LoadScriptFile(const char* filePath)
+void LoadLUAScriptFile(const char* filePath)
 {
     sol::load_result loadResult = lua.load_file(filePath);
 
@@ -74,7 +74,7 @@ void LoadScriptFile(const char* filePath)
     #endif
 }
 
-void ScriptingPanic(sol::optional<std::string> maybe_msg) {
+void LUAScriptingPanic(sol::optional<std::string> maybe_msg) {
     LogError("Lua is in a panic state and will now abort() the application");
 	if (maybe_msg) {
 	    LogError("%s", maybe_msg.value().c_str());
@@ -82,7 +82,7 @@ void ScriptingPanic(sol::optional<std::string> maybe_msg) {
 	// When this function exits, Lua will exhibit default behavior and abort()
 }
 
-i32 ScriptingExceptionHandler(lua_State* L, sol::optional<const std::exception&> maybe_exception, sol::string_view description) {
+i32 LUAScriptingExceptionHandler(lua_State* L, sol::optional<const std::exception&> maybe_exception, sol::string_view description) {
 	LogError("An exception occurred in a function, here's what it says");
 	if (maybe_exception) {
 		const std::exception& exception = *maybe_exception;
@@ -125,7 +125,7 @@ void LoadLUALibrary(sol::lib library)
             break;
         }
         case sol::lib::math: {
-            ScriptingMathBindings();
+            LUAScriptingMathBindings();
             break;
         }
         default: {
@@ -134,37 +134,43 @@ void LoadLUALibrary(sol::lib library)
     }
 }
 
-void ScriptingDummy() {
-
-}
-
-void ScriptingInit()
+void LUAScriptingDummy()
 {
-    lua.set_panic(sol::c_call<decltype(&ScriptingPanic), &ScriptingPanic>);
-	lua.set_exception_handler(&ScriptingExceptionHandler);
 
-    ScriptingBindings();
-
-    lua["Load"] = ScriptingDummy;
-    lua["Update"] = ScriptingDummy;
-    lua["Unload"] = ScriptingDummy;
-    lua["EditorInit"] = ScriptingDummy;
-    lua["EditorUpdate"] = ScriptingDummy;
-    lua["EditorEnd"] = ScriptingDummy;
-    lua["EditorConsoleDebugBar"] = ScriptingDummy;
-    lua["EditorShaderReload"] = ScriptingDummy;
-    lua["FocusChange"] = ScriptingDummy;
 }
 
-void ScriptingReset()
+void LUAClearFunctionBindings()
+{
+    lua["Load"] = LUAScriptingDummy;
+    lua["Update"] = LUAScriptingDummy;
+    lua["Unload"] = LUAScriptingDummy;
+    lua["EditorInit"] = LUAScriptingDummy;
+    lua["EditorUpdate"] = LUAScriptingDummy;
+    lua["EditorEnd"] = LUAScriptingDummy;
+    lua["EditorConsoleDebugBar"] = LUAScriptingDummy;
+    lua["EditorShaderReload"] = LUAScriptingDummy;
+    lua["FocusChange"] = LUAScriptingDummy;
+}
+
+void LUAScriptingInit()
+{
+    lua.set_panic(sol::c_call<decltype(&LUAScriptingPanic), &LUAScriptingPanic>);
+	lua.set_exception_handler(&LUAScriptingExceptionHandler);
+
+    LUAScriptingBindings();
+
+    LUAClearFunctionBindings();
+}
+
+void LUAScriptingReset()
 {
     lua = {};
-    ScriptingInit();
+    LUAScriptingInit();
 }
 
-static u32 ScriptingUpdate()
+static u32 LUAScriptingUpdate()
 {
-    ChangeLogFlag(LogFlag_SCRIPTING);
+    ChangeLogFlag(LogFlag_LUA_SCRIPTING);
 
     RunLUAProtectedFunction(Update)
 
@@ -172,7 +178,7 @@ static u32 ScriptingUpdate()
 }
 
 #if PLATFORM_EDITOR && PLATFORM_WINDOWS
-void ScriptingDebugStart()
+void LUAScriptingDebugStart()
 {
     // luaopen_socket_core(lua);
     // luaopen_mime_core(lua);
@@ -184,7 +190,7 @@ void ScriptingDebugStart()
 }
 #endif
 
-void ScriptingWatchChanges()
+void LUAScriptingWatchChanges()
 {
     #ifdef PLATFORM_EDITOR
     i32 nameIndex = 0;
@@ -236,7 +242,7 @@ void ScriptingWatchChanges()
 }
 
 #if PLATFORM_EDITOR
-void GetWatchValue(i32 watchType, char* name, char* valueBuffer)
+void LUAGetWatchValue(i32 watchType, char* name, char* valueBuffer)
 {
     i32 pushCount = 0;
     u32 type = LUA_TNIL;

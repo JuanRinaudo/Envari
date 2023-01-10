@@ -18,24 +18,6 @@
 #include <LUAScriptingBindings.cpp>
 #endif
 
-SDL_Window* sdlWindow;
-SDL_DisplayMode displayMode;
-SDL_GLContext glContext;
-
-static void CheckInput() {
-    for(i32 key = 0; key < KEY_COUNT; ++key) {
-        u8 keyState = gameState->input.keyState[key];
-        if(keyState == KEY_PRESSED) { gameState->input.keyState[key] = KEY_DOWN; }
-        else if(keyState == KEY_RELEASED) { gameState->input.keyState[key] = KEY_UP; }
-    }
-
-    for(i32 key = 0; key < MOUSE_COUNT; ++key) {
-        u8 mouseState = gameState->input.mouseState[key];
-        if(mouseState == KEY_PRESSED) { gameState->input.mouseState[key] = KEY_DOWN; }
-        else if(mouseState == KEY_RELEASED) { gameState->input.mouseState[key] = KEY_UP; }
-    }
-}
-
 i32 main(i32 argc, char *argv[])
 {
     size_t permanentStorageSize = Megabytes(32);
@@ -70,36 +52,9 @@ i32 main(i32 argc, char *argv[])
         return -1;
     }
 
-//     // SDL_GetCurrentDisplayMode(0, &displayMode);
     v2 windowSize = V2(640, 640);
-    // v2 windowSize = TableGetV2(&initialConfig, ANDROIDCONFIG_WINDOWSIZE);
-//     // if(windowSize.x <= 10 && windowSize.y <= 10) {
-//     //     gameState->render.width = FloorToInt(displayMode.w * windowSize.x);
-//     //     gameState->render.height = FloorToInt(displayMode.h * windowSize.y);
-//     // }
-//     // else {
-        gameState->render.width = FloorToInt(windowSize.x);
-        gameState->render.height = FloorToInt(windowSize.y);
-//     // }
-
-    // gameState->render.framebufferEnabled = TableHasKey(&initialConfig, ANDROIDCONFIG_BUFFERSIZE);
-    // if(gameState->render.framebufferEnabled) {
-    //     v2 bufferSize = TableGetV2(&initialConfig, ANDROIDCONFIG_BUFFERSIZE);
-    //     if(windowSize.x <= 10 && windowSize.y <= 10) {
-    //         gameState->render.bufferWidth = FloorToInt(gameState->render.width * bufferSize.x);
-    //         gameState->render.bufferHeight = FloorToInt(gameState->render.height * bufferSize.y);
-    //     }
-    //     else {
-    //         gameState->render.bufferWidth = FloorToInt(bufferSize.x);
-    //         gameState->render.bufferHeight = FloorToInt(bufferSize.y);
-    //     }
-    // }
-    // else {
-    //     gameState->render.bufferWidth = -1;
-    //     gameState->render.bufferHeight = -1;
-    // }
-
-    // gameState->render.refreshRate = displayMode.refresh_rate;
+    gameState->render.width = FloorToInt(windowSize.x);
+    gameState->render.height = FloorToInt(windowSize.y);
     gameState->render.refreshRate = 60;
 
     const char* windowTitle = "Test";
@@ -114,21 +69,13 @@ i32 main(i32 argc, char *argv[])
 
     const char* glsl_version = 0;
 
-// #ifdef LUA_ENABLED
-//     ScriptingInit();
-// #endif
+#ifdef LUA_ENABLED
+    LUAScriptingInit();
+#endif
 
-//     InitGL();
+   InitGL();
 
     GameInit();
-
-    // #NOTE (Juan): Create framebuffer
-    // if(gameState->render.framebufferEnabled) {
-    //     CreateFramebuffer(gameState->render.bufferWidth, gameState->render.bufferHeight);
-    // }
-    // else {
-    //     gameState->render.frameBuffer = 0;
-    // }
 
     SoundInit();
 
@@ -138,21 +85,9 @@ i32 main(i32 argc, char *argv[])
     {
         f32 gameTime = SDL_GetTicks() / 1000.0f;
         gameState->time.gameTime = (f32)gameTime;
-        gameState->time.deltaTime = (f32)(gameTime - gameState->time.lastFrameGameTime);
+        gameState->time.deltaTime = (f32)(gameTime - gameState->time.realTime);
+        gameState->time.realTime = startTime;
         gameState->time.frames++;
-
-//         // #NOTE(Juan): Do a fps limit if enabled
-//         std::chrono::steady_clock::time_point end;
-//         if(fpsLimit > 0) {
-//             auto now = std::chrono::steady_clock::now();
-//             i64 epochTime = now.time_since_epoch().count() / 1000000;
-//             auto diff = now - start;
-//             end = now + std::chrono::milliseconds(fpsDelta - epochTime % fpsDelta);
-//             if(diff >= std::chrono::seconds(1))
-//             {
-//                 start = now;
-//             }
-//         }
 
         SDL_Event event;
         while(SDL_PollEvent(&event)) {
@@ -213,56 +148,10 @@ i32 main(i32 argc, char *argv[])
             }
         }
 
-        gameState->time.lastFrameGameTime = gameState->time.gameTime;
-
-// #ifdef LUA_ENABLED
-//         ScriptingWatchChanges();
-// #endif
-
-//         WatchChanges();        
-
-//         if(gameState->render.framebufferEnabled) {
-//             Begin2D(gameState->render.frameBuffer, (u32)gameState->render.bufferWidth, (u32)gameState->render.bufferHeight);
-//         }
-//         else {
-//             Begin2D(0, (u32)gameState->render.width, (u32)gameState->render.height);
-//         }
-
 #ifdef LUA_ENABLED
-        ScriptingUpdate();
+        LUAScriptingUpdate();
 #endif
         EngineUpdate();
-//         Render();
-
-//         EditorDrawAllOpen();
-
-//         End2D();
-
-//         if(gameState->render.framebufferEnabled) {
-//             // #NOTE (Juan): Render framebuffer to actual screen buffer, save data and then restore it
-//             f32 tempSize = gameState->camera.size;
-//             f32 tempRatio = gameState->camera.ratio;
-//             m44 tempView = gameState->camera.view;
-//             m44 tempProjection = gameState->camera.projection;
-
-//             gameState->camera.size = 1;
-//             gameState->camera.ratio = (f32)gameState->render.width / (f32)gameState->render.height;
-//             gameState->camera.view = IdM44();
-//             gameState->camera.projection = OrtographicProjection(gameState->camera.size, gameState->camera.ratio, gameState->camera.nearPlane, gameState->camera.farPlane);
-//             Begin2D(0, (u32)gameState->render.width, (u32)gameState->render.height);
-//             DrawOverrideVertices(0, 0);
-//             DrawClear(0, 0, 0, 1);
-//             DrawTextureParameters(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, GL_NEAREST, GL_NEAREST);
-//             f32 sizeX = gameState->camera.size * tempRatio;
-//             DrawTexture(-sizeX * 0.5f, gameState->camera.size * 0.5f, sizeX, -gameState->camera.size, gameState->render.renderBuffer);
-//             Render();
-//             End2D();
-
-//             gameState->camera.size = tempSize;
-//             gameState->camera.ratio = tempRatio;
-//             gameState->camera.view = tempView;
-//             gameState->camera.projection = tempProjection;
-//         }
 
         glViewport(0,0, gameState->render.width, gameState->render.height);
         glClearColor(1, 1, 0, 1);
@@ -271,10 +160,6 @@ i32 main(i32 argc, char *argv[])
         SDL_GL_SwapWindow(sdlWindow);
 
         CheckInput();
-
-//         if(fpsLimit > 0) {
-//             std::this_thread::sleep_until(end);
-//         }
     }
 
     GameEnd();

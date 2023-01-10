@@ -6,7 +6,7 @@
 
 #include "OptickDummy.h"
 
-#define SHADER_PREFIX "shaders/es/"
+#define SHADER_PREFIX "data/shaders/es/"
 #define SOURCE_TYPE const char* const
 
 #define INITLUASCRIPT EDITORWASMCONFIG_INITLUASCRIPT
@@ -111,7 +111,7 @@ i32 main(i32 argc, char** argv)
     EditorInit();
 
 #ifdef LUA_ENABLED
-    ScriptingInit();
+    LUAScriptingInit();
 #endif
 
     EM_ASM(
@@ -162,7 +162,7 @@ static void main_loop()
 
             CommonBegin2D();
 #ifdef LUA_ENABLED
-            ScriptingUpdate();
+            LUAScriptingUpdate();
 #endif
             EngineUpdate();
 

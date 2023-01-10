@@ -1,12 +1,13 @@
 #ifndef GAME_H
 #define GAME_H
 
-#include <stb_truetype.h>
-
+#include <vector>
 #include <cstdlib>
 
+#include <stb_truetype.h>
+
 #include <miniaudio.h>
-// #include <zstddeclib.c>
+#include <zstddeclib.c>
 #include <Defines.h>
 #include <EditorConstants.h>
 #include <Templates.h>
@@ -44,7 +45,6 @@ SerializableTable* editorSave = 0;
 #ifdef LUA_ENABLED
 #define SOL_ALL_SAFETIES_ON 1
 #define SOL_PRINT_ERRORS 1
-
 #include <sol.hpp>
 sol::state lua;
 #endif
@@ -53,8 +53,6 @@ sol::state lua;
 #include <stb_image.h>
 #define STB_DS_IMPLEMENTATION
 #include <stb_ds.h>
-
-#include <zstd.c>
 
 #include <GameMath.h>
 #include <File.h>
@@ -76,12 +74,17 @@ sol::state lua;
 #ifdef LUA_ENABLED
 #include <LUAScripting.h>
 #endif
+#ifdef CSCRIPTING_ENABLED
+#include <CScripting.h>
+#endif
 #include <Scene.h>
 
 void SaveData();
 
 static u32 GameInit()
 {
+    ChangeLogFlag(LogFlag_GAME);
+    
     gameState->game.version = 1;
     gameState->game.updateRunning = true;
 
@@ -104,10 +107,12 @@ static u32 GameInit()
     ResetRenderState();
 
 #ifdef LUA_ENABLED
-    ChangeLogFlag(LogFlag_SCRIPTING);
+    ChangeLogFlag(LogFlag_LUA_SCRIPTING);
 
     LoadLUAScene(TableGetString(&initialConfig, CONFIG_INITLUASCRIPT));
-    RunLUAProtectedFunction(EditorInit)
+#endif
+#ifdef CSCRIPTING_ENABLED
+    CInit();
 #endif
     
     return 1;
@@ -132,6 +137,8 @@ u32 lastCircleCount = 0;
 
 static u32 GameUpdate()
 {
+    ChangeLogFlag(LogFlag_GAME);
+
     if(gameState->game.updateRunning) {
         f32 fps = (f32)(1 / gameState->time.deltaTime);
     }
@@ -148,11 +155,14 @@ static u32 GameEnd()
 {
     SaveData();
 
-    #ifdef LUA_ENABLED
-    ChangeLogFlag(LogFlag_SCRIPTING);
+#ifdef LUA_ENABLED
+    ChangeLogFlag(LogFlag_LUA_SCRIPTING);
 
     RunLUAProtectedFunction(End)
-    #endif
+#endif
+#ifdef CSCRIPTING_ENABLED
+    CEnd();
+#endif
 
     return 1;
 }

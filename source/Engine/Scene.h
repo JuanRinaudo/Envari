@@ -19,10 +19,7 @@ void UnloadLUAScene()
 
         ResetArena(&sceneState->arena);
 
-        lua["Load"] = sol::function();
-        lua["Update"] = sol::function();
-        lua["Unload"] = sol::function();
-        lua["End"] = sol::function();
+        LUAClearFunctionBindings();
         
         RunLUAProtectedFunction(Unload)
     }
@@ -36,9 +33,13 @@ void LoadLUAScene(const char* luaFilepath)
 
     strcpy(sceneFilepath, luaFilepath);
 
-    LoadScriptFile(luaFilepath);
+    LoadLUAScriptFile(luaFilepath);
 
     RunLUAProtectedFunction(Load)
+    
+#ifdef PLATFORM_EDITOR
+    RunLUAProtectedFunction(EditorInit)
+#endif
 }
 #endif
 

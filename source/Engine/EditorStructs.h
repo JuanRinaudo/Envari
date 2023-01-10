@@ -200,7 +200,6 @@ struct TimeDebuggerWindow
     f32 fpsMax;
     bool timeloop;
     i32 framesMultiplier;
-    f32 timeScale;
     TimeFormat loopFormat;
     i32 loopStartFrame;
     i32 loopEndFrame;
@@ -235,6 +234,14 @@ struct ShaderDebuggerWindow
     i32 watchedProgramsCount = 0;
     WatchedProgram watchedPrograms[WATCHED_PROGRAMS_MAX_COUNT];
 };
+
+#ifdef CSCRIPTING_ENABLED
+struct CScriptingDebuggerWindow
+{
+    bool open;
+};
+
+#endif
 
 #ifdef LUA_ENABLED
 struct WatchedFileCache {

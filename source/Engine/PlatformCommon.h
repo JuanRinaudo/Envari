@@ -40,6 +40,28 @@ static void CheckInput() {
         else if(mouseState == KEY_RELEASED) { gameState->input.mouseState[key] = KEY_UP; }
     }
 
+    for(i32 controller = 0; controller < CONTROLLER_COUNT; ++controller) {
+        if(gameState->input.controllerState[controller].id != NULL) {
+            for(i32 key = 0; key < CONTROLLER_AXIS_COUNT; ++key) {
+                if(ABS(gameState->input.controllerState[controller].axisValue[key]) < CONTROLLER_DEADZONE_THRESHOLD) {
+                    gameState->input.controllerState[controller].axisValue[key] = 0;
+                }
+            }
+
+            for(i32 key = 0; key < CONTROLLER_BUTTON_COUNT; ++key) {
+                u8 buttonState = gameState->input.controllerState[controller].buttonState[key];
+                if(buttonState == KEY_PRESSED) { gameState->input.controllerState[controller].buttonState[key] = KEY_DOWN; }
+                else if(buttonState == KEY_RELEASED) { gameState->input.controllerState[controller].buttonState[key] = KEY_UP; }
+            }
+
+            for(i32 key = 0; key < CONTROLLER_TOUCHPAD_POINTS; ++key) {
+                u8 state = gameState->input.controllerState[controller].touchPoints[key].state;
+                if(state == KEY_PRESSED) { gameState->input.controllerState[controller].touchPoints[key].state = KEY_DOWN; }
+                else if(state == KEY_RELEASED) { gameState->input.controllerState[controller].touchPoints[key].state = KEY_UP; }
+            }
+        }
+    }
+
     if(gameState->input.anyMouseState == KEY_PRESSED) { gameState->input.anyMouseState = KEY_DOWN; }
     else if(gameState->input.anyMouseState == KEY_RELEASED) { gameState->input.anyMouseState = KEY_UP; }
 
@@ -78,7 +100,7 @@ static i32 SetupEnviroment()
 	if(!filesystem::exists(dataPath)) {
 		filesystem::create_directories(dataPath);
     }
-    filesystem::current_path(dataPath);
+    
     TryCreateDataFolderStructure(dataPath);
 
     CreateDirectoryIfNotExists("temp");
@@ -103,7 +125,7 @@ static i32 InitEngine()
 
 static i32 InitSDL()
 {
-    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) < 0) {
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_GAMECONTROLLER) < 0) {
         return -1;
     }
     
@@ -213,6 +235,10 @@ static i32 CreateFramebuffer()
 
 static i32 SetupTime()
 {
+    gameState->time.realTime = 0;
+    gameState->time.gameTime = 0;
+    gameState->time.timeScale = 1;
+
     gameState->time.fpsLimit = TableGetInt(&initialConfig, "fpsLimit", -1);
     gameState->time.fpsFixed = TableGetInt(&initialConfig, "fpsFixed", -1);
     gameState->time.fpsDelta = 1000.0f / gameState->time.fpsLimit;
@@ -233,21 +259,14 @@ static i32 SetupTime()
 
 static i32 TimeTick()
 {
-    f32 startTime = 0;
-    if(gameState->time.fpsFixed > 0)
-    {
-        gameState->time.deltaTime = 1.0f / gameState->time.fpsFixed;
-        gameState->time.lastFrameGameTime += gameState->time.deltaTime;
+    f32 startTime = SDL_GetTicks() / 1000.0f;
+    if(gameState->time.fpsFixed > 0) {
+        gameState->time.deltaTime = (1.0f / gameState->time.fpsFixed) * gameState->time.timeScale;
+        gameState->time.realTime += gameState->time.deltaTime;
     }
-    else
-    {
-        startTime = SDL_GetTicks() / 1000.0f;
-        gameState->time.deltaTime = startTime - gameState->time.realLastFrameGameTime;
-        gameState->time.realLastFrameGameTime = startTime;
-#if UNITY_EDITOR
-        gameState->time.deltaTime *= editorTimeDebugger.timeScale;
-#endif
-        gameState->time.lastFrameGameTime = gameState->time.lastFrameGameTime + gameState->time.deltaTime;
+    else {
+        gameState->time.deltaTime = (startTime - gameState->time.realTime) * gameState->time.timeScale;
+        gameState->time.realTime = startTime;
     }
 
     gameState->time.frames++;
@@ -276,14 +295,12 @@ static i32 TimeTick()
         if(editorTimeDebugger.loopFormat == TimeFormat_FRAMES) {
             if(gameState->time.gameFrames > editorTimeDebugger.loopEndFrame) {
                 gameState->time.gameFrames = editorTimeDebugger.loopStartFrame;
-                gameState->time.lastFrameGameTime = (gameState->time.fpsDelta / 1000) * (gameState->time.gameFrames - 1);
                 gameState->time.gameTime = gameState->time.fpsDelta * gameState->time.gameFrames;
             }
         }
         else if(editorTimeDebugger.loopFormat == TimeFormat_TIME) {
             if(gameState->time.gameTime > editorTimeDebugger.loopEndTime) {
                 gameState->time.gameTime = editorTimeDebugger.loopStartTime;
-                gameState->time.lastFrameGameTime = gameState->time.gameTime - (gameState->time.fpsDelta / 1000);
                 gameState->time.gameFrames = FloorToInt(gameState->time.gameTime / (gameState->time.fpsDelta / 1000));
             }
         }
@@ -411,6 +428,65 @@ static i32 ProcessEvent(const SDL_Event* event)
             if(keyboardEnabled) {
                 strcpy((char*)gameState->input.textInputEvent, event->text.text);
             }
+            break;
+        }
+        case SDL_CONTROLLERAXISMOTION: {
+            if(ABS(event->caxis.value) > CONTROLLER_DEADZONE_THRESHOLD) {
+                gameState->input.controllerState[event->caxis.which].axisValue[event->caxis.axis] = event->caxis.value;
+            }
+            else {
+                gameState->input.controllerState[event->caxis.which].axisValue[event->caxis.axis] = 0;
+            }
+            break;
+        }
+        case SDL_CONTROLLERBUTTONDOWN: {
+            gameState->input.controllerState[event->cbutton.which].buttonState[event->cbutton.button] = KEY_PRESSED;
+            break;
+        }
+        case SDL_CONTROLLERBUTTONUP: {
+            gameState->input.controllerState[event->cbutton.which].buttonState[event->cbutton.button] = KEY_RELEASED;
+            break;
+        }
+        case SDL_CONTROLLERDEVICEADDED: {
+            gameState->input.controllerState[event->cdevice.which].id = SDL_GameControllerOpen(event->cdevice.which);
+            if(gameState->input.controllerState[event->cdevice.which].id == NULL) {
+                Log("Warning: Unable to open game controller! SDL Error: %s\n", SDL_GetError());
+            }
+            break;
+        }
+        case SDL_CONTROLLERDEVICEREMOVED: {
+            SDL_GameControllerClose(gameState->input.controllerState[event->cdevice.which].id);
+            gameState->input.controllerState[event->cdevice.which].id = 0;
+            break;
+        }
+        case SDL_CONTROLLERDEVICEREMAPPED: {
+            
+            break;
+        }
+        case SDL_CONTROLLERTOUCHPADDOWN: {
+            gameState->input.controllerState[event->cdevice.which].touchPoints[event->ctouchpad.finger].state = KEY_PRESSED;
+            gameState->input.controllerState[event->cdevice.which].touchPoints[event->ctouchpad.finger].x = event->ctouchpad.x;
+            gameState->input.controllerState[event->cdevice.which].touchPoints[event->ctouchpad.finger].y = event->ctouchpad.y;
+            gameState->input.controllerState[event->cdevice.which].touchPoints[event->ctouchpad.finger].pressure = event->ctouchpad.pressure;
+            break;
+        }
+        case SDL_CONTROLLERTOUCHPADMOTION: {
+            gameState->input.controllerState[event->cdevice.which].touchPoints[event->ctouchpad.finger].state = KEY_DOWN;
+            gameState->input.controllerState[event->cdevice.which].touchPoints[event->ctouchpad.finger].x = event->ctouchpad.x;
+            gameState->input.controllerState[event->cdevice.which].touchPoints[event->ctouchpad.finger].y = event->ctouchpad.y;
+            gameState->input.controllerState[event->cdevice.which].touchPoints[event->ctouchpad.finger].pressure = event->ctouchpad.pressure;
+            break;
+        }
+        case SDL_CONTROLLERTOUCHPADUP: {
+            gameState->input.controllerState[event->cdevice.which].touchPoints[event->ctouchpad.finger].state = KEY_RELEASED;
+            gameState->input.controllerState[event->cdevice.which].touchPoints[event->ctouchpad.finger].x = event->ctouchpad.x;
+            gameState->input.controllerState[event->cdevice.which].touchPoints[event->ctouchpad.finger].y = event->ctouchpad.y;
+            gameState->input.controllerState[event->cdevice.which].touchPoints[event->ctouchpad.finger].pressure = event->ctouchpad.pressure;
+            break;
+        }
+        case SDL_CONTROLLERSENSORUPDATE: {
+            
+            break;
         }
         default: {
             return 0;       

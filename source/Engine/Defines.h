@@ -24,13 +24,13 @@
 #define MAX_SAVE_DIGITS 3
 
 #ifndef DATA_SAVE_PATH
-#define DATA_SAVE_PATH "save/savedata_%0" TO_STRING(MAX_SAVE_DIGITS) "d.save"
+#define DATA_SAVE_PATH "data/save/savedata_%0" TO_STRING(MAX_SAVE_DIGITS) "d.save"
 #endif
 #ifndef CONFIG_SAVE_PATH
-#define CONFIG_SAVE_PATH "save/config.save"
+#define CONFIG_SAVE_PATH "data/save/config.save"
 #endif
 #ifndef EDITOR_SAVE_PATH
-#define EDITOR_SAVE_PATH "save/editor.save"
+#define EDITOR_SAVE_PATH "data/save/editor.save"
 #endif
 
 #define ENVARI_MAYOR_VERSION 0

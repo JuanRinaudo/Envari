@@ -1,4 +1,4 @@
-initLuaScript: "scripts/init.lua"; #Initial lua script for GameInit
+initLuaScript: "data/scripts/init.lua"; #Initial lua script for GameInit
 windowSize: 640 640; #Game resolution (if <= 64 is relative, if > 64 is fixed)
 bufferSize: 640 640; # Game frame buffer size (if <= 64 is relative, if > 64 is fixed)
 renderScale: 1; # Game buffer render scale

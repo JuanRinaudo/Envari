@@ -14,8 +14,9 @@ enum LogFlag {
 
     LogFlag_SYSTEM = 1 << 16,
     LogFlag_GAME = 1 << 17,
-    LogFlag_SCRIPTING = 1 << 18,
-    LogFlag_SCRIPTING_FUNCTIONS = 1 << 19,
+    LogFlag_C_SCRIPTING = 1 << 18,
+    LogFlag_LUA_SCRIPTING = 1 << 19,
+    LogFlag_LUA_SCRIPTING_FUNCTIONS = 1 << 20,
 };
 
 // #NOTE (Juan): Render
@@ -465,10 +466,10 @@ struct Camera {
 };
 
 struct Time {
-    f32 realLastFrameGameTime;
-    f32 lastFrameGameTime;
+    f32 realTime;
     f32 gameTime;
     f32 deltaTime;
+    f32 timeScale;
     i64 gameFrames;
     i64 frames;
 
@@ -490,6 +491,22 @@ struct Memory {
 #endif
 };
 
+struct TouchPoint
+{
+    u8 state;
+    f32 x;
+    f32 y;
+    f32 pressure;
+};
+
+struct Controller
+{
+    SDL_GameController* id;
+    i16 axisValue[CONTROLLER_AXIS_COUNT];
+    u8 buttonState[CONTROLLER_BUTTON_COUNT];
+    TouchPoint touchPoints[CONTROLLER_TOUCHPAD_POINTS];
+};
+
 struct Input
 {
     u32 mouseTextureID;
@@ -507,6 +524,7 @@ struct Input
     u8 keyState[KEY_COUNT];
     u8 anyReasonableKeyState;
     u8 anyKeyState;
+    Controller controllerState[CONTROLLER_COUNT];
     u8 textInputEvent[TEXT_INPUT_EVENT_SIZE];
 };
 

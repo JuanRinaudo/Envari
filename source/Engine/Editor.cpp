@@ -293,7 +293,6 @@ static void EditorInit(TimeDebuggerWindow* debugger)
     debugger->fpsMax = 1;
 
     debugger->framesMultiplier = 1;
-    debugger->timeScale = 1;
 
     debugger->loopFormat = gameState->time.fpsFixed != -1 ? TimeFormat_FRAMES : TimeFormat_TIME;
 }
@@ -302,6 +301,13 @@ static void EditorInit(ShaderDebuggerWindow* debugger)
 {
     debugger->programIndex = -1;
 }
+
+#ifdef CSCRIPTING_ENABLED
+static void EditorInit(CScriptingDebuggerWindow* debugger)
+{
+
+}
+#endif
 
 #ifdef LUA_ENABLED
 static void EditorInit(LUADebuggerWindow* debugger)
@@ -521,6 +527,7 @@ static void EditorReset(){
 
     ResetArena(&sceneState->arena);
 
+    gameState->time.realTime = 0;
     gameState->time.gameTime = 0;
     gameState->time.gameFrames = 0;
 
@@ -529,8 +536,8 @@ static void EditorReset(){
     ResetShaders();
 
 #if LUA_ENABLED
-    ScriptingReset();
-    LoadScriptString(editorLUADebugger.currentFileBuffer);
+    LUAScriptingReset();
+    LoadLUAScriptString(editorLUADebugger.currentFileBuffer);
     RunLUAProtectedFunction(Load)
 #endif
 }
@@ -587,8 +594,12 @@ static void EditorDraw(ConsoleWindow* console)
             if (ImGui::Checkbox("Time", &editorTimeDebugger.open)) { EditorInit(&editorTimeDebugger); }
             if (ImGui::Checkbox("Sound", &editorSoundDebugger.open)) { EditorInit(&editorSoundDebugger); }
             if (ImGui::Checkbox("Shaders", &editorShaderDebugger.open)) { EditorInit(&editorShaderDebugger); }
+#ifdef CSCRIPTING_ENABLED
+            if (ImGui::Checkbox("C Scripting", &editorCScriptingDebugger.open)) { EditorInit(&editorCScriptingDebugger); }
+            CEditorConsoleDebugBar();
+#endif
 #ifdef LUA_ENABLED
-            if (ImGui::Checkbox("Scripting", &editorLUADebugger.open)) { EditorInit(&editorLUADebugger); }
+            if (ImGui::Checkbox("LUA Scripting", &editorLUADebugger.open)) { EditorInit(&editorLUADebugger); }
             RunLUAProtectedFunction(EditorConsoleDebugBar)
 #endif
             ImGui::EndMenu();
@@ -641,12 +652,14 @@ static void EditorDraw(ConsoleWindow* console)
         EditorLogMenuButton(console, "Sound", LogFlag_SOUND);
         EditorLogMenuButton(console, "Input", LogFlag_INPUT);
         EditorLogMenuButton(console, "Time", LogFlag_TIME);
-        EditorLogMenuButton(console, "Scripting", LogFlag_LUA);
+        EditorLogMenuButton(console, "LUA", LogFlag_LUA);
         
         EditorLogMenuButton(console, "System", LogFlag_SYSTEM);
         EditorLogMenuButton(console, "Game", LogFlag_GAME);
-        EditorLogMenuButton(console, "Scripting", LogFlag_SCRIPTING);
-        EditorLogMenuButton(console, "Scripting Functions", LogFlag_SCRIPTING_FUNCTIONS);
+        
+        EditorLogMenuButton(console, "C Scripting", LogFlag_C_SCRIPTING);
+        EditorLogMenuButton(console, "LUA Scripting", LogFlag_LUA_SCRIPTING);
+        EditorLogMenuButton(console, "LUA Scripting Functions", LogFlag_LUA_SCRIPTING_FUNCTIONS);
 
         ImGui::EndMenu();
     }
@@ -1661,17 +1674,54 @@ static void EditorDraw(InputDebuggerWindow* debugger)
 
     ImGui::TextUnformatted("Keyboard");
     ImGui::Text("Any key state: %d", gameState->input.anyKeyState);
+    i32 keysPerLine = 25;
     for(i32 i = 0; i < KEY_COUNT; ++i) {
-        if(i > 0 && i < KEY_COUNT &&  i % 10 != 0) {
+        if(i > 0 && i < KEY_COUNT && i % keysPerLine != 0) {
             ImGui::SameLine();
         }
         else {
-            ImGui::Text("%03d ->", (i32)(Floor(i / 10.0f) * 10));
+            ImGui::Text("%03d ->", (i32)(Floor(i / (f32)keysPerLine) * keysPerLine));
             ImGui::SameLine();
         }
         ImGui::Text("%d", gameState->input.keyState[i]);
     }
     ImGui::PopItemWidth();
+
+    for(i32 controller = 0; controller < CONTROLLER_COUNT; ++controller) {
+        ImGui::Text("Controller %d", controller);
+
+        ImGui::TextUnformatted("Buttons");
+        i32 buttonsPerLine = 15;
+        for(i32 i = 0; i < CONTROLLER_BUTTON_COUNT; ++i) {
+            if(i > 0 && i < CONTROLLER_BUTTON_COUNT && i % keysPerLine != 0) {
+                ImGui::SameLine();
+            }
+            else {
+                ImGui::Text("%03d ->", (i32)(Floor(i / (f32)keysPerLine) * keysPerLine));
+                ImGui::SameLine();
+            }
+            ImGui::Text("%d", gameState->input.controllerState[controller].buttonState[i]);
+        }
+
+        ImGui::TextUnformatted("Axis");
+        i32 valuesPerLine = 8;
+        for(i32 i = 0; i < CONTROLLER_AXIS_COUNT; ++i) {
+            if(i > 0 && i < CONTROLLER_AXIS_COUNT && i % valuesPerLine != 0) {
+                ImGui::SameLine();
+            }
+            else {
+                ImGui::Text("%03d ->", (i32)(Floor(i / (f32)valuesPerLine) * valuesPerLine));
+                ImGui::SameLine();
+            }
+            ImGui::Text("%d", gameState->input.controllerState[controller].axisValue[i]);
+        }
+
+        ImGui::TextUnformatted("Touch");
+        for(i32 i = 0; i < CONTROLLER_TOUCHPAD_POINTS; ++i) {
+            TouchPoint point = gameState->input.controllerState[controller].touchPoints[i];
+            ImGui::Text("%d -> %d, X: %f, Y: %f, P: %f", i, point.state, point.x, point.y, point.pressure);
+        }
+    }
 
     ImGui::End();
 }
@@ -1691,8 +1741,8 @@ static void EditorDraw(TimeDebuggerWindow* debugger)
     float width = contentMax.x - contentMin.x;
 
     ImGui::Text("Delta time: %f", gameState->time.deltaTime);
+    ImGui::Text("Real time: %f", gameState->time.realTime);
     ImGui::Text("Game time: %f", gameState->time.gameTime);
-    ImGui::Text("Last frame game time: %f", gameState->time.lastFrameGameTime);
 
     ImGui::Separator();
     
@@ -1728,7 +1778,7 @@ static void EditorDraw(TimeDebuggerWindow* debugger)
         ImGui::InputFloat("Loop start time", &debugger->loopStartTime, 1, 1);
         ImGui::InputFloat("Loop end time", &debugger->loopEndTime, 1, 1);
 
-        ImGui::InputFloat("Time scale", &debugger->timeScale, .1f, 1);
+        ImGui::InputFloat("Time scale", &gameState->time.timeScale, .1f, 1);
     }
 
     ImGui::Text("Frame Time Min: %f Max: %f", debugger->frameTimeMin, debugger->frameTimeMax);
@@ -1948,6 +1998,41 @@ static void EditorDraw(ShaderDebuggerWindow* debugger)
     ImGui::End();
 }
 
+#ifdef CSCRIPTING_ENABLED
+static void EditorDraw(CScriptingDebuggerWindow* debugger)
+{
+    if(debugger->open) {
+        ImGui::SetNextWindowSize(ImVec2(400,300), ImGuiCond_FirstUseEver);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+        if (ImGui::Begin("C Scripting", &debugger->open, ImGuiWindowFlags_MenuBar))
+        {
+            ImGui::PopStyleVar();
+
+            if (ImGui::BeginMenuBar())
+            {                
+                if (ImGui::BeginMenu("Code"))
+                {
+                    if (ImGui::MenuItem("Start")) {
+                        CScriptingInit();
+                    }
+                    if (ImGui::MenuItem("Stop")) {
+                        CScriptingStop();
+                    }
+                    ImGui::EndMenu();
+                }
+
+                ImGui::EndMenuBar();
+            }
+        }
+        else {
+            ImGui::PopStyleVar();
+        }
+
+        ImGui::End();
+    }
+}
+#endif
+
 #ifdef LUA_ENABLED
 static i32 LuaSourceEditCallback(ImGuiInputTextCallbackData* data)
 {
@@ -2015,18 +2100,13 @@ static void EditorDraw(LUADebuggerWindow* debugger)
     if(debugger->open) {
         ImGui::SetNextWindowSize(ImVec2(400,300), ImGuiCond_FirstUseEver);
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-        if (ImGui::Begin("Scripting", &debugger->open, ImGuiWindowFlags_MenuBar))
+        if (ImGui::Begin("LUA Scripting", &debugger->open, ImGuiWindowFlags_MenuBar))
         {
             ImGui::PopStyleVar();
 
             DebugMenuAction menuAction = DebugMenuAction_NONE;
             if (ImGui::BeginMenuBar())
-            {
-                // if (ImGui::BeginMenu("File"))
-                // {
-                //     ImGui::EndMenu();
-                // }
-                
+            {                
                 if (ImGui::BeginMenu("Go"))
                 {
                     if (ImGui::MenuItem("Go to function")) {
@@ -2059,7 +2139,7 @@ static void EditorDraw(LUADebuggerWindow* debugger)
                             debugger->debugging = true;
                             Log("Debugging started");
 
-                            ScriptingDebugStart();
+                            LUAScriptingDebugStart();
                             
                             LoadLUALibrary(sol::lib::debug);
                         }
@@ -2213,16 +2293,16 @@ static void EditorDraw(LUADebuggerWindow* debugger)
                     debugger->watchListEdited[debugger->currentFileIndex] = false;
                     
                     LoadCurrentLUAFile();
-                    LoadScriptString(debugger->currentFileBuffer);
+                    LoadLUAScriptString(debugger->currentFileBuffer);
                     ImGui::SetItemDefaultFocus();
                 }
                 ImGui::SameLine();
                 if(ImGui::Button("Inject") || (focused && imguiIO.KeyCtrl && ImGui::IsKeyPressed(SDL_SCANCODE_S))) {
-                    LoadScriptString(debugger->currentFileBuffer);
+                    LoadLUAScriptString(debugger->currentFileBuffer);
                 }
                 ImGui::SameLine();
                 if(ImGui::Button("Inject And Reset") || (focused && imguiIO.KeyCtrl && ImGui::IsKeyPressed(SDL_SCANCODE_R))) {
-                    LoadScriptString(debugger->currentFileBuffer);
+                    LoadLUAScriptString(debugger->currentFileBuffer);
                     EditorReset();
                 }
 
@@ -2311,7 +2391,7 @@ static void EditorDraw(LUADebuggerWindow* debugger)
                 ImGui::SameLine();
                 char* watchName = debugger->watchBuffer + i * WATCH_BUFFER_SIZE_EXT;
                 if(*watchName != 0) {
-                    GetWatchValue(debugger->watchType[i], watchName, valueBuffer);
+                    LUAGetWatchValue(debugger->watchType[i], watchName, valueBuffer);
                 }
                 ImGui::PushItemWidth(contentWidth * 0.5f - 4);
                 ImGui::TextUnformatted(valueBuffer);
@@ -2449,6 +2529,7 @@ static void EditorDraw(HelpWindow* help)
     ImGui::Text("SDL Link Version: %d.%d.%d", linked.major, linked.minor, linked.patch);
     ImGui::Text("OpenGL Version: %s", glGetString(GL_VERSION));
     ImGui::Text("Miniaudio Version: %s", MA_VERSION_STRING);
+    ImGui::Text("ZSTD Version: %s", ZSTD_versionString());
 
     ImGui::End();
 }
@@ -2508,19 +2589,6 @@ static void EditorInit()
     editorShaderDebugger.open = TableGetBool(&editorSave, "editorShaderDebuggerOpen");
     EditorInit(&editorShaderDebugger);
 
-#ifdef LUA_ENABLED
-    editorLUADebugger.open = TableGetBool(&editorSave, "editorLUADebuggerOpen");
-    EditorInit(&editorLUADebugger);
-    editorLUADebugger.codeOpen = TableGetBool(&editorSave, "editorLUADebuggerCodeOpen");
-    editorLUADebugger.watchOpen = TableGetBool(&editorSave, "editorLUADebuggerWatchOpen");
-    editorLUADebugger.stackOpen = TableGetBool(&editorSave, "editorLUADebuggerStackOpen");
-    
-    for(i32 i = 0; i < WATCH_BUFFER_COUNT; ++i) {
-        sprintf(loadNameBuffer, "editorLUADebuggerWatching%d", i);
-        strcpy(editorLUADebugger.watchBuffer + i * WATCH_BUFFER_SIZE_EXT, TableGetString(&editorSave, loadNameBuffer));
-    }
-#endif
-
     editorHelp.open = TableGetBool(&editorSave, "editorHelpOpen");
     EditorInit(&editorHelp);
 
@@ -2536,6 +2604,23 @@ static void EditorInit()
     *wasmOutputConfig.outputPath = TableGetString(&editorSave, "wasmOutputOutputConfigOutputPath");
 
     editorConsole.logFlags = 0x7FFFFFFF;
+
+#ifdef CSCRIPTING_ENABLED
+    editorCScriptingDebugger.open = TableGetBool(&editorSave, "editorCScriptingDebuggerOpen");
+#endif
+
+#ifdef LUA_ENABLED
+    editorLUADebugger.open = TableGetBool(&editorSave, "editorLUADebuggerOpen");
+    EditorInit(&editorLUADebugger);
+    editorLUADebugger.codeOpen = TableGetBool(&editorSave, "editorLUADebuggerCodeOpen");
+    editorLUADebugger.watchOpen = TableGetBool(&editorSave, "editorLUADebuggerWatchOpen");
+    editorLUADebugger.stackOpen = TableGetBool(&editorSave, "editorLUADebuggerStackOpen");
+    
+    for(i32 i = 0; i < WATCH_BUFFER_COUNT; ++i) {
+        sprintf(loadNameBuffer, "editorLUADebuggerWatching%d", i);
+        strcpy(editorLUADebugger.watchBuffer + i * WATCH_BUFFER_SIZE_EXT, TableGetString(&editorSave, loadNameBuffer));
+    }
+#endif
 }
 
 static void EditorDrawAll()
@@ -2560,6 +2645,9 @@ static void EditorDrawAll()
     EditorDraw(&editorTimeDebugger);
     EditorDraw(&editorSoundDebugger);
     EditorDraw(&editorShaderDebugger);
+#ifdef CSCRIPTING_ENABLED
+    EditorDraw(&editorCScriptingDebugger);
+#endif
 #ifdef LUA_ENABLED
     EditorDraw(&editorLUADebugger);
 #endif
@@ -2618,6 +2706,9 @@ static void EditorEnd()
     TableSetBool(&temporalState->arena, &editorSave, "editorSoundDebuggerOpen", editorSoundDebugger.open);
     TableSetBool(&temporalState->arena, &editorSave, "editorSoundDebuggersoundMuted", soundMuted);
     TableSetBool(&temporalState->arena, &editorSave, "editorShaderDebuggerOpen", editorShaderDebugger.open);
+#ifdef CSCRIPTING_ENABLED
+    TableSetBool(&temporalState->arena, &editorSave, "editorCScriptingDebuggerOpen", editorCScriptingDebugger.open);
+#endif
 #ifdef LUA_ENABLED
     TableSetBool(&temporalState->arena, &editorSave, "editorLUADebuggerOpen", editorLUADebugger.open);
     TableSetBool(&temporalState->arena, &editorSave, "editorLUADebuggerCodeOpen", editorLUADebugger.codeOpen);

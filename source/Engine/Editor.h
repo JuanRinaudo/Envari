@@ -83,6 +83,12 @@ ShaderDebuggerWindow editorShaderDebugger;
 static void EditorInit(ShaderDebuggerWindow* debugger);
 static void EditorDraw(ShaderDebuggerWindow* debugger);
 
+#ifdef CSCRIPTING_ENABLED
+CScriptingDebuggerWindow editorCScriptingDebugger;
+static void EditorInit(CScriptingDebuggerWindow* debugger);
+static void EditorDraw(CScriptingDebuggerWindow* debugger);
+#endif
+
 #ifdef LUA_ENABLED
 LUADebuggerWindow editorLUADebugger;
 static void EditorInit(LUADebuggerWindow* debugger);
@@ -103,7 +109,6 @@ static i32 TextEditCallbackStub(ImGuiInputTextCallbackData* data);
 static void ExecCommand(ConsoleWindow* console, const char* command_line);
 
 static void EditorInit();
-static void EditorDrawAllOpen();
 
 static Windows86OutputConfig windows86OutputConfig;
 static Windows64OutputConfig windows64OutputConfig;

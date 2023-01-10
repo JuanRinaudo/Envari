@@ -11,7 +11,7 @@
 #define Assert(Expression) assert(Expression)
 #define AssertMessage(Expression, Message) assert(Expression && Message)
 
-#define SHADER_PREFIX "shaders/core/"
+#define SHADER_PREFIX "data/shaders/core/"
 #define SOURCE_TYPE const char* const
 
 #include <SDL.h>
@@ -113,7 +113,7 @@ i32 CALLBACK WinMain(
     EditorInit();
 
 #ifdef LUA_ENABLED
-    ScriptingInit();
+    LUAScriptingInit();
 #endif
     
     GameInit();
@@ -198,7 +198,7 @@ i32 CALLBACK WinMain(
 
         if(gameState->time.gameTime > editorCore.lastWatchSecond + 1) {
 #ifdef LUA_ENABLED
-            ScriptingWatchChanges();
+            LUAScriptingWatchChanges();
 #endif
             GLWatchChanges();
             editorCore.lastWatchSecond = gameState->time.gameTime;
@@ -216,7 +216,7 @@ i32 CALLBACK WinMain(
 
             QueryPerformanceCounter(&luaPerformanceStart);
 #ifdef LUA_ENABLED
-            ScriptingUpdate();
+            LUAScriptingUpdate();
 #endif
             QueryPerformanceCounter(&luaPerformanceEnd);
 

@@ -6,7 +6,7 @@
 
 #include <OptickDummy.h>
 
-#define SHADER_PREFIX "shaders/es/"
+#define SHADER_PREFIX "data/shaders/es/"
 #define SOURCE_TYPE const char* const
 
 #define INITLUASCRIPT WASMCONFIG_INITLUASCRIPT
@@ -81,7 +81,7 @@ i32 main(i32 argc, char** argv)
     DefaultAssets();
 
 #ifdef LUA_ENABLED
-    ScriptingInit();
+    LUAScriptingInit();
 #endif
 
 #if defined(__linux__)
@@ -124,7 +124,7 @@ static void main_loop()
         CommonBegin2D();
 
 #ifdef LUA_ENABLED
-        ScriptingUpdate();
+        LUAScriptingUpdate();
 #endif
         EngineUpdate();
 

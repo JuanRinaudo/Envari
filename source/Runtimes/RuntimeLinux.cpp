@@ -3,8 +3,6 @@
 #include <thread>
 #include <string>
 #include <stdio.h>
-#include <string.h>
-#include <vector>
 
 #include <OptickDummy.h>
 
@@ -13,7 +11,7 @@
 #define AssertMessage(Expression, Message) 
 #endif
 
-#define SHADER_PREFIX "shaders/core/"
+#define SHADER_PREFIX "data/shaders/core/"
 #define SOURCE_TYPE const char* const
 
 #include <SDL.h>
@@ -82,7 +80,7 @@ i32 main(i32 argc, char** argv)
     DeserializeTable(&permanentState->arena, &saveData, GetSavePath());
 
 #ifdef LUA_ENABLED
-    ScriptingInit();
+    LUAScriptingInit();
 #endif
     
     GameInit();
@@ -105,7 +103,7 @@ i32 main(i32 argc, char** argv)
         CommonBegin2D();
 
 #ifdef LUA_ENABLED
-        ScriptingUpdate();
+        LUAScriptingUpdate();
 #endif
         EngineUpdate();
 
