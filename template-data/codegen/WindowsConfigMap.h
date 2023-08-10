@@ -1,0 +1,5 @@
+#ifndef WINDOWSCONFIGMAP_H
+#define WINDOWSCONFIGMAP_H
+
+
+#endif

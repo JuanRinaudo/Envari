@@ -5,6 +5,10 @@
 #include <cstdlib>
 
 #include <stb_truetype.h>
+#include "Defines.h"
+#include "Templates.h"
+#include "MemoryStructs.h"
+#include "Memory.h"
 
 #include <miniaudio.h>
 #include <zstddeclib.c>
@@ -34,9 +38,6 @@ SceneData *sceneState;
 TemporalData *temporalState;
 TemporaryMemory renderTemporaryMemory;
 TemporaryMemory renderStepTemporaryMemory;
-#ifdef PLATFORM_EDITOR
-EditorData *editorState;
-#endif
 
 SerializableTable* configSave = 0;
 SerializableTable* saveData = 0;
@@ -54,6 +55,7 @@ sol::state lua;
 #define STB_DS_IMPLEMENTATION
 #include <stb_ds.h>
 
+#include <Utils.h>
 #include <GameMath.h>
 #include <File.h>
 #include <ASCII85.h>
@@ -110,6 +112,9 @@ static u32 GameInit()
     ChangeLogFlag(LogFlag_LUA_SCRIPTING);
 
     LoadLUAScene(TableGetString(&initialConfig, CONFIG_INITLUASCRIPT));
+    #ifdef PLATFORM_EDITOR
+    RunLUAProtectedFunction(EditorInit)
+    #endif
 #endif
 #ifdef CSCRIPTING_ENABLED
     CInit();
@@ -118,27 +123,15 @@ static u32 GameInit()
     return 1;
 }
 
-bool cppDemoVersion = false;
-
-auto batchPositions = std::vector<v2>{};
-auto batchColors = std::vector<v4>{};
-
-f32 divider = 10;
-f32 radius = 30 / divider;
-f32 colorOffset = 0.1f;
-f32 ySpeed = 3;
-f32 yOffset = 8;
-f32 perLineOffset = 0.55f;
-v2 distance = V2(20 / divider, 25 / divider);
-
-v2i count = V2I(-1, -1);
-
-u32 lastCircleCount = 0;
-
 static u32 GameUpdate()
 {
     ChangeLogFlag(LogFlag_GAME);
 
+    if(gameState->game.sceneChanged) {
+        RunLUAProtectedFunction(Start)
+        gameState->game.sceneChanged = false;
+    }
+    
     if(gameState->game.updateRunning) {
         f32 fps = (f32)(1 / gameState->time.deltaTime);
     }

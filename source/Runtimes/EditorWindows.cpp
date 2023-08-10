@@ -11,7 +11,11 @@
 #define Assert(Expression) assert(Expression)
 #define AssertMessage(Expression, Message) assert(Expression && Message)
 
-#define SHADER_PREFIX "data/shaders/core/"
+#include "../../data/codegen/FileMap.h"
+#include "../../data/codegen/ShaderMap.h"
+#include "../../data/codegen/EditorWindowsConfigMap.h"
+
+#define SHADER_PREFIX "shaders/core/"
 #define SOURCE_TYPE const char* const
 
 #include <SDL.h>
@@ -28,16 +32,16 @@
 #include <Game.h>
 #include <Editor.cpp>
 
-#include <IMGUI/imgui_demo.cpp>
-#include <IMGUI/imgui_draw.cpp>
-#include <IMGUI/imgui_widgets.cpp>
-#include <IMGUI/imgui_customs.cpp>
-#include <IMGUI/imgui_tables.cpp>
+#include <imgui_demo.cpp>
+#include <imgui_draw.cpp>
+#include <imgui_widgets.cpp>
+#include <imgui_customs.cpp>
+#include <imgui_tables.cpp>
 
-#include <IMGUI/imgui_impl_sdl.h>
-#include <IMGUI/imgui_impl_opengl3.h>
-#include <IMGUI/imgui_impl_sdl.cpp>
-#include <IMGUI/imgui_impl_opengl3.cpp>
+#include <imgui_impl_sdl.h>
+#include <imgui_impl_opengl3.h>
+#include <imgui_impl_sdl.cpp>
+#include <imgui_impl_opengl3.cpp>
 
 #include <PlatformCommon.h>
 #include <EditorCommon.h>
@@ -104,8 +108,6 @@ i32 CALLBACK WinMain(
     InitGL();
 
     CreateFramebuffer();
-    
-    DefaultAssets();
 
     DeserializeTable(&permanentState->arena, &editorSave, EDITOR_SAVE_PATH);
     DeserializeTable(&permanentState->arena, &saveData, GetSavePath());
@@ -117,6 +119,8 @@ i32 CALLBACK WinMain(
 #endif
     
     GameInit();
+    
+    DefaultAssets();
 
     SoundInit();
 
@@ -196,12 +200,12 @@ i32 CALLBACK WinMain(
 
         UpdateStringAllocator(stringAllocator);
 
-        if(gameState->time.gameTime > editorCore.lastWatchSecond + 1) {
+        if(gameState->time.gameTime > editorState->lastWatchSecond + 1) {
 #ifdef LUA_ENABLED
             LUAScriptingWatchChanges();
 #endif
             GLWatchChanges();
-            editorCore.lastWatchSecond = gameState->time.gameTime;
+            editorState->lastWatchSecond = gameState->time.gameTime;
         }
 
         LARGE_INTEGER luaPerformanceStart = {};
@@ -219,7 +223,14 @@ i32 CALLBACK WinMain(
             LUAScriptingUpdate();
 #endif
             QueryPerformanceCounter(&luaPerformanceEnd);
+        }
+        else {
+            RenderDebugStart();
+        }
 
+        EditorDrawAll();
+
+        if(editorState->editorFrameRunning || editorState->playNextFrame) {
             EngineUpdate();
 
             RenderPass();
@@ -228,7 +239,6 @@ i32 CALLBACK WinMain(
             End2D();
         }
         else {
-            RenderDebugStart();
             RenderPass();
             RenderDebugEnd();
         }
@@ -236,8 +246,6 @@ i32 CALLBACK WinMain(
         if(gameState->render.framebufferEnabled) {
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
         }
-
-        EditorDrawAll();
 
 #ifdef LUA_ENABLED
         RunLUAProtectedFunction(EditorUpdate)

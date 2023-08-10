@@ -32,9 +32,10 @@ extern void DisableCustomCursor();
 
 extern v2 V2(f32 x, f32 y);
 
-extern bool MouseOverRectangle(rectangle2 rectangle);
-extern bool ClickOverRectangle(rectangle2 rectangle, i32 button);
-extern bool ClickedOverRectangle(rectangle2 rectangle, i32 button);
+extern bool GetKeyPressed(const char *key);
+extern bool GetKeyReleased(const char *key);
+extern bool GetKeyDown(const char *key);
+extern bool GetKeyUp(const char *key);
 
 extern m44 PerspectiveProjection(f32 fovY, f32 aspect, f32 nearPlane, f32 farPlane);
 extern m44 OrtographicProjection(f32 left, f32 right, f32 top, f32 bottom, f32 nearPlane, f32 farPlane);
@@ -118,6 +119,25 @@ extern v4 V4(f32 x, f32 y, f32 z, f32 w);
 
 extern rectangle2 Rectangle2(f32 x, f32 y, f32 width, f32 height);
 
+extern bool MouseOverRectangle(rectangle2 rectangle);
+extern bool MouseOverRectangleLUA(f32 x, f32 y, f32 width, f32 height) { return MouseOverRectangle(Rectangle2(x, y, width, height)); }
+
+extern bool ClickOverRectangle(rectangle2 rectangle, i32 button);
+extern bool ClickOverRectangleLUA(f32 x, f32 y, f32 width, f32 height, i32 button) { return ClickOverRectangle(Rectangle2(x, y, width, height), button); }
+
+extern bool ClickedOverRectangle(rectangle2 rectangle, i32 button);
+extern bool ClickedOverRectangleLUA(f32 x, f32 y, f32 width, f32 height, i32 button) { return ClickedOverRectangle(Rectangle2(x, y, width, height), button); }
+
+extern bool IsInRectangle(rectangle2 rectangle, v2 test);
+bool IsInRectangleLUA(f32 x, f32 y, f32 width, f32 height, f32 testX, f32 testY) {
+    return IsInRectangle(Rectangle2(x, y, width, height), V2(testX, testY));
+}
+
+extern bool RectangleOverlap(rectangle2 rectangle, rectangle2 otherRectangle);
+bool RectangleOverlapLUA(f32 x, f32 y, f32 width, f32 height, f32 otherX, f32 otherY, f32 otherWidth, f32 otherHeight) {
+    return RectangleOverlap(Rectangle2(x, y, width, height), Rectangle2(otherX, otherY, otherWidth, otherHeight));
+}
+
 extern m22 M22(
     f32 _00, f32 _01,
     f32 _10, f32 _11);
@@ -141,6 +161,7 @@ extern f32 Lerp(f32 a, f32 b, f32 t);
 
 extern transform2D Transform2D(f32 posX, f32 posY, f32 scaleX, f32 scaleY, f32 angle);
 
+
 extern f32 Length(v2 a);
 
 extern void RuntimeQuit();
@@ -151,6 +172,9 @@ extern void SerializeTable(SerializableTable** table, const char* filepath);
 
 #if defined(PLATFORM_EDITOR) && defined(SOL_HPP)
 extern ShaderDebuggerWindow editorShaderDebugger;
+
+extern void EditorCodeLayout();
+extern void EditorShadersLayout();
 #endif
 
 GenerateTableGetExtern(String, char*)

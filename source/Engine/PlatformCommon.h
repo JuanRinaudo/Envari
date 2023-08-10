@@ -96,12 +96,22 @@ static void TryCreateDataFolderStructure(std::string workingDirectoryPath)
 
 static i32 SetupEnviroment()
 {
-    filesystem::path dataPath = filesystem::path(filesystem::current_path().string() + "/data");
-	if(!filesystem::exists(dataPath)) {
-		filesystem::create_directories(dataPath);
-    }
-    
-    TryCreateDataFolderStructure(dataPath);
+#ifdef GAME_RELEASE
+    #ifdef PLATFORM_ANDROID
+    // ANativeActivity* nativeActivity = state->activity;
+    // const char* internalPath = nativeActivity->internalDataPath;
+    // ALOG(internalPath);
+    // std::string workingDirectory(internalPath);
+    // TryCreateDataFolderStructure(workingDirectory);
+    // filesystem::current_path(workingDirectory);
+    #else
+    std::string workingDirectory = filesystem::current_path().string() + "/data";
+    TryCreateDataFolderStructure(workingDirectory);
+    filesystem::current_path(workingDirectory);
+    #endif
+#else
+    TryCreateDataFolderStructure(filesystem::current_path().string());
+#endif
 
     CreateDirectoryIfNotExists("temp");
     CreateDirectoryIfNotExists("save");
@@ -129,12 +139,12 @@ static i32 InitSDL()
         return -1;
     }
     
-    #if defined(PLATFORM_WASM) | defined(PLATFORM_ANDROID)
+    #if defined(PLATFORM_WASM) || defined(PLATFORM_ANDROID)
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
     #else
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
     #endif
 
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);

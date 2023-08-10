@@ -1,13 +1,13 @@
 #ifndef LUA_SCRIPTING_BINDINGS_CPP
 #define LUA_SCRIPTING_BINDINGS_CPP
 
-#if PLATFORM_WASM
+#if PLATFORM_WASM || PLATFORM_ANDROID
     #include <GLES3/gl3.h>
     #define GL_PROFILE_GLES3
 #else
     #include <gl3w.h>
 #endif
-
+ 
 #include <stb_truetype.h>
 
 #include <Defines.h>
@@ -115,7 +115,7 @@ static void DrawDisableOverrideProgram()
 
 static void SetUniform1F(u32 programID, u32 locationID, f32 v0)
 {
-#if PLATFORM_WASM
+#if PLATFORM_WASM || PLATFORM_ANDROID
     glUseProgram(programID);
     glUniform1f(locationID, v0);
 #else
@@ -125,7 +125,7 @@ static void SetUniform1F(u32 programID, u32 locationID, f32 v0)
 
 static void SetUniform2F(u32 programID, u32 locationID, f32 v0, f32 v1)
 {
-#if PLATFORM_WASM
+#if PLATFORM_WASM || PLATFORM_ANDROID
     glUseProgram(programID);
     glUniform2f(locationID, v0, v1);
 #else
@@ -135,7 +135,7 @@ static void SetUniform2F(u32 programID, u32 locationID, f32 v0, f32 v1)
 
 static void SetUniform3F(u32 programID, u32 locationID, f32 v0, f32 v1, f32 v2)
 {
-#if PLATFORM_WASM
+#if PLATFORM_WASM || PLATFORM_ANDROID
     glUseProgram(programID);
     glUniform3f(locationID, v0, v1, v2);
 #else
@@ -145,7 +145,7 @@ static void SetUniform3F(u32 programID, u32 locationID, f32 v0, f32 v1, f32 v2)
 
 static void SetUniform4F(u32 programID, u32 locationID, f32 v0, f32 v1, f32 v2, f32 v3)
 {
-#if PLATFORM_WASM
+#if PLATFORM_WASM || PLATFORM_ANDROID
     glUseProgram(programID);
     glUniform4f(locationID, v0, v1, v2, v3);
 #else
@@ -313,6 +313,7 @@ void LUAScriptingBindings()
     lua["PLATFORM_ANDROID"] = MACRO_DEFINED(PLATFORM_ANDROID);
     lua["PLATFORM_WINDOWS"] = MACRO_DEFINED(PLATFORM_WINDOWS);
     lua["PLATFORM_WASM"] = MACRO_DEFINED(PLATFORM_WASM);
+    lua["PLATFORM_ANDROID"] = MACRO_DEFINED(PLATFORM_ANDROID);
 
     // #NOTE (Juan): Lua
     lua["LoadLUAScriptFile"] = sol::resolve<void(const char*)>(LoadLUAScriptFile);
@@ -331,6 +332,8 @@ void LUAScriptingBindings()
     lua["SOL_LIBRARY_FFI"] = sol::lib::ffi;
     lua["SOL_LIBRARY_JIT"] = sol::lib::jit;
     lua["SOL_LIBRARY_UTF8"] = sol::lib::utf8;
+
+    lua["SCRIPTS_CODEGEN_FILEMAP_LUA"] = "scripts/codegen/FileMap.lua";
 
     // #NOTE (Juan): Memory
     sol::usertype<DynamicString> dynamicString_usertype = lua.new_usertype<DynamicString>("dynamicstring");
@@ -440,9 +443,13 @@ void LUAScriptingBindings()
     lua["RenderTemporaryPushVector2"] = RenderTemporaryPushVector2;
 
     // #NOTE (Juan): Input
-    lua["MouseOverRectangle"] = MouseOverRectangle;
-    lua["ClickOverRectangle"] = ClickOverRectangle;
-    lua["ClickedOverRectangle"] = ClickedOverRectangle;
+    lua["MouseOverRectangle"] = MouseOverRectangleLUA;
+    lua["ClickOverRectangle"] = ClickOverRectangleLUA;
+    lua["ClickedOverRectangle"] = ClickedOverRectangleLUA;
+    lua["GetKeyPressed"] = GetKeyPressed;
+    lua["GetKeyReleased"] = GetKeyReleased;
+    lua["GetKeyDown"] = GetKeyDown;
+    lua["GetKeyUp"] = GetKeyUp;
     lua["GetClipboardText"] = SDL_GetClipboardText;
     lua["SetClipboardText"] = SDL_SetClipboardText;
 
@@ -672,6 +679,9 @@ void LUAScriptingBindings()
 
     // #NOTE (Juan): Editor
 #ifdef PLATFORM_EDITOR
+    lua["EditorCodeLayout"] = EditorCodeLayout;
+    lua["EditorShadersLayout"] = EditorShadersLayout;
+
     lua["ChangeLogFlag"] = ChangeLogFlag_;
 
     sol::usertype<ShaderDebuggerWindow> editorShaderDebugger_usertype = lua.new_usertype<ShaderDebuggerWindow>("editorShaderDebugger");
@@ -804,6 +814,8 @@ void LUAScriptingMathBindings()
     lua["V4"] = V4;
 
     lua["Rectangle2"] = Rectangle2;
+    lua["IsInRectangle"] = IsInRectangleLUA;
+    lua["RectangleOverlap"] = RectangleOverlapLUA;
     
     lua["M22"] = M22;
     lua["IdM22"] = IdM22;

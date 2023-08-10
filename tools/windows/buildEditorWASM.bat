@@ -1,6 +1,6 @@
 @echo off
 
-call Envari\tools\packageWASM.bat
+call Envari\tools\windows\packageWASM.bat
 
 pushd Envari
 pushd source
@@ -30,7 +30,7 @@ REM To build lualib.a the compiler inside scr/Makefile needs to change from gcc 
 
 if not exist build\editorhtml5\LUAScriptingBindings.%ScriptingDate::=.%.tmp (
     @echo Rebuilding LUA Bindings
-    call Envari\tools\buildEditorWASMBindings.bat
+    call Envari\tools\windows\buildEditorWASMBindings.bat
     del /F *.tmp >NUL 2>NUL
     echo timestamp > build\editorhtml5\LUAScriptingBindings.%ScriptingDate::=.%.tmp
 )
@@ -68,5 +68,5 @@ em++ Envari\source\Runtimes\EditorWASM.cpp build\editorhtml5\LUAScriptingBinding
     -lidbfs.js ^
     -std=c++17 ^
     -o build\editorhtml5\index.js ^ 
-    --no-heap-copy & Envari\tools\printEndTime.bat
+    --no-heap-copy & Envari\tools\windows\printEndTime.bat
 @REM @echo End time %time%

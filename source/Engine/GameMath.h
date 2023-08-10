@@ -402,12 +402,22 @@ v2 GetCenter(rectangle2 rectangle)
     return(result);
 }
 
-b32 IsInRectangle(rectangle2 rectangle, v2 test)
+bool IsInRectangle(rectangle2 rectangle, v2 test)
 {
-    b32 result = (
+    bool result = (
         test.x >= rectangle.x && test.y >= rectangle.y &&
         test.x < rectangle.x + rectangle.width && test.y < rectangle.y + rectangle.height
     );
+
+    return(result);
+}
+
+bool RectangleOverlap(rectangle2 rectangle, rectangle2 otherRectangle)
+{
+    bool result = IsInRectangle(rectangle, V2(otherRectangle.x, otherRectangle.y)) ||
+        IsInRectangle(rectangle, V2(otherRectangle.x, otherRectangle.y + otherRectangle.height)) ||
+        IsInRectangle(rectangle, V2(otherRectangle.x + otherRectangle.width, otherRectangle.y)) ||
+        IsInRectangle(rectangle, V2(otherRectangle.x + otherRectangle.width, otherRectangle.y + otherRectangle.height));
 
     return(result);
 }

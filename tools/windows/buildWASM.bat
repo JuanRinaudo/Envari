@@ -28,7 +28,7 @@ REM To build lualib.a the compiler inside scr/Makefile needs to change from gcc 
 
 if not exist build\html5\LUAScriptingBindings.%ScriptingDate::=.%.tmp (
     @echo Rebuilding LUA Bindings
-    call Envari\tools\buildWASMBindings.bat
+    call Envari\tools\windows\buildWASMBindings.bat
     del /F *.tmp >NUL 2>NUL
     echo timestamp > build\html5\LUAScriptingBindings.%ScriptingDate::=.%.tmp
 )

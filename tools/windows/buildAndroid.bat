@@ -25,22 +25,22 @@ pushd android-project
 
 echo "<< Start gradle build >>"
 if "%BUILD_TYPE%"=="debug" (
-    cmd /C gradle assembleDebug
+    cmd /C gradlew.bat assembleDebug
     echo "<< Copy build files >>"
     robocopy app\build\outputs\apk\debug ..\build\android app-debug.apk /NFL /NDL /NJH /NJS
     set noCommand="false"
 )
 if "%BUILD_TYPE%"=="release" (
-    cmd /C gradle assembleRelease
+    cmd /C gradlew.bat assembleRelease
     echo "<< Copy build files >>"
     robocopy app\build\outputs\apk\release ..\build\android app-release-unsigned.apk /NFL /NDL /NJH /NJS
     set noCommand="false"
 )
 if "%BUILD_TYPE%"=="tasks" (
-    cmd /C gradle tasks
+    cmd /C gradlew.bat tasks
 )
 if "%BUILD_TYPE%"=="check" (
-    cmd /C gradle check
+    cmd /C gradlew.bat check
 )
 
 if %noCommand%=="true" (

@@ -32,7 +32,7 @@ if not exist build mkdir build
 
 pushd editorRelease
 if not exist tools mkdir tools
-copy /y "..\..\Envari\tools\packageWASM.bat" "tools\packageWASM.bat" >NUL
+copy /y "..\..\Envari\tools\windows\packageWASM.bat" "tools\packageWASM.bat" >NUL
 
 robocopy "..\windows86" runtimes\windows86 *.dll *.exe /MIR >NUL
 robocopy "..\windows64" runtimes\windows64 *.dll *.exe /MIR >NUL

@@ -12,6 +12,8 @@
 #include <MemoryStructs.h>
 #include <Memory.h>
 #include <ASCII85.h>
+#include "../ZSTD/zstd.c"
+#include "binary_to_compressed_c.cpp"
 
 #include <File.h>
 
@@ -59,7 +61,7 @@ i32 main()
     string workingDirectoryString = filesystem::current_path().string();
     strcpy(workingDirectory, workingDirectoryString.c_str());
 
-    i32 workingDirectorySize = strlen(workingDirectory);
+    size_t workingDirectorySize = strlen(workingDirectory);
     const char* folderName = "/tobinary/";
     strcat(workingDirectory, folderName);
     workingDirectorySize += strlen(folderName);
@@ -76,7 +78,11 @@ i32 main()
         
         auto entryPath = entry.path();
         auto entryPathString = entry.path().string();
+        auto entryNameString = entry.path().filename().stem().string();
         const char* path = entryPathString.c_str();
+        const char* name = entryNameString.c_str();
+
+        cout << path << endl;
 
         if(!strstr(path, ".txt")) {
             FILE* readFile = fopen(path, "rb");
@@ -97,9 +103,15 @@ i32 main()
 
             fseek(readFile, 0, SEEK_END);
             size_t size = ftell(readFile);
+            size_t compressedSizeBound = ZSTD_compressBound(size);
+            void* file = malloc(size);
+            void* compressed = malloc(compressedSizeBound);
+            ZeroSize(compressedSizeBound, compressed);
+
             rewind(readFile);
             char* data = (char*)malloc(size);
             ZeroSize(size, data);
+            fread(file, 1, size, readFile);
 
             fread(data, 1, size, readFile);
 
@@ -125,10 +137,30 @@ i32 main()
                     k++;
                     prev_c = c;
                 }
+            size_t compressedSize = ZSTD_compress(compressed, compressedSizeBound, file, (u32)size, 3);
+            cout << compressedSize << endl;
+
+            FILE* writeFile = fopen(newPath, "w");
+
+            fprintf(writeFile, "static const char %s_data_base85[%d+1] =\n    \"", name, (i32)((compressedSize + 3) / 4)*5);
+            char prev_c = 0;
+            for (i32 src_i = 0; src_i < compressedSize; src_i += 4)
+            {
+                // This is made a little more complicated by the fact that ??X sequences are interpreted as trigraphs by old C/C++ compilers. So we need to escape pairs of ??.
+                u32 d = *(u32*)((char*)compressed + src_i);
+                for (u32 n5 = 0; n5 < 5; n5++, d /= 85)
+                {
+                    char c = Encode85Byte(d);
+                    fprintf(writeFile, (c == '?' && prev_c == '?') ? "\\%c" : "%c", c);
+                    prev_c = c;
+                }
+                if ((src_i % 112) == 112 - 4)
+                    fprintf(writeFile, "\"\n    \"");
             }
 
             const char* end = "\";";
             fputs(end, writeFile);
+            fputs("\";", writeFile);
 
             fclose(readFile);
             fclose(writeFile);

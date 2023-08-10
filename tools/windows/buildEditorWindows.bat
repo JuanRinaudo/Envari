@@ -43,27 +43,31 @@ REM %random% to get random number
 if not exist LUAScriptingBindings.%ScriptingDate::=.%.tmp (
     @echo Rebuilding LUA Bindings
     cl -c ..\..\Envari\source\Scripting\LUAScriptingBindings.cpp ^
-    -FmLUAScriptingBindings.map ^
-    %CommonCompilerFlags% ^ 
-    -Bt ^
+    -FmLUAScriptingBindings.map -Bt ^
+    %CommonCompilerFlags% ^
+    -I ..\..\Envari\SDL2\include ^
     -I ..\..\Envari\LUA\include ^
     -I ..\..\Envari\source\Defines ^
     -I ..\..\Envari\source\Engine ^
+    -I ..\..\Envari\source\Scripting ^
     -I ..\..\Envari\STB ^
+    -I ..\..\Envari\GL3W ^
+    -I ..\..\Envari\IMGUI ^
     -I ..\..\Envari\Miniaudio ^
-    -I ..\..\Envari\Engine ^
-    -LIBPATH:"..\..\Envari\LUA\windows\lib\x64" ^
+    -I ..\..\Envari\Engine
     del /F *.tmp >NUL 2>NUL
     echo timestamp > LUAScriptingBindings.%ScriptingDate::=.%.tmp
 )
 
 cl ..\..\Envari\source\Runtimes\EditorWindows.cpp LUAScriptingBindings.obj ^
-    -FmEditorWindows.map -PDB:EditorWindows.pdb -Bt ^
+    -FmEditorWindows.map -DEBUG:FASTLINK -Bt ^
     %CommonCompilerFlags% ^
     -I ..\..\Envari\SDL2\include ^
     -I ..\..\Envari\LUA\include ^
+    -I ..\..\Envari\Optick\include ^
     -I ..\..\Envari\source\Engine ^
     -I ..\..\Envari\source\Defines ^
+    -I ..\..\Envari\source\Scripting ^
     -I ..\..\Envari\source\Tools ^
     -I ..\..\Envari\source\Default ^
     -I ..\..\Envari\STB ^

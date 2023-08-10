@@ -1,4 +1,21 @@
--- #NOTE (Juan): Platform
+---@class char
+
+-- #NOTE (Juan): Functions
+function Load() end
+function Start() end
+function Update() end
+function Unload() end
+function End() end
+function EditorInit() end
+function EditorUpdate() end
+function EditorEnd() end
+function EditorConsoleDebugBar() end
+function EditorShaderReload() end
+function FocusChange() end
+
+-- #NOTE (Juan): Platf
+
+SCRIPTS_CODEGEN_FILEMAP_LUA = "";
 
 PLATFORM_EDITOR = 0;
 PLATFORM_WINDOWS = 0;
@@ -206,6 +223,22 @@ function ClickOverRectangle(rectangle, button) end
 ---@param button integer
 function ClickedOverRectangle(rectangle, button) end
 
+---@return boolean
+---@param key char
+function GetKeyPressed(key) end
+
+---@return boolean
+---@param key char
+function GetKeyReleased(key) end
+
+---@return boolean
+---@param key char
+function GetKeyDown(key) end
+
+---@return boolean
+---@param key char
+function GetKeyUp(key) end
+
 ---@return string
 function GetClipboardText() end
 
@@ -372,7 +405,7 @@ function DrawSetFont(fontID) end
 
 ---@param posX number
 ---@param posY number
----@param singleChar string
+---@param singleChar char
 function DrawChar(posX, posY, singleChar) end
 
 ---@param posX number

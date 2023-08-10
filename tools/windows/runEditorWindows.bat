@@ -22,6 +22,7 @@ REM Admin end
 
 cd..
 cd..
+cd..
 
 if not exist "build\editor\data" mklink /d "build\editor\data" "..\..\data"
 

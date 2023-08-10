@@ -7,7 +7,7 @@ pushd editorhtml5
 popd
 popd
 
-call Envari\tools\packageWASM.bat build\editorhtml5\
+call Envari\tools\windows\packageWASM.bat build\editorhtml5\
 
 copy buildassets\editorhtml5\index.html build\editorhtml5\index.html >NUL
 

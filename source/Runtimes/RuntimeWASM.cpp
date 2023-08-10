@@ -6,7 +6,11 @@
 
 #include <OptickDummy.h>
 
-#define SHADER_PREFIX "data/shaders/es/"
+#include "../../data/codegen/FileMap.h"
+#include "../../data/codegen/ShaderMap.h"
+#include "../../data/codegen/WasmConfigMap.h"
+
+#define SHADER_PREFIX "shaders/es/"
 #define SOURCE_TYPE const char* const
 
 #define INITLUASCRIPT WASMCONFIG_INITLUASCRIPT
@@ -77,8 +81,6 @@ i32 main(i32 argc, char** argv)
     InitGL();
 
     CreateFramebuffer();
-    
-    DefaultAssets();
 
 #ifdef LUA_ENABLED
     LUAScriptingInit();
@@ -96,6 +98,8 @@ i32 main(i32 argc, char** argv)
 #endif
 
     GameInit();
+    
+    DefaultAssets();
 
     SoundInit();
 

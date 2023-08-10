@@ -430,6 +430,7 @@ struct Game {
     bool running;
     bool updateRunning;
     bool hasFocus;
+    bool sceneChanged;
 
     i32 version;
     i32 saveSlotID;
@@ -543,34 +544,19 @@ struct Data {
 };
 
 struct PermanentData {
-    b32 initialized;
+    bool initialized;
     MemoryArena arena;
 };
 
 struct SceneData {
-    b32 initialized;
+    bool initialized;
     MemoryArena arena;
 };
 
 struct TemporalData {
-    b32 initialized;
+    bool initialized;
     MemoryArena arena;
 };
-
-#ifdef PLATFORM_EDITOR
-struct EditorData {
-    b32 initialized;
-    MemoryArena arena;
-
-    bool layoutInited;
-    bool demoWindow;
-
-    u32 dockspaceID;
-    b32 editorFrameRunning;
-    b32 playNextFrame;
-    RenderHeader* savedRenderHeader;
-};
-#endif
 
 struct DataTable {
     char* key;

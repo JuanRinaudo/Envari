@@ -12,7 +12,11 @@
 #define AssertMessage(Expression, Message) 
 #endif
 
-#define SHADER_PREFIX "data/shaders/core/"
+#include "../../data/codegen/FileMap.h"
+#include "../../data/codegen/ShaderMap.h"
+#include "../../data/codegen/WindowsConfigMap.h"
+
+#define SHADER_PREFIX "shaders/core/"
 #define SOURCE_TYPE const char* const
 
 #include <gl3w.c>
@@ -31,14 +35,14 @@ i32 CALLBACK WinMain(
     HINSTANCE PrevInstance,
     LPSTR CommandLine,
     i32 ShowCode)
-{
-    size_t permanentStorageSize = Megabytes(32);
-    void* permanentStorage = malloc(permanentStorageSize);
-    
+{    
 #ifdef GAME_SLOW
     AllocConsole();
     freopen("CONOUT$", "w", stdout);
 #endif
+
+    size_t permanentStorageSize = Megabytes(32);
+    void* permanentStorage = malloc(permanentStorageSize);
 
     gameState = (Data *)permanentStorage;
     gameState->memory.permanentStorageSize = permanentStorageSize;
@@ -85,8 +89,6 @@ i32 CALLBACK WinMain(
 
     CreateFramebuffer();
     
-    DefaultAssets();
-    
     DeserializeTable(&permanentState->arena, &saveData, GetSavePath());
 
 #ifdef LUA_ENABLED
@@ -94,6 +96,8 @@ i32 CALLBACK WinMain(
 #endif
     
     GameInit();
+    
+    DefaultAssets();
 
     SoundInit();
 

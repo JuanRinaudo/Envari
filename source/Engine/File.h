@@ -17,143 +17,164 @@
 
 #include <stdio.h>
 
-static size_t GetFileSize(const char* filepath) {
+static size_t GetFileSize(const char *filepath)
+{
 	AssertMessage(filepath != 0, "Filepath is null");
 
-    FILE* file = fopen(filepath, FILE_MODE_READ_BINARY);
+	FILE *file = fopen(filepath, FILE_MODE_READ_BINARY);
 
 	size_t size = 0;
-	if (file) {
+	if (file)
+	{
 		fseek(file, 0, SEEK_END);
-        size = ftell(file);
+		size = ftell(file);
 		fclose(file);
 	}
 
 	return size;
 }
 
-static void* LoadFileToMemory(const char* filepath, const char* mode, size_t* fileSize)
+static void *LoadFileToMemory(const char *filepath, const char *mode, size_t *fileSize)
 {
 	AssertMessage(filepath != 0, "Filepath is null");
 
-    FILE* file = fopen(filepath, mode);
+	FILE *file = fopen(filepath, mode);
 
-	void* fileBuffer = 0;
-	if (file) {
+	void *fileBuffer = 0;
+	if (file)
+	{
 		fseek(file, 0, SEEK_END);
-        size_t size = ftell(file);
+		size_t size = ftell(file);
 		*fileSize = size;
 		rewind(file);
 
 		fileBuffer = malloc(size + 1);
 		fread(fileBuffer, 1, size, file);
-		((char*)fileBuffer)[size] = 0;
-        fclose(file);
+		((char *)fileBuffer)[size] = 0;
+		fclose(file);
 	}
 
-    return fileBuffer;
+	return fileBuffer;
 }
 
-static void* LoadFileToMemory(const char* filepath, const char* mode, size_t bufferSize)
+static void *LoadFileToMemory(const char *filepath, const char *mode, size_t bufferSize)
 {
 	AssertMessage(filepath != 0, "Filepath is null");
-	
-    FILE* file = fopen(filepath, mode);
 
-	void* fileBuffer = 0;
-	if (file) {
+	FILE *file = fopen(filepath, mode);
+
+	void *fileBuffer = 0;
+	if (file)
+	{
 		fseek(file, 0, SEEK_END);
-        size_t size = ftell(file);
+		size_t size = ftell(file);
 		rewind(file);
 
 		fileBuffer = malloc(bufferSize);
 		ZeroSize(bufferSize, fileBuffer);
 		fread(fileBuffer, 1, size, file);
-        fclose(file);
+		fclose(file);
 	}
 
-    return fileBuffer;
+	return fileBuffer;
 }
 
-static void* LoadFileToMemory(const char* filepath, const char* mode, size_t bufferSize, size_t* fileSize)
+static void *LoadFileToMemory(const char *filepath, const char *mode, size_t bufferSize, size_t *fileSize)
 {
 	AssertMessage(filepath != 0, "Filepath is null");
-	
-    FILE* file = fopen(filepath, mode);
 
-	void* fileBuffer = 0;
-	if (file) {
+	FILE *file = fopen(filepath, mode);
+
+	void *fileBuffer = 0;
+	if (file)
+	{
 		fseek(file, 0, SEEK_END);
-        size_t size = ftell(file);
+		size_t size = ftell(file);
 		*fileSize = size;
 		rewind(file);
 
 		fileBuffer = malloc(bufferSize);
 		ZeroSize(bufferSize, fileBuffer);
 		fread(fileBuffer, 1, size, file);
-        fclose(file);
+		fclose(file);
 	}
 
-    return fileBuffer;
+	return fileBuffer;
 }
 
-static char* LoadTextToMemory(const char* filepath, const char* mode, size_t* fileSize)
+static char *LoadTextToMemory(const char *filepath, const char *mode, size_t *fileSize)
 {
-	char* text = (char*)LoadFileToMemory(filepath, mode, fileSize);
+	char *text = (char *)LoadFileToMemory(filepath, mode, fileSize);
 	return text;
 }
 
-static char* LoadTextToMemory(const char* filepath, const char* mode, size_t bufferSize)
+static char *LoadTextToMemory(const char *filepath, const char *mode, size_t bufferSize)
 {
 	size_t fileSize;
-	char* text = (char*)LoadFileToMemory(filepath, mode, bufferSize, &fileSize);
+	char *text = (char *)LoadFileToMemory(filepath, mode, bufferSize, &fileSize);
 	return text;
 }
 
-static void UnloadFileFromMemory(void* fileBuffer)
+static void UnloadFileFromMemory(void *fileBuffer)
 {
 	free(fileBuffer);
 }
 
-static void UnloadFileFromMemory(char* fileBuffer)
+static void UnloadFileFromMemory(char *fileBuffer)
 {
-    UnloadFileFromMemory((void*)fileBuffer);
+	UnloadFileFromMemory((void *)fileBuffer);
 }
 
-static void CreateDirectoryIfNotExists(const char* path)
-{	
-    filesystem::path directoryPath = filesystem::path(path);
-	if(!filesystem::exists(directoryPath)) {
+static void CreateDirectoryIfNotExists(const char *path)
+{
+	filesystem::path directoryPath = filesystem::path(path);
+	if (!filesystem::exists(directoryPath))
+	{
 		filesystem::create_directories(directoryPath);
 	}
 }
 
 inline char NormalizeSingleChar(char singleChar)
 {
-    if(singleChar == '.' || singleChar == ' ' || singleChar == '-' || singleChar == '\\'  || singleChar == '/' || singleChar == '(' || singleChar == ')' || singleChar == '#') {
-        return '_';
-    }
+	if (singleChar == '.' || singleChar == ' ' || singleChar == '-' || singleChar == '\\' || singleChar == '/' || singleChar == '(' || singleChar == ')' || singleChar == '#')
+	{
+		return '_';
+	}
 	return singleChar;
 }
 
-static void NormalizeFilename(char* string)
+static void NormalizeFilename(char *string)
 {
-    while(*string)
-    {
-        char singleChar = *string;
-        *string = NormalizeSingleChar(singleChar);
-        string++;
-    }
+	while (*string)
+	{
+		char singleChar = *string;
+		*string = NormalizeSingleChar(singleChar);
+		string++;
+	}
 }
 
-static void FilenameToKey(char* string)
+static void FilenameToKey(char *string)
 {
-    while(*string)
-    {
-        char singleChar = toupper(NormalizeSingleChar(*string));
-        *string = singleChar;
-        string++;
-    }
+	while (*string)
+	{
+		char singleChar = (char)toupper(NormalizeSingleChar(*string));
+		*string = singleChar;
+		string++;
+	}
+}
+static u32 FileDecode85Byte(char c) { return c >= '\\' ? c - 36 : c - 35; }
+static void FileDecode85(const unsigned char *src, unsigned char *dst)
+{
+	while (*src)
+	{
+		u32 tmp = FileDecode85Byte(src[0]) + 85 * (FileDecode85Byte(src[1]) + 85 * (FileDecode85Byte(src[2]) + 85 * (FileDecode85Byte(src[3]) + 85 * FileDecode85Byte(src[4]))));
+		dst[0] = ((tmp >> 0) & 0xFF);
+		dst[1] = ((tmp >> 8) & 0xFF);
+		dst[2] = ((tmp >> 16) & 0xFF);
+		dst[3] = ((tmp >> 24) & 0xFF); // We can't assume little-endianness.
+		src += 5;
+		dst += 4;
+	}
 }
 
 // #TODO (Juan): Compression ZSTD

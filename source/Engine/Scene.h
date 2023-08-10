@@ -32,10 +32,10 @@ void LoadLUAScene(const char* luaFilepath)
     UnloadLUAScene();
 
     strcpy(sceneFilepath, luaFilepath);
-
     LoadLUAScriptFile(luaFilepath);
-
     RunLUAProtectedFunction(Load)
+
+    gameState->game.sceneChanged = true;
     
 #ifdef PLATFORM_EDITOR
     RunLUAProtectedFunction(EditorInit)

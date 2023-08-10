@@ -27,9 +27,19 @@ enum RuntimePlatform {
     RuntimePlatform_WASM
 };
 
-struct EditorCore
-{
+struct EditorData {
     f32 lastWatchSecond = 0;
+
+    bool initialized;
+    MemoryArena arena;
+
+    bool layoutInited;
+    bool demoWindow;
+
+    u32 dockspaceID;
+    bool editorFrameRunning;
+    bool playNextFrame;
+    RenderHeader* savedRenderHeader;
 };
 
 struct ConsoleLog
@@ -257,8 +267,6 @@ struct WatchedFileCache {
 struct LUADebuggerWindow
 {
     bool open;
-    
-    ImGuiID dockspaceID;
 
     bool debugging;
     char inputBuffer[CONSOLE_INPUT_BUFFER_COUNT];

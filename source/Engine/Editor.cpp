@@ -129,7 +129,7 @@ static void CloseAllWindows()
     editorHelp.open = false;
 }
 
-static void EditorCodeLayout()
+void EditorCodeLayout()
 {
     CloseAllWindows();
     
@@ -168,7 +168,7 @@ static void EditorCodeLayout()
     }
 }
 
-static void EditorShadersLayout()
+void EditorShadersLayout()
 {
     CloseAllWindows();
     
@@ -223,7 +223,7 @@ static void EditorShadersLayout()
 
 static void EditorDefaultLayout()
 {
-    EditorShadersLayout();
+    EditorCodeLayout();
 }
 
 static void EditorInit(PreviewWindow* preview)
@@ -520,6 +520,19 @@ static void PopConsoleStyleColor(ConsoleLogType type)
     if (type != ConsoleLogType_NORMAL) {
         ImGui::PopStyleColor();
     }
+}
+
+static void ResetShaders()
+{
+    for(i32 i = 0; i < editorShaderDebugger.watchedProgramsCount; ++i) {
+        if(editorShaderDebugger.watchedPrograms[i].vertexShader != 0) { glDeleteShader(editorShaderDebugger.watchedPrograms[i].vertexShader); }
+        if(editorShaderDebugger.watchedPrograms[i].fragmentShader != 0) {glDeleteShader(editorShaderDebugger.watchedPrograms[i].fragmentShader); }
+        glDeleteProgram(editorShaderDebugger.watchedPrograms[i].shaderProgram);
+        editorShaderDebugger.watchedPrograms[i] = {};
+    }
+
+    editorShaderDebugger.watchedProgramsCount = 0;
+    CompileEngineShaders();
 }
 
 static void EditorReset(){
@@ -1163,7 +1176,7 @@ static void EditorDraw(RenderDebuggerWindow* debugger)
         }
     }
 
-    b32 targetChanged = debugger->renderDebugTargetChanged;
+    bool targetChanged = debugger->renderDebugTargetChanged;
     debugger->renderDebugTargetChanged = false;
 
     if(ImGui::TreeNode("Render Queue")) {        
@@ -1479,7 +1492,7 @@ static void EditorDraw(TextureDebuggerWindow* debugger)
         debugger->inspectMode = TextureInspect_ALL;
         debugger->textureChanged = true;
     }
-
+    
     ImGui::Separator();
 
     i32 textureID = 0;
@@ -2095,8 +2108,6 @@ static void LoadCurrentLUAFile() {
 
 static void EditorDraw(LUADebuggerWindow* debugger)
 {
-    debugger->dockspaceID = ImGui::GetID("DebuggerDockspace");
-
     if(debugger->open) {
         ImGui::SetNextWindowSize(ImVec2(400,300), ImGuiCond_FirstUseEver);
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
@@ -2218,7 +2229,7 @@ static void EditorDraw(LUADebuggerWindow* debugger)
                 ImGui::EndPopup();
             }
 
-            ImGui::DockSpace(debugger->dockspaceID, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode );
+            ImGui::DockSpace(editorState->dockspaceID, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode );
         }
         else {
             ImGui::PopStyleVar();
@@ -2231,7 +2242,7 @@ static void EditorDraw(LUADebuggerWindow* debugger)
     if(debugger->codeOpen) {
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
         ImGui::SetNextWindowSize(ImVec2(400,300), ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowDockID(debugger->dockspaceID, ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowDockID(editorState->dockspaceID, ImGuiCond_FirstUseEver);
         if(ImGui::Begin(luaCodeWindowName, &debugger->codeOpen), ImGuiWindowFlags_DockNodeHost) {
             bool focused = ImGui::IsWindowFocused(ImGuiFocusedFlags_DockHierarchy);
 
@@ -2357,7 +2368,7 @@ static void EditorDraw(LUADebuggerWindow* debugger)
     const char* watchWindowName = "LUA Watch";
     if(debugger->watchOpen) {
         ImGui::SetNextWindowSize(ImVec2(400,300), ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowDockID(debugger->dockspaceID, ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowDockID(editorState->dockspaceID, ImGuiCond_FirstUseEver);
         if(ImGui::Begin(watchWindowName, &debugger->watchOpen)) {
             char valueBuffer[64];
             for(i32 i = 0; i < WATCH_BUFFER_COUNT; ++i) {
@@ -2407,7 +2418,7 @@ static void EditorDraw(LUADebuggerWindow* debugger)
     const char* stackWindowName = "LUA Stack";
     if(debugger->stackOpen) {
         ImGui::SetNextWindowSize(ImVec2(400,300), ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowDockID(debugger->dockspaceID, ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowDockID(editorState->dockspaceID, ImGuiCond_FirstUseEver);
         if(ImGui::Begin(stackWindowName, &debugger->stackOpen)) {
             i32 top=lua_gettop(lua);
             for (i32 i = 1; i <= top; i++) {
@@ -2653,24 +2664,6 @@ static void EditorDrawAll()
 #endif
     EditorDraw(&editorConfig);
     EditorDraw(&editorHelp);
-
-    if(cppDemoVersion) {
-        ImGui::SetNextWindowSizeConstraints(ImVec2(300, 300), ImVec2(FLT_MAX, FLT_MAX));
-        ImGui::SetNextWindowSize(ImVec2(500,300), ImGuiCond_FirstUseEver);
-        if (!ImGui::Begin("Demo", &cppDemoVersion)) {
-            ImGui::End();
-            return;
-        }
-        
-        ImGui::SliderFloat("Radius", &radius, .1f, 50);
-        ImGui::SliderFloat("Color offset", &colorOffset, 0, 1);
-        ImGui::SliderFloat("Y speed", &ySpeed, 0, 10);
-        ImGui::SliderFloat("Y offset", &yOffset, 0, 10);
-        ImGui::SliderFloat("Per Line Offset", &perLineOffset, 0, 1);
-        ImGui::InputFloat2("Distance", distance.e);
-        ImGui::InputInt2("Count", count.e);
-        ImGui::End();
-    }
 
     if(editorState->demoWindow) {
         ImGui::ShowDemoWindow(&editorState->demoWindow);

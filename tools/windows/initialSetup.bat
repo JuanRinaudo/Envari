@@ -16,9 +16,9 @@ if not exist atlas (
     echo Creating atlas folder
     mkdir atlas
 )
-if not exist binarytodata (
-    echo Creating binarytodata folder
-    mkdir binarytodata
+if not exist tobinary (
+    echo Creating tobinary folder
+    mkdir tobinary
 )
 if not exist data (
     echo Creating data folder

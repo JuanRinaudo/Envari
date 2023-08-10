@@ -162,22 +162,24 @@ i32 main()
 
     char workingDirectory[1024];
     filesystem::path workingDirectoryPath = filesystem::current_path();
-    strcpy(workingDirectory, workingDirectoryPath.c_str());
+    strcpy(workingDirectory, workingDirectoryPath.string().c_str());
 
     size_t workingDirectorySize = strlen(workingDirectory);
     size_t dataSize = strlen("data/");
 
-    const char* folderPath = "../CodeGen/";
-    size_t folderPathSize = strlen(folderPath);
-    cout << "Codegen folder path: " << folderPath << '\n';
+    char codegenPath[512];
+    strcpy(codegenPath, workingDirectory);
+    strcat(codegenPath, "/codegen/");
+    size_t codegenPathSize = strlen(codegenPath);
+    cout << "Codegen folder path: " << codegenPath << '\n';
 
     char scriptingPath[1024];
     strcpy(scriptingPath, workingDirectory);
     strcat(scriptingPath, "/scripts/codegen/");
 
-    if(!filesystem::exists(folderPath)) {
+    if(!filesystem::exists(codegenPath)) {
         cout << "Create codegen folder" << '\n';
-        filesystem::create_directory(folderPath);
+        filesystem::create_directory(codegenPath);
     }
     
     if(!filesystem::exists(scriptingPath)) {
@@ -197,9 +199,9 @@ i32 main()
     ofstream luaFileCodegen;
     ofstream luaShaderCodegen;
 
-    StartMapFile(&foldersCodegen, folderPath, "FolderMap.h", "FOLDERMAP_H");
-    StartMapFile(&fileCodegen, folderPath, "FileMap.h", "FILEMAP_H");
-    StartMapFile(&shaderCodegen, folderPath, "ShaderMap.h", "SHADERMAP_H");
+    StartMapFile(&foldersCodegen, codegenPath, "FolderMap.h", "FOLDERMAP_H");
+    StartMapFile(&fileCodegen, codegenPath, "FileMap.h", "FILEMAP_H");
+    StartMapFile(&shaderCodegen, codegenPath, "ShaderMap.h", "SHADERMAP_H");
     
     StartFile(&luaFoldersCodegen, scriptingPath, "FolderMap.lua");
     StartFile(&luaFileCodegen, scriptingPath, "FileMap.lua");
@@ -222,7 +224,7 @@ i32 main()
         const char* path = entryPathString.c_str();
 
         definition->fullPath = PushString(&stringArena, path);
-        definition->path = PushString(&stringArena, path + workingDirectorySize + 1 - dataSize);
+        definition->path = PushString(&stringArena, path + workingDirectorySize + 1);
         FixFilePath(definition->path);
         definition->mapKey = PushString(&stringArena, path + workingDirectorySize + 1);
         FilenameToKey(definition->mapKey);
@@ -278,7 +280,7 @@ i32 main()
             PushString(&stringArena, "Map.h", 6);
             char* define = PushString(&stringArena, name, strlen(name) + 1);
             FilenameToKey(define);
-            StartMapFile(&tableCodegen, folderPath, name, define);
+            StartMapFile(&tableCodegen, codegenPath, name, define);
 
             *(define + nameSize) = 0;
 

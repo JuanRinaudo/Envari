@@ -34,7 +34,7 @@ static u32 GetEncoded85Size(u32 sourceSize)
 
 static char* Encode85(char* src)
 {
-    u32 sourceSize = strlen(src);
+    size_t sourceSize = strlen(src);
     // u32 encodedSize = GetEncoded85Size(sourceSize);
     char* encoded = (char*)malloc(sourceSize);
     

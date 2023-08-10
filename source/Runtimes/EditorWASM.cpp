@@ -6,7 +6,11 @@
 
 #include "OptickDummy.h"
 
-#define SHADER_PREFIX "data/shaders/es/"
+#include "../../data/codegen/FileMap.h"
+#include "../../data/codegen/ShaderMap.h"
+#include "../../data/codegen/EditorWasmConfigMap.h"
+
+#define SHADER_PREFIX "shaders/es/"
 #define SOURCE_TYPE const char* const
 
 #define INITLUASCRIPT EDITORWASMCONFIG_INITLUASCRIPT
@@ -105,8 +109,6 @@ i32 main(i32 argc, char** argv)
     InitGL();
 
     CreateFramebuffer();
-    
-    DefaultAssets();
 
     EditorInit();
 
@@ -122,6 +124,8 @@ i32 main(i32 argc, char** argv)
     );
 
     GameInit();
+    
+    DefaultAssets();
 
     SoundInit();
 
@@ -161,9 +165,18 @@ static void main_loop()
             RenderDebugStart();
 
             CommonBegin2D();
+
 #ifdef LUA_ENABLED
             LUAScriptingUpdate();
 #endif
+        }
+        else {
+            RenderDebugStart();
+        }
+
+        EditorDrawAll();
+
+        if(editorState->editorFrameRunning || editorState->playNextFrame) {
             EngineUpdate();
 
             RenderPass();
@@ -172,7 +185,6 @@ static void main_loop()
             End2D();
         }
         else {
-            RenderDebugStart();
             RenderPass();
             RenderDebugEnd();
         }

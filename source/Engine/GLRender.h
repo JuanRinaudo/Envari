@@ -15,8 +15,6 @@
     const char* shaderPath = "shaders/glcore";
 #endif
 
-#include "../../CodeGen/ShaderMap.h"
-
 #ifndef NO_DEFAULT_FONT
 #include <Font.h>
 #endif
@@ -104,7 +102,7 @@ static void CleanCache()
 {
     // #TODO (Juan): Implement
 
-    shfree(textureCache);
+    // shfree(textureCache);
 }
 
 static i32 TotalGPUMemoryKB()
@@ -485,7 +483,11 @@ i32 GenerateFont(void* data, size_t data_size, const char *filepath, f32 fontSiz
 #else
     glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, width, height, 0, GL_ALPHA, GL_UNSIGNED_BYTE, tempBitmap);
 #endif
-    glGenerateMipmap(GL_TEXTURE_2D);
+#ifndef MIPMAP_DISABLED
+    if(renderState->generateMipMaps) {
+        glGenerateMipmap(GL_TEXTURE_2D);
+    }
+#endif
 
     hmput(fontCache, result.fontTextureID, result);
 
@@ -1010,35 +1012,22 @@ static void InitGL()
     }
 }
 
-static void ResetShaders()
-{
-#if PLATFORM_EDITOR 
-    for(i32 i = 0; i < editorShaderDebugger.watchedProgramsCount; ++i) {
-        if(editorShaderDebugger.watchedPrograms[i].vertexShader != 0) { glDeleteShader(editorShaderDebugger.watchedPrograms[i].vertexShader); }
-        if(editorShaderDebugger.watchedPrograms[i].fragmentShader != 0) {glDeleteShader(editorShaderDebugger.watchedPrograms[i].fragmentShader); }
-        glDeleteProgram(editorShaderDebugger.watchedPrograms[i].shaderProgram);
-        editorShaderDebugger.watchedPrograms[i] = {};
-    }
-
-    editorShaderDebugger.watchedProgramsCount = 0;
-#endif
-
-    CompileEngineShaders();
-}
-
 static void DefaultAssets()
 {
+#define NO_DEFAULT_FONT
 #ifndef NO_DEFAULT_FONT
-    size_t defaultFontCompressedSize = sizeof(defaultFont);
-    u8* defaultFontCompressedData = (u8*)malloc(defaultFontCompressedSize);
-    ASCII85Decode((char*)defaultFont, defaultFontCompressedData);
+    i32 compressedTTFSize = (((i32)strlen(defaultFont) + 4) / 5) * 4;
+    u8* compressedTTF = (u8*)malloc((size_t)compressedTTFSize);
+    FileDecode85((const u8*)defaultFont, (u8*)compressedTTF);
 
-    size_t defaultFontSize = ZSTD_getFrameContentSize(defaultFontCompressedData, defaultFontCompressedSize);
-    u8* defaultFontData = (u8*)malloc(defaultFontSize);
-    ZSTD_decompress(defaultFontData, defaultFontSize, defaultFontCompressedData, defaultFontCompressedSize);
+    size_t decompressedContentSize = ZSTD_getFrameContentSize(compressedTTF, compressedTTFSize);
 
-    gameState->render.defaultFontID = GenerateFont(defaultFontData, defaultFontSize, "defaultFont", 64, DEFAULT_FONT_ATLAS_WIDTH, DEFAULT_FONT_ATLAS_HEIGHT);
-    free(defaultFontData);
+    u8* decompressedTTF = (u8*)malloc((size_t)decompressedContentSize);
+    size_t decompressedSize = ZSTD_decompress(decompressedTTF, decompressedContentSize, compressedTTF, compressedTTFSize);
+
+    gameState->render.defaultFontID = GenerateFont(decompressedTTF, decompressedSize, "defaultFont", 64, DEFAULT_FONT_ATLAS_WIDTH, DEFAULT_FONT_ATLAS_HEIGHT);
+    free(decompressedTTF);
+    free(compressedTTF);
 #endif
 }
 

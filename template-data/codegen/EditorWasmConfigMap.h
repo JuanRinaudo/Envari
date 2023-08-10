@@ -1,0 +1,5 @@
+#ifndef EDITORWASMCONFIGMAP_H
+#define EDITORWASMCONFIGMAP_H
+
+
+#endif

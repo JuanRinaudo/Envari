@@ -19,7 +19,7 @@ pushd codegen
 
 del /F *.pdb >NUL 2>NUL
 
-cl -MD %CommonCompilerFlags% ..\..\..\Envari\source\Tools\CodeGen.cpp -FmCodeGen.map -EHsc -Bt -std:c++17 -I ..\..\..\Envari\LUA\include -link -LIBPATH:"..\..\..\Envari\LUA\lib\x86" %CommonLinkerFlags% -PDB:CodeGen_%random%.pdb
+cl -MD %CommonCompilerFlags% ..\..\..\Envari\source\Tools\CodeGen.cpp -FmCodeGen.map -EHsc -Bt -std:c++17 -I ..\..\..\Envari\ZSTD -I ..\..\..\Envari\source\Engine -I ..\..\..\Envari\source\Defines -I ..\..\..\Envari\source\Scripting -I ..\..\..\Envari\LUA\include -link -LIBPATH:"..\..\..\Envari\LUA\windows\x86" %CommonLinkerFlags% -PDB:CodeGen_%random%.pdb
 
 popd
 popd

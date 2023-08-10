@@ -12,6 +12,30 @@ void DisableCustomCursor()
     gameState->input.mouseTextureID = 0;
 }
 
+bool GetKeyPressed(const char *key)
+{
+    SDL_Scancode scancode = SDL_GetScancodeFromName(key);
+    return gameState->input.keyState[scancode] == KEY_PRESSED;
+}
+
+bool GetKeyReleased(const char *key)
+{
+    SDL_Scancode scancode = SDL_GetScancodeFromName(key);
+    return gameState->input.keyState[scancode] == KEY_RELEASED;
+}
+
+bool GetKeyDown(const char *key)
+{
+    SDL_Scancode scancode = SDL_GetScancodeFromName(key);
+    return gameState->input.keyState[scancode] == KEY_PRESSED || gameState->input.keyState[scancode] == KEY_DOWN;
+}
+
+bool GetKeyUp(const char *key)
+{
+    SDL_Scancode scancode = SDL_GetScancodeFromName(key);
+    return gameState->input.keyState[scancode] == KEY_RELEASED || gameState->input.keyState[scancode] == KEY_UP;
+}
+
 bool MouseOverRectangle(rectangle2 rectangle)
 {
     return IsInRectangle(rectangle, gameState->input.mousePosition);
