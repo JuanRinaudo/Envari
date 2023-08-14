@@ -32,6 +32,10 @@ extern void DisableCustomCursor();
 
 extern v2 V2(f32 x, f32 y);
 
+extern bool GetKeyPressed(i32 scanCode);
+extern bool GetKeyReleased(i32 scanCode);
+extern bool GetKeyDown(i32 scanCode);
+extern bool GetKeyUp(i32 scanCode);
 extern bool GetKeyPressed(const char *key);
 extern bool GetKeyReleased(const char *key);
 extern bool GetKeyDown(const char *key);

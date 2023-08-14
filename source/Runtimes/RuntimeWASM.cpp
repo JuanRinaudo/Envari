@@ -11,7 +11,6 @@
 #include "../../data/codegen/WasmConfigMap.h"
 
 #define SHADER_PREFIX "shaders/es/"
-#define SOURCE_TYPE const char* const
 
 #define INITLUASCRIPT WASMCONFIG_INITLUASCRIPT
 

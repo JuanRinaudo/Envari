@@ -12,7 +12,6 @@
 #endif
 
 #define SHADER_PREFIX "data/shaders/core/"
-#define SOURCE_TYPE const char* const
 
 #include <SDL.h>
 

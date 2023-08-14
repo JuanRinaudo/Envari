@@ -11,7 +11,6 @@
 #include "../../data/codegen/EditorWasmConfigMap.h"
 
 #define SHADER_PREFIX "shaders/es/"
-#define SOURCE_TYPE const char* const
 
 #define INITLUASCRIPT EDITORWASMCONFIG_INITLUASCRIPT
 

@@ -21,7 +21,6 @@
 #include "../../data/codegen/AndroidConfigMap.h"
 
 #define SHADER_PREFIX "shaders/es/"
-#define SOURCE_TYPE const char* const
 
 #define INITLUASCRIPT ANDROIDCONFIG_INITLUASCRIPT
 

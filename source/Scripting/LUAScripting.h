@@ -146,6 +146,7 @@ void LUAClearFunctionBindings()
     lua["Unload"] = LUAScriptingDummy;
     lua["End"] = LUAScriptingDummy;
     lua["EditorInit"] = LUAScriptingDummy;
+    lua["EditorLayoutDrawn"] = LUAScriptingDummy;    
     lua["EditorUpdate"] = LUAScriptingDummy;
     lua["EditorEnd"] = LUAScriptingDummy;
     lua["EditorConsoleDebugBar"] = LUAScriptingDummy;

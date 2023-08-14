@@ -9,14 +9,13 @@
 #include "optick.h"
 
 #define Assert(Expression) assert(Expression)
-#define AssertMessage(Expression, Message) assert(Expression && Message)
+#define AssertMessage(Expression, Message) assert(Expression &&Message)
 
 #include "../../data/codegen/FileMap.h"
 #include "../../data/codegen/ShaderMap.h"
 #include "../../data/codegen/EditorWindowsConfigMap.h"
 
 #define SHADER_PREFIX "shaders/core/"
-#define SOURCE_TYPE const char* const
 
 #include <SDL.h>
 
@@ -53,7 +52,7 @@ i32 CALLBACK WinMain(
     i32 ShowCode)
 {
     size_t permanentStorageSize = Megabytes(64);
-    void* permanentStorage = malloc(permanentStorageSize);
+    void *permanentStorage = malloc(permanentStorageSize);
 
     permanentState = (PermanentData *)permanentStorage;
 
@@ -87,19 +86,23 @@ i32 CALLBACK WinMain(
 
     InitEngine();
 
-    if(!InitSDL()) {
+    if (!InitSDL())
+    {
         return -1;
     }
 
-    if(!SetupWindow()) {
+    if (!SetupWindow())
+    {
         return -1;
     }
 
-	if (gl3wInit()) {
-		return -1;
-	}
+    if (gl3wInit())
+    {
+        return -1;
+    }
 
-    if(!SetupTime()) {
+    if (!SetupTime())
+    {
         return -1;
     }
 
@@ -111,15 +114,15 @@ i32 CALLBACK WinMain(
 
     DeserializeTable(&permanentState->arena, &editorSave, EDITOR_SAVE_PATH);
     DeserializeTable(&permanentState->arena, &saveData, GetSavePath());
-    
+
     EditorInit();
 
 #ifdef LUA_ENABLED
     LUAScriptingInit();
 #endif
-    
+
     GameInit();
-    
+
     DefaultAssets();
 
     SoundInit();
@@ -131,7 +134,7 @@ i32 CALLBACK WinMain(
     while (gameState->game.running)
     {
         OPTICK_FRAME("MainThread");
-        
+
         GetProcessMemoryInfo(processHandle, &editorMemoryDebugger.memoryCounters, sizeof(PROCESS_MEMORY_COUNTERS));
 
         LARGE_INTEGER performanceStart;
@@ -146,49 +149,60 @@ i32 CALLBACK WinMain(
         keyboardEnabled = !imguiIO.WantCaptureKeyboard;
 
         editorTimeDebugger.frameTimeBuffer[editorTimeDebugger.debuggerOffset] = 1000.0f / imguiIO.Framerate;
-        if(gameState->time.gameTime > 2 && editorTimeDebugger.frameTimeBuffer[editorTimeDebugger.debuggerOffset] > editorTimeDebugger.frameTimeMax) {
+        if (gameState->time.gameTime > 2 && editorTimeDebugger.frameTimeBuffer[editorTimeDebugger.debuggerOffset] > editorTimeDebugger.frameTimeMax)
+        {
             editorTimeDebugger.frameTimeMax = editorTimeDebugger.frameTimeBuffer[editorTimeDebugger.debuggerOffset] * 2;
         }
         editorTimeDebugger.fpsBuffer[editorTimeDebugger.debuggerOffset] = imguiIO.Framerate;
-        if(gameState->time.gameTime > 2 && editorTimeDebugger.fpsBuffer[editorTimeDebugger.debuggerOffset] > editorTimeDebugger.fpsMax) {
+        if (gameState->time.gameTime > 2 && editorTimeDebugger.fpsBuffer[editorTimeDebugger.debuggerOffset] > editorTimeDebugger.fpsMax)
+        {
             editorTimeDebugger.fpsMax = editorTimeDebugger.fpsBuffer[editorTimeDebugger.debuggerOffset] * 2;
         }
         editorTimeDebugger.debuggerOffset = (editorTimeDebugger.debuggerOffset + 1) % TIME_BUFFER_SIZE;
 
         SDL_Event event;
-        while(SDL_PollEvent(&event)) {
+        while (SDL_PollEvent(&event))
+        {
             ImGui_ImplSDL2_ProcessEvent(&event);
             ProcessEvent(&event);
         }
-    
-        if(editorRenderDebugger.recording) {
+
+        if (editorRenderDebugger.recording)
+        {
             char frameNameBuffer[256];
             sprintf(frameNameBuffer, "dump/frame_%05d%s", gameState->time.gameFrames, recordingFormatExtensions[(int)editorRenderDebugger.recordingFormat]);
-            if(gameState->render.framebufferEnabled != 0) {
+            if (gameState->render.framebufferEnabled != 0)
+            {
                 RecordFrame(frameNameBuffer, gameState->render.frameBuffer, (u32)gameState->render.scaledBufferSize.x, (u32)gameState->render.scaledBufferSize.y);
             }
-            else {
+            else
+            {
                 Log("No framebuffer found, texture cannot be dumped (for now)");
             }
         }
 
-        if(editorPreview.open && editorPreview.focused) {
+        if (editorPreview.open && editorPreview.focused)
+        {
             SDL_ShowCursor(editorPreview.cursorInsideWindow);
-            if(editorPreview.cursorInsideWindow) {
+            if (editorPreview.cursorInsideWindow)
+            {
                 v2 lastMousePosition = ViewportToBuffer(editorPreview.lastCursorPosition.x, editorPreview.lastCursorPosition.y);
                 gameState->input.mousePosition = ViewportToBuffer(editorPreview.cursorPosition.x, editorPreview.cursorPosition.y);
                 gameState->input.mouseDeltaPosition.x = gameState->input.mousePosition.x - lastMousePosition.x;
                 gameState->input.mouseDeltaPosition.y = gameState->input.mousePosition.y - lastMousePosition.y;
 
-                if(gameState->input.mouseTextureID != 0) {
+                if (gameState->input.mouseTextureID != 0)
+                {
                     ImGui::SetMouseCursor(ImGuiMouseCursor_None);
                     imguiIO.MouseDrawCursor = false;
                 }
             }
         }
-        else {
+        else
+        {
             SDL_ShowCursor(mouseEnabled);
-            if(mouseEnabled) {
+            if (mouseEnabled)
+            {
                 ImGui::SetMouseCursor(ImGuiMouseCursor_None);
                 imguiIO.MouseDrawCursor = false;
             }
@@ -200,7 +214,8 @@ i32 CALLBACK WinMain(
 
         UpdateStringAllocator(stringAllocator);
 
-        if(gameState->time.gameTime > editorState->lastWatchSecond + 1) {
+        if (gameState->time.gameTime > editorState->lastWatchSecond + 1)
+        {
 #ifdef LUA_ENABLED
             LUAScriptingWatchChanges();
 #endif
@@ -213,7 +228,8 @@ i32 CALLBACK WinMain(
         i64 luaUpdateCyclesStart = __rdtsc();
         i64 luaUpdateCyclesEnd = __rdtsc();
 
-        if(editorState->editorFrameRunning || editorState->playNextFrame) {
+        if (editorState->editorFrameRunning || editorState->playNextFrame)
+        {
             RenderDebugStart();
 
             CommonBegin2D();
@@ -224,13 +240,15 @@ i32 CALLBACK WinMain(
 #endif
             QueryPerformanceCounter(&luaPerformanceEnd);
         }
-        else {
+        else
+        {
             RenderDebugStart();
         }
 
         EditorDrawAll();
 
-        if(editorState->editorFrameRunning || editorState->playNextFrame) {
+        if (editorState->editorFrameRunning || editorState->playNextFrame)
+        {
             EngineUpdate();
 
             RenderPass();
@@ -238,12 +256,14 @@ i32 CALLBACK WinMain(
             RenderDebugEnd();
             End2D();
         }
-        else {
+        else
+        {
             RenderPass();
             RenderDebugEnd();
         }
 
-        if(gameState->render.framebufferEnabled) {
+        if (gameState->render.framebufferEnabled)
+        {
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
         }
 
@@ -251,14 +271,16 @@ i32 CALLBACK WinMain(
         RunLUAProtectedFunction(EditorUpdate)
 #endif
 
-        if(gameState->render.framebufferEnabled) {
-            if(!editorPreview.open) {
+            if (gameState->render.framebufferEnabled)
+        {
+            if (!editorPreview.open)
+            {
                 // #NOTE (Juan): Render framebuffer to actual screen buffer, save data and then restore it
                 bool tempWireframeMode = editorRenderDebugger.wireframeMode;
                 editorRenderDebugger.wireframeMode = false;
 
                 RenderFramebuffer();
-                
+
                 editorRenderDebugger.wireframeMode = tempWireframeMode;
             }
         }
@@ -267,9 +289,9 @@ i32 CALLBACK WinMain(
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
         CheckInput();
-        
+
         SDL_GL_SwapWindow(sdlWindow);
-        
+
         LARGE_INTEGER performanceEnd;
         QueryPerformanceCounter(&performanceEnd);
         i64 updateCyclesEnd = __rdtsc();
@@ -279,12 +301,13 @@ i32 CALLBACK WinMain(
         editorPerformanceDebugger.luaUpdateCycles = luaUpdateCyclesEnd - luaUpdateCyclesStart;
 
         ++frameCount;
-        if(frameCount >= editorTimeDebugger.framesMultiplier) {
+        if (frameCount >= editorTimeDebugger.framesMultiplier)
+        {
             WaitFPSLimit();
             frameCount = 0;
         }
     }
-    
+
 #ifdef LUA_ENABLED
     RunLUAProtectedFunction(EditorEnd);
 #endif
@@ -292,7 +315,7 @@ i32 CALLBACK WinMain(
     GameEnd();
 
     SaveConfig();
-    
+
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplSDL2_Shutdown();
     ImGui::DestroyContext();

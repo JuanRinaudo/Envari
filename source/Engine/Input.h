@@ -12,6 +12,26 @@ void DisableCustomCursor()
     gameState->input.mouseTextureID = 0;
 }
 
+bool GetKeyPressed(i32 scancode)
+{
+    return gameState->input.keyState[scancode] == KEY_PRESSED;
+}
+
+bool GetKeyReleased(i32 scancode)
+{
+    return gameState->input.keyState[scancode] == KEY_RELEASED;
+}
+
+bool GetKeyDown(i32 scancode)
+{
+    return gameState->input.keyState[scancode] == KEY_PRESSED || gameState->input.keyState[scancode] == KEY_DOWN;
+}
+
+bool GetKeyUp(i32 scancode)
+{
+    return gameState->input.keyState[scancode] == KEY_RELEASED || gameState->input.keyState[scancode] == KEY_UP;
+}
+
 bool GetKeyPressed(const char *key)
 {
     SDL_Scancode scancode = SDL_GetScancodeFromName(key);

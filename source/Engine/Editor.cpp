@@ -2673,6 +2673,11 @@ static void EditorDrawAll()
         ImGui::PopStyleColor();
         ImGui::PopStyleColor();
     }
+
+    if(!editorState->layoutDrawn) {
+        editorState->layoutDrawn = true;
+        RunLUAProtectedFunction(EditorLayoutDrawn)
+    }
 }
 
 static void EditorEnd()

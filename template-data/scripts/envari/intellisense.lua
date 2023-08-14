@@ -7,6 +7,7 @@ function Update() end
 function Unload() end
 function End() end
 function EditorInit() end
+function EditorLayoutDrawn() end
 function EditorUpdate() end
 function EditorEnd() end
 function EditorConsoleDebugBar() end

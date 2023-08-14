@@ -31,9 +31,11 @@ struct EditorData {
     f32 lastWatchSecond = 0;
 
     bool initialized;
+    bool firstDraw;
     MemoryArena arena;
 
     bool layoutInited;
+    bool layoutDrawn;
     bool demoWindow;
 
     u32 dockspaceID;

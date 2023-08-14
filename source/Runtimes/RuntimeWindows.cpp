@@ -17,7 +17,6 @@
 #include "../../data/codegen/WindowsConfigMap.h"
 
 #define SHADER_PREFIX "shaders/core/"
-#define SOURCE_TYPE const char* const
 
 #include <gl3w.c>
 

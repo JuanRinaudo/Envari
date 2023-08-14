@@ -446,10 +446,14 @@ void LUAScriptingBindings()
     lua["MouseOverRectangle"] = MouseOverRectangleLUA;
     lua["ClickOverRectangle"] = ClickOverRectangleLUA;
     lua["ClickedOverRectangle"] = ClickedOverRectangleLUA;
-    lua["GetKeyPressed"] = GetKeyPressed;
-    lua["GetKeyReleased"] = GetKeyReleased;
-    lua["GetKeyDown"] = GetKeyDown;
-    lua["GetKeyUp"] = GetKeyUp;
+    lua["GetKeyPressed"] = sol::resolve<bool(const char *)>(GetKeyPressed);
+    lua["GetKeyReleased"] = sol::resolve<bool(const char *)>(GetKeyReleased);
+    lua["GetKeyDown"] = sol::resolve<bool(const char *)>(GetKeyDown);
+    lua["GetKeyUp"] = sol::resolve<bool(const char *)>(GetKeyUp);
+    lua["GetScancodePressed"] = sol::resolve<bool(i32)>(GetKeyPressed);
+    lua["GetScancodeReleased"] = sol::resolve<bool(i32)>(GetKeyReleased);
+    lua["GetScancodeDown"] = sol::resolve<bool(i32)>(GetKeyDown);
+    lua["GetScancodeUp"] = sol::resolve<bool(i32)>(GetKeyUp);
     lua["GetClipboardText"] = SDL_GetClipboardText;
     lua["SetClipboardText"] = SDL_SetClipboardText;
 

@@ -27,7 +27,7 @@
 #include <MathStructs.h>
 #include <GameStructs.h>
 
-DataTable* initialConfig = NULL;
+DataTable *initialConfig = NULL;
 
 RenderState *renderState;
 
@@ -39,9 +39,9 @@ TemporalData *temporalState;
 TemporaryMemory renderTemporaryMemory;
 TemporaryMemory renderStepTemporaryMemory;
 
-SerializableTable* configSave = 0;
-SerializableTable* saveData = 0;
-SerializableTable* editorSave = 0;
+SerializableTable *configSave = 0;
+SerializableTable *saveData = 0;
+SerializableTable *editorSave = 0;
 
 #ifdef LUA_ENABLED
 #define SOL_ALL_SAFETIES_ON 1
@@ -86,15 +86,17 @@ void SaveData();
 static u32 GameInit()
 {
     ChangeLogFlag(LogFlag_GAME);
-    
+
     gameState->game.version = 1;
     gameState->game.updateRunning = true;
 
-    if(gameState->render.bufferSize.x > 0) {
+    if (gameState->render.bufferSize.x > 0)
+    {
         gameState->camera.size = gameState->render.bufferSize.y;
         gameState->camera.ratio = gameState->render.bufferSize.x / gameState->render.bufferSize.y;
     }
-    else {
+    else
+    {
         gameState->camera.size = gameState->render.size.y;
         gameState->camera.ratio = gameState->render.size.x / gameState->render.size.y;
     }
@@ -112,14 +114,14 @@ static u32 GameInit()
     ChangeLogFlag(LogFlag_LUA_SCRIPTING);
 
     LoadLUAScene(TableGetString(&initialConfig, CONFIG_INITLUASCRIPT));
-    #ifdef PLATFORM_EDITOR
+#ifdef PLATFORM_EDITOR
     RunLUAProtectedFunction(EditorInit)
-    #endif
+#endif
 #endif
 #ifdef CSCRIPTING_ENABLED
-    CInit();
+        CInit();
 #endif
-    
+
     return 1;
 }
 
@@ -127,16 +129,19 @@ static u32 GameUpdate()
 {
     ChangeLogFlag(LogFlag_GAME);
 
-    if(gameState->game.sceneChanged) {
+    if (gameState->game.sceneChanged)
+    {
         RunLUAProtectedFunction(Start)
-        gameState->game.sceneChanged = false;
+            gameState->game.sceneChanged = false;
     }
-    
-    if(gameState->game.updateRunning) {
+
+    if (gameState->game.updateRunning)
+    {
         f32 fps = (f32)(1 / gameState->time.deltaTime);
     }
 
-    if(gameState->input.mouseTextureID) {
+    if (gameState->input.mouseTextureID)
+    {
         DrawColor(1, 1, 1, 1);
         DrawTexture(gameState->input.mousePosition.x, gameState->input.mousePosition.y, gameState->input.mouseTextureSize.x, gameState->input.mouseTextureSize.y, gameState->input.mouseTextureID);
     }
@@ -154,7 +159,7 @@ static u32 GameEnd()
     RunLUAProtectedFunction(End)
 #endif
 #ifdef CSCRIPTING_ENABLED
-    CEnd();
+        CEnd();
 #endif
 
     return 1;
